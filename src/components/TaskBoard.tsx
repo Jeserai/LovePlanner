@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { PlusIcon, StarIcon, GiftIcon, CheckIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import PixelIcon from './PixelIcon';
+import PointsDisplay from './PointsDisplay';
 
 interface Task {
   id: string;
@@ -265,31 +267,22 @@ const TaskBoard: React.FC = () => {
           }`}>
             {theme === 'pixel' ? 'TASK_MANAGER.EXE' : '任务看板'}
           </h2>
-          <div className={`flex items-center space-x-1 px-3 py-1 ${
-            theme === 'pixel' 
-              ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel' 
-              : 'bg-white/60 backdrop-blur-md rounded-xl'
-          }`}>
-            <GiftIcon className={`w-5 h-5 ${theme === 'pixel' ? 'text-pixel-accent' : 'text-secondary-600'}`} />
-            <span className={`font-bold ${
-              theme === 'pixel' 
-                ? 'text-pixel-text font-mono'
-                : 'text-gray-700'
-            }`}>
-              {theme === 'pixel' ? 'PTS:' : '积分:'} {userPoints.me}
-            </span>
-          </div>
+          <PointsDisplay points={userPoints.me} />
         </div>
         
         <button
           onClick={() => setShowAddForm(true)}
           className={`flex items-center space-x-2 px-6 py-3 font-bold transition-all duration-300 ${
             theme === 'pixel'
-              ? 'bg-pixel-success text-black rounded-pixel shadow-pixel hover:shadow-pixel-lg hover:translate-y-[-2px] border-4 border-black font-mono uppercase tracking-wider'
+              ? 'pixel-btn-neon text-white rounded-pixel pixel-border-primary hover:shadow-pixel-neon-strong hover:translate-y-[-2px] font-mono uppercase tracking-wider'
               : 'btn-primary'
           }`}
         >
-          <PlusIcon className="w-5 h-5" />
+          {theme === 'pixel' ? (
+            <PixelIcon name="plus" className="text-current" glow />
+          ) : (
+            <PlusIcon className="w-5 h-5" />
+          )}
           <span>{theme === 'pixel' ? 'NEW_TASK' : '新建任务'}</span>
         </button>
       </div>
@@ -449,110 +442,196 @@ const TaskBoard: React.FC = () => {
       {/* Add Task Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="card-cutesy p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-display font-bold mb-4 text-gray-800">
-              发布新任务
+          <div className={`p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto ${
+            theme === 'pixel' 
+              ? 'bg-pixel-panel pixel-container rounded-pixel shadow-pixel-lg neon-border' 
+              : 'card-cutesy'
+          }`}>
+            <h3 className={`text-xl font-bold mb-4 ${
+              theme === 'pixel' 
+                ? 'font-retro text-pixel-text uppercase tracking-wider neon-text' 
+                : 'font-display text-gray-800'
+            }`}>
+              {theme === 'pixel' ? 'ADD_NEW_TASK' : '发布新任务'}
             </h3>
             
             <div className="space-y-4">
+              {/* 任务标题 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  任务标题
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
+                    : 'text-gray-700'
+                }`}>
+                  {theme === 'pixel' ? 'TASK_TITLE *' : '任务标题 *'}
                 </label>
                 <input
                   type="text"
                   value={newTask.title}
                   onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                  className="input-cutesy w-full"
-                  placeholder="输入任务标题..."
+                  className={`w-full ${
+                    theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                  }`}
+                  placeholder={theme === 'pixel' ? 'ENTER_TASK_TITLE...' : '输入任务标题...'}
                 />
               </div>
 
+              {/* 任务描述 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  任务描述
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
+                    : 'text-gray-700'
+                }`}>
+                  {theme === 'pixel' ? 'TASK_DESCRIPTION *' : '任务描述 *'}
                 </label>
                 <textarea
                   value={newTask.description}
                   onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                  className="input-cutesy w-full h-20 resize-none"
-                  placeholder="详细描述任务内容..."
+                  className={`w-full h-20 resize-none ${
+                    theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                  }`}
+                  placeholder={theme === 'pixel' ? 'ENTER_TASK_DESCRIPTION...' : '详细描述任务内容...'}
                 />
               </div>
 
+              {/* 积分奖励 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  积分奖励
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
+                    : 'text-gray-700'
+                }`}>
+                  {theme === 'pixel' ? 'POINTS_REWARD *' : '积分奖励 *'}
                 </label>
                 <input
                   type="number"
                   value={newTask.points}
                   onChange={(e) => setNewTask({...newTask, points: parseInt(e.target.value) || 0})}
-                  className="input-cutesy w-full"
+                  className={`w-full ${
+                    theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                  }`}
                   min="10"
                   max="200"
                 />
+                <p className={`text-xs mt-1 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-textMuted font-mono' 
+                    : 'text-gray-500'
+                }`}>
+                  {theme === 'pixel' ? 'RANGE: 10-200 POINTS' : '范围：10-200积分'}
+                </p>
               </div>
 
               {/* 截止日期 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <CalendarIcon className="w-4 h-4 inline mr-1" />
-                  截止日期 (可选)
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
+                    : 'text-gray-700'
+                }`}>
+                  {theme === 'pixel' ? (
+                    <span>DEADLINE</span>
+                  ) : (
+                    <>
+                      <CalendarIcon className="w-4 h-4 inline mr-1" />
+                      截止日期 (可选)
+                    </>
+                  )}
                 </label>
                 <input
                   type="date"
                   value={newTask.deadline}
                   onChange={(e) => setNewTask({...newTask, deadline: e.target.value})}
-                  className="input-cutesy w-full"
+                  className={`w-full ${
+                    theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                  }`}
                   min={new Date().toISOString().split('T')[0]}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  设置截止日期可以帮助优先处理紧急任务
+                <p className={`text-xs mt-1 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-textMuted font-mono' 
+                    : 'text-gray-500'
+                }`}>
+                  {theme === 'pixel' ? 'OPTIONAL_HELPS_PRIORITIZE_URGENT_TASKS' : '设置截止日期可以帮助优先处理紧急任务'}
                 </p>
               </div>
 
+              {/* 分配给 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  分配给
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
+                    : 'text-gray-700'
+                }`}>
+                  {theme === 'pixel' ? 'ASSIGN_TO *' : '分配给 *'}
                 </label>
                 <div className="flex space-x-3">
                   <button
                     onClick={() => setNewTask({...newTask, assignedTo: 'me'})}
-                    className={`flex-1 py-2 px-4 rounded-xl border-2 transition-all duration-300 ${
-                      newTask.assignedTo === 'me'
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                    className={`flex-1 py-2 px-4 border-2 transition-all duration-300 ${
+                      theme === 'pixel'
+                        ? `rounded-pixel font-mono uppercase ${
+                            newTask.assignedTo === 'me'
+                              ? 'bg-pixel-info text-black border-white shadow-pixel neon-border'
+                              : 'border-pixel-border text-pixel-text hover:border-pixel-info'
+                          }`
+                        : `rounded-xl ${
+                            newTask.assignedTo === 'me'
+                              ? 'border-primary-500 bg-primary-50 text-primary-700'
+                              : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                          }`
                     }`}
                   >
-                    我
+                    {theme === 'pixel' ? 'ME' : '我'}
                   </button>
                   <button
                     onClick={() => setNewTask({...newTask, assignedTo: 'partner'})}
-                    className={`flex-1 py-2 px-4 rounded-xl border-2 transition-all duration-300 ${
-                      newTask.assignedTo === 'partner'
-                        ? 'border-secondary-500 bg-secondary-50 text-secondary-700'
-                        : 'border-gray-200 text-gray-600 hover:border-secondary-300'
+                    className={`flex-1 py-2 px-4 border-2 transition-all duration-300 ${
+                      theme === 'pixel'
+                        ? `rounded-pixel font-mono uppercase ${
+                            newTask.assignedTo === 'partner'
+                              ? 'bg-pixel-purple text-white border-white shadow-pixel neon-border'
+                              : 'border-pixel-border text-pixel-text hover:border-pixel-purple'
+                          }`
+                        : `rounded-xl ${
+                            newTask.assignedTo === 'partner'
+                              ? 'border-secondary-500 bg-secondary-50 text-secondary-700'
+                              : 'border-gray-200 text-gray-600 hover:border-secondary-300'
+                          }`
                     }`}
                   >
-                    TA
+                    {theme === 'pixel' ? 'PARTNER' : 'TA'}
                   </button>
                 </div>
               </div>
 
+              {/* 任务类型 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  任务类型
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
+                    : 'text-gray-700'
+                }`}>
+                  {theme === 'pixel' ? 'TASK_TYPE *' : '任务类型 *'}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {['daily', 'special', 'romantic'].map(category => (
                     <button
                       key={category}
                       onClick={() => setNewTask({...newTask, category: category as any})}
-                      className={`py-2 px-3 rounded-xl border-2 text-sm transition-all duration-300 ${
-                        newTask.category === category
-                          ? `border-${getCategoryColor(category).replace('bg-', '')} bg-${getCategoryColor(category).replace('bg-', '')}/10`
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      className={`py-2 px-3 text-sm transition-all duration-300 ${
+                        theme === 'pixel' 
+                          ? `rounded-pixel border-2 font-mono uppercase ${
+                              newTask.category === category
+                                ? `${getCategoryColor(category)} border-white shadow-pixel neon-border`
+                                : 'border-pixel-border text-pixel-text hover:border-pixel-info hover:bg-pixel-card'
+                            }`
+                          : `rounded-xl border-2 ${
+                              newTask.category === category
+                                ? `border-${getCategoryColor(category).replace('bg-', '')} bg-${getCategoryColor(category).replace('bg-', '')}/10`
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                            }`
                       }`}
                     >
                       {getCategoryName(category)}
@@ -565,15 +644,32 @@ const TaskBoard: React.FC = () => {
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={() => setShowAddForm(false)}
-                className="flex-1 py-3 px-4 border-2 border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all duration-300"
+                className={`flex-1 py-3 px-4 border-2 transition-all duration-300 ${
+                  theme === 'pixel'
+                    ? 'border-pixel-border text-pixel-text rounded-pixel hover:bg-pixel-card font-mono uppercase'
+                    : 'border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50'
+                }`}
               >
-                取消
+                {theme === 'pixel' ? 'CANCEL' : '取消'}
               </button>
               <button
                 onClick={handleAddTask}
-                className="flex-1 btn-primary"
+                disabled={!newTask.title || !newTask.description}
+                className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                  theme === 'pixel'
+                    ? `rounded-pixel font-mono uppercase ${
+                        newTask.title && newTask.description
+                          ? 'pixel-btn-neon text-white border-4 border-white'
+                          : 'bg-pixel-card text-pixel-textMuted border-2 border-pixel-border cursor-not-allowed'
+                      }`
+                    : `rounded-xl ${
+                        newTask.title && newTask.description
+                          ? 'btn-primary'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`
+                }`}
               >
-                发布
+                {theme === 'pixel' ? 'PUBLISH_TASK' : '发布'}
               </button>
             </div>
           </div>

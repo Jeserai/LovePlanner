@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { ShoppingBagIcon, GiftIcon, HeartIcon, SparklesIcon, StarIcon } from '@heroicons/react/24/outline';
+import PointsDisplay from './PointsDisplay';
 
 interface ShopItem {
   id: string;
@@ -123,20 +124,7 @@ const Shop: React.FC = () => {
           }`}>
             {theme === 'pixel' ? 'LOVE_SHOP.EXE' : '个人商店'}
           </h2>
-          <div className={`flex items-center space-x-2 px-4 py-2 ${
-            theme === 'pixel' 
-              ? 'bg-pixel-card border-4 border-black rounded-pixel shadow-pixel' 
-              : 'bg-gradient-to-r from-secondary-400 to-secondary-500 text-white rounded-xl shadow-dream'
-          }`}>
-            <GiftIcon className={`w-5 h-5 ${theme === 'pixel' ? 'text-pixel-accent' : ''}`} />
-            <span className={`font-bold ${
-              theme === 'pixel' 
-                ? 'text-pixel-text font-mono'
-                : ''
-            }`}>
-              {theme === 'pixel' ? 'COINS:' : '积分:'} {userPoints}
-            </span>
-          </div>
+          <PointsDisplay points={userPoints} />
         </div>
       </div>
 
@@ -149,10 +137,10 @@ const Shop: React.FC = () => {
           return (
             <div
               key={item.id}
-              className={`p-6 transition-all duration-300 ${
+              className={`p-4 transition-all duration-300 hover:transform hover:scale-105 ${
                 theme === 'pixel' 
-                  ? `bg-pixel-panel border-4 border-pixel-border rounded-pixel hover:shadow-pixel ${isPurchased ? 'border-pixel-success' : ''}`
-                  : `card-cutesy hover:scale-105 ${isPurchased ? 'border-2 border-secondary-400' : ''}`
+                  ? `bg-pixel-panel pixel-card rounded-pixel hover:shadow-pixel ${isPurchased ? 'pixel-border-success' : ''}`
+                  : `card-cutesy ${isPurchased ? 'border-2 border-primary-300 bg-primary-50' : ''}`
               }`}
             >
               {/* Item Icon & Category */}

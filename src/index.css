@@ -314,4 +314,152 @@ body.monet-theme {
 .pixel-theme ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #ff1493, #00ffff);
   box-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
+}
+
+/* 像素风统一边框系统 */
+.pixel-border-primary {
+  border: 4px solid #ffffff;
+  box-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.3),
+    inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.pixel-border-secondary {
+  border: 2px solid #4a4a66;
+  box-shadow: 
+    0 0 5px rgba(74, 74, 102, 0.3),
+    inset 0 0 5px rgba(74, 74, 102, 0.1);
+}
+
+.pixel-border-accent {
+  border: 4px solid #ff0080;
+  box-shadow: 
+    0 0 15px rgba(255, 0, 128, 0.5),
+    inset 0 0 10px rgba(255, 0, 128, 0.2);
+}
+
+.pixel-border-success {
+  border: 4px solid #00ff88;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 136, 0.5),
+    inset 0 0 10px rgba(0, 255, 136, 0.2);
+}
+
+.pixel-border-info {
+  border: 4px solid #00d4ff;
+  box-shadow: 
+    0 0 15px rgba(0, 212, 255, 0.5),
+    inset 0 0 10px rgba(0, 212, 255, 0.2);
+}
+
+.pixel-border-warning {
+  border: 4px solid #ffff00;
+  box-shadow: 
+    0 0 15px rgba(255, 255, 0, 0.5),
+    inset 0 0 10px rgba(255, 255, 0, 0.2);
+}
+
+.pixel-border-purple {
+  border: 4px solid #9d4eff;
+  box-shadow: 
+    0 0 15px rgba(157, 78, 255, 0.5),
+    inset 0 0 10px rgba(157, 78, 255, 0.2);
+}
+
+.pixel-border-dark {
+  border: 4px solid #000000;
+  box-shadow: 
+    0 0 10px rgba(0, 0, 0, 0.5),
+    inset 0 0 5px rgba(255, 255, 255, 0.1);
+}
+
+/* 像素风容器边框统一样式 */
+.pixel-container {
+  border: 4px solid #ffffff;
+  border-radius: 0;
+  box-shadow: 
+    0 0 15px rgba(255, 255, 255, 0.3),
+    inset 0 0 10px rgba(255, 255, 255, 0.1),
+    4px 4px 0px #000000;
+}
+
+.pixel-panel {
+  border: 4px solid #4a4a66;
+  border-radius: 0;
+  box-shadow: 
+    0 0 10px rgba(74, 74, 102, 0.3),
+    inset 0 0 5px rgba(74, 74, 102, 0.1),
+    2px 2px 0px #000000;
+}
+
+.pixel-card {
+  border: 2px solid #4a4a66;
+  border-radius: 0;
+  box-shadow: 
+    0 0 5px rgba(74, 74, 102, 0.2),
+    inset 0 0 3px rgba(74, 74, 102, 0.1),
+    1px 1px 0px #000000;
+}
+
+.pixel-input {
+  border: 3px solid #4a4a66;
+  border-radius: 0;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.3),
+    0 0 5px rgba(0, 212, 255, 0.3);
+}
+
+.pixel-input:focus {
+  border-color: #00d4ff;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.2),
+    0 0 15px rgba(0, 212, 255, 0.6),
+    0 0 25px rgba(0, 212, 255, 0.4);
+}
+
+.pixel-button {
+  border: 4px solid #ffffff;
+  border-radius: 0;
+  box-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.3),
+    inset 0 0 5px rgba(255, 255, 255, 0.2),
+    2px 2px 0px #000000;
+  transition: all 0.3s ease;
+}
+
+.pixel-button:hover {
+  box-shadow: 
+    0 0 20px rgba(255, 255, 255, 0.5),
+    inset 0 0 10px rgba(255, 255, 255, 0.3),
+    4px 4px 0px #000000;
+  transform: translateY(-2px);
+}
+
+.pixel-button:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.3),
+    inset 0 0 5px rgba(255, 255, 255, 0.2),
+    1px 1px 0px #000000;
+}
+
+/* 像素风霓虹边框增强 */
+.neon-border {
+  animation: neon-border-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes neon-border-pulse {
+  0% {
+    box-shadow: 
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      inset 0 0 5px currentColor;
+  }
+  100% {
+    box-shadow: 
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 30px currentColor,
+      inset 0 0 10px currentColor;
+  }
 } 
