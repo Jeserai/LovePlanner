@@ -1,0 +1,134 @@
+# Dependencies - 依赖包文件夹
+node_modules/
+/.pnp
+.pnp.js
+
+# Production builds - 生产构建输出
+/.next/
+/out/
+build/
+dist/
+
+# Environment variables - 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Runtime data - 运行时数据
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Logs - 日志文件
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Coverage directory used by tools like istanbul - 测试覆盖率报告
+coverage/
+*.lcov
+.nyc_output
+
+# Dependency directories - 依赖目录
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory - npm缓存
+.npm
+
+# Optional eslint cache - ESLint缓存
+.eslintcache
+
+# Microbundle cache - 构建工具缓存
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history - 交互式解释器历史
+.node_repl_history
+
+# Output of 'npm pack' - npm打包输出
+*.tgz
+
+# Yarn Integrity file - Yarn完整性文件
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/) - Parcel缓存
+.cache
+.parcel-cache
+
+# Next.js build output - Next.js构建输出
+.next
+
+# Nuxt.js build / generate output - Nuxt.js输出
+.nuxt
+dist
+
+# Storybook build outputs - Storybook构建输出
+.out
+.storybook-out
+
+# Temporary folders - 临时文件夹
+tmp/
+temp/
+
+# Runtime configuration files - 运行时配置
+.vscode/
+.idea/
+
+# OS generated files - 操作系统生成的文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Vercel deployment files - Vercel部署文件
+.vercel
+
+# TypeScript cache - TypeScript缓存
+*.tsbuildinfo
+next-env.d.ts
+
+# Prisma (if using database) - 数据库相关
+prisma/migrations/*/migration.sql
+
+# Local development files - 本地开发文件
+.env.development
+.env.production
+
+# Backup files - 备份文件
+*.bak
+*.backup
+*.swp
+*.tmp
+
+# Editor directories and files - 编辑器文件
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Testing - 测试相关
+/coverage
+/cypress/videos
+/cypress/screenshots
+
+# PWA files - PWA相关
+**/sw.js
+**/workbox-*.js
+
+# Local configuration - 本地配置
+.local 

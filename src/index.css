@@ -1,0 +1,333 @@
+/* 根级样式 - 确保默认像素主题立即生效 */
+:root {
+  color-scheme: dark;
+}
+
+html {
+  color-scheme: dark;
+}
+
+/* 默认像素主题样式 */
+html.pixel,
+body.pixel-theme {
+  background: linear-gradient(135deg, #0a0a0f 0%, #151520 50%, #1f1f2e 100%);
+  color: #ffffff;
+  font-family: 'Courier New', monospace;
+}
+
+/* 莫奈主题样式 */
+html.monet,
+body.monet-theme {
+  background: linear-gradient(135deg, #f7faff 0%, #f8fdfb 25%, #fffcf8 50%, #fcfbff 75%, #fafbfa 100%);
+  color: #333333;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* 像素风专用样式增强 */
+.pixel-scanlines {
+  position: relative;
+  overflow: hidden;
+}
+
+.pixel-scanlines::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 128, 0.03) 2px,
+    rgba(0, 255, 128, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pixel-matrix {
+  position: relative;
+  overflow: hidden;
+}
+
+.pixel-matrix::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: 0;
+  right: 0;
+  height: 200%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 255, 128, 0.1) 50%,
+    transparent 100%
+  );
+  animation: matrix-rain 3s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes matrix-rain {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+/* 增强霓虹发光效果 */
+.neon-text {
+  text-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px currentColor,
+    0 0 20px currentColor;
+}
+
+.neon-border {
+  box-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    inset 0 0 5px currentColor;
+}
+
+.cyber-glitch {
+  position: relative;
+}
+
+.cyber-glitch::before,
+.cyber-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+  z-index: -1;
+}
+
+.cyber-glitch::before {
+  color: #ff0080;
+  animation: glitch-1 0.3s infinite;
+}
+
+.cyber-glitch::after {
+  color: #00d4ff;
+  animation: glitch-2 0.3s infinite;
+}
+
+@keyframes glitch-1 {
+  0%, 14%, 15%, 49%, 50%, 99%, 100% {
+    transform: translate(0);
+  }
+  15%, 49% {
+    transform: translate(-2px, 0);
+  }
+}
+
+@keyframes glitch-2 {
+  0%, 20%, 21%, 62%, 63%, 99%, 100% {
+    transform: translate(0);
+  }
+  21%, 62% {
+    transform: translate(2px, 0);
+  }
+}
+
+/* CRT屏幕效果 */
+.crt-screen {
+  position: relative;
+  background: radial-gradient(ellipse at center, #151520 0%, #0a0a0f 100%);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.crt-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 4px,
+      rgba(0, 255, 128, 0.02) 4px,
+      rgba(0, 255, 128, 0.02) 8px
+    );
+  pointer-events: none;
+  z-index: 10;
+}
+
+.crt-screen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 40%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* 像素风按钮增强 */
+.pixel-btn-neon {
+  position: relative;
+  background: linear-gradient(45deg, #ff0080, #ff1493);
+  border: 2px solid #ffffff;
+  box-shadow: 
+    0 0 10px rgba(255, 0, 128, 0.5),
+    inset 0 0 10px rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.pixel-btn-neon:hover {
+  box-shadow: 
+    0 0 20px rgba(255, 0, 128, 0.8),
+    0 0 30px rgba(255, 0, 128, 0.6),
+    inset 0 0 15px rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.pixel-btn-neon:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 0 15px rgba(255, 0, 128, 0.6),
+    inset 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* 数据流效果 */
+@keyframes data-stream {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.data-stream {
+  position: relative;
+  overflow: hidden;
+}
+
+.data-stream::before {
+  content: '01010101010101010101';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: #00ff88;
+  opacity: 0.3;
+  animation: data-stream 4s linear infinite;
+  white-space: nowrap;
+}
+
+/* 增强像素风输入框 */
+.pixel-input-glow {
+  background: #1f1f2e;
+  border: 2px solid #333344;
+  color: #ffffff;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.5),
+    0 0 5px rgba(0, 212, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.pixel-input-glow:focus {
+  border-color: #00d4ff;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.3),
+    0 0 15px rgba(0, 212, 255, 0.6),
+    0 0 25px rgba(0, 212, 255, 0.4);
+  outline: none;
+}
+
+/* 像素风进度条 */
+.pixel-progress {
+  background: #151520;
+  border: 2px solid #333344;
+  border-radius: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.pixel-progress-bar {
+  background: linear-gradient(90deg, #00ff88, #00d4ff, #ff0080);
+  height: 100%;
+  transition: width 0.5s ease;
+  position: relative;
+}
+
+.pixel-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 10px,
+    rgba(255, 255, 255, 0.2) 10px,
+    rgba(255, 255, 255, 0.2) 20px
+  );
+  animation: progress-scan 1s linear infinite;
+}
+
+@keyframes progress-scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 全局像素风增强 */
+.pixel-theme body {
+  background-attachment: fixed;
+  background-size: 100% 100%;
+}
+
+/* 滚动条样式 */
+.pixel-theme ::-webkit-scrollbar {
+  width: 12px;
+  background: #151520;
+}
+
+.pixel-theme ::-webkit-scrollbar-track {
+  background: #0a0a0f;
+  border: 1px solid #333344;
+}
+
+.pixel-theme ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff0080, #00d4ff);
+  border: 1px solid #ffffff;
+  border-radius: 0;
+}
+
+.pixel-theme ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ff1493, #00ffff);
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
+} 

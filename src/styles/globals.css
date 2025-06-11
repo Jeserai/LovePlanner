@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&family=Quicksand:wght@300;400;500;600;700&family=VT323&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Nunito', sans-serif;
+  }
+  
+  /* 莫内主题样式 */
+  html.monet body {
+    @apply bg-monet-gradient min-h-screen;
+  }
+  
+  /* 像素风主题样式 */
+  html.pixel {
+    font-family: 'VT323', monospace;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+  }
+  
+  html.pixel body {
+    @apply bg-pixel-bg min-h-screen;
+  }
+}
+
+@layer components {
+  /* 莫内主题组件样式 */
+  .monet .card-cutesy {
+    @apply bg-white/60 backdrop-blur-md rounded-2xl shadow-dream border border-white/50;
+  }
+  
+  .monet .btn-primary {
+    @apply bg-water-lily text-white px-6 py-3 rounded-xl font-medium shadow-dream hover:shadow-monet transition-all duration-300 hover:scale-105 hover:bg-opacity-90;
+  }
+  
+  .monet .btn-secondary {
+    @apply bg-gradient-to-r from-secondary-400 to-secondary-500 text-white px-6 py-3 rounded-xl font-medium shadow-dream hover:shadow-monet transition-all duration-300 hover:scale-105;
+  }
+  
+  .monet .input-cutesy {
+    @apply bg-white/60 border-2 border-secondary-200/40 rounded-xl px-4 py-3 focus:border-secondary-400/60 focus:ring-2 focus:ring-secondary-200/30 transition-all duration-300 backdrop-blur-sm text-sage-700 placeholder-sage-400;
+  }
+
+  /* 像素风主题组件样式 */
+  .pixel .card-cutesy {
+    @apply bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel;
+  }
+  
+  .pixel .btn-primary {
+    @apply bg-pixel-accent text-pixel-text px-6 py-3 rounded-pixel font-bold shadow-pixel hover:shadow-pixel-lg transition-all duration-200 hover:translate-y-[-2px] border-2 border-black uppercase tracking-wider;
+  }
+  
+  .pixel .btn-secondary {
+    @apply bg-pixel-success text-pixel-text px-6 py-3 rounded-pixel font-bold shadow-pixel hover:shadow-pixel-lg transition-all duration-200 hover:translate-y-[-2px] border-2 border-black uppercase tracking-wider;
+  }
+  
+  .pixel .input-cutesy {
+    @apply bg-pixel-panel border-2 border-pixel-border rounded-pixel px-4 py-3 focus:border-pixel-accent focus:ring-0 transition-all duration-200 text-pixel-text placeholder-pixel-textMuted font-mono;
+  }
+
+  /* 通用样式（根据主题自动选择） */  
+  .card-cutesy {
+    @apply bg-white/60 backdrop-blur-md rounded-2xl shadow-dream border border-white/50;
+  }
+  
+  .btn-primary {
+    @apply bg-water-lily text-white px-6 py-3 rounded-xl font-medium shadow-dream hover:shadow-monet transition-all duration-300 hover:scale-105 hover:bg-opacity-90;
+  }
+  
+  .btn-secondary {
+    @apply bg-gradient-to-r from-secondary-400 to-secondary-500 text-white px-6 py-3 rounded-xl font-medium shadow-dream hover:shadow-monet transition-all duration-300 hover:scale-105;
+  }
+  
+  .input-cutesy {
+    @apply bg-white/60 border-2 border-secondary-200/40 rounded-xl px-4 py-3 focus:border-secondary-400/60 focus:ring-2 focus:ring-secondary-200/30 transition-all duration-300 backdrop-blur-sm text-sage-700 placeholder-sage-400;
+  }
+} 
