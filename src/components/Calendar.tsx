@@ -82,7 +82,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       isRecurring: false
     },
     
-    // 牛牛的独享活动
+    // 奶牛的独享活动
     {
       id: '2',
       title: '健身训练',
@@ -238,7 +238,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           event.participants.includes('cat')
         );
       case 'cow':
-        // 牛牛日历：显示所有牛牛参与的事件（包括共同参与的）
+        // 奶牛日历：显示所有奶牛参与的事件（包括共同参与的）
         return allEvents.filter(event => 
           event.participants.includes('cow')
         );
@@ -544,7 +544,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             >
               <span className="text-lg">🐄</span>
               <span className="font-medium">
-                {theme === 'pixel' ? 'COW_LOG' : '牛牛日历'}
+                {theme === 'pixel' ? 'COW_LOG' : '奶牛日历'}
               </span>
             </button>
             
@@ -591,7 +591,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 } else {
                   return theme === 'pixel' 
                     ? `CURRENT_VIEW: ${currentView.toUpperCase()}_LOG` 
-                    : `当前显示: ${currentView === 'cat' ? '猫猫' : '牛牛'}的日历`;
+                    : `当前显示: ${currentView === 'cat' ? '猫猫' : '奶牛'}的日历`;
                 }
               })()}
             </div>
@@ -747,7 +747,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                      currentView === 'cow' ? 'COW_TODAY' : 
                      'SHARED_TODAY')
                   : (currentView === 'cat' ? '🐱 猫猫今日' : 
-                     currentView === 'cow' ? '🐄 牛牛今日' : 
+                     currentView === 'cow' ? '🐄 奶牛今日' : 
                      '💕 共同今日')
                 }
               </h3>
@@ -779,7 +779,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                        currentView === 'cow' ? 'NO_COW_EVENTS' : 
                        'NO_SHARED_EVENTS')
                     : (currentView === 'cat' ? '猫猫今天没有日程安排' : 
-                       currentView === 'cow' ? '牛牛今天没有日程安排' : 
+                       currentView === 'cow' ? '奶牛今天没有日程安排' : 
                        '今天没有共同日程')
                   }
                 </p>
