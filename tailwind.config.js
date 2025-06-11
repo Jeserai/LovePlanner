@@ -106,24 +106,24 @@ module.exports = {
           800: '#858585',
           900: '#666666',
         },
-        // 像素风配色方案 - 赛博朋克霓虹风格
+        // 像素风配色方案 - 更亮的赛博朋克霓虹风格
         pixel: {
-          // 8位游戏机经典色彩 - 赛博朋克版本
-          bg: '#0a0a0f',        // 更深的背景
-          panel: '#151520',     // 深紫色面板背景
-          card: '#1f1f2e',      // 卡片背景
+          // 8位游戏机经典色彩 - 更亮的赛博朋克版本
+          bg: '#1a1a2e',        // 更亮的背景 (从 #0a0a0f 改为更亮)
+          panel: '#2a2a40',     // 更亮的面板背景 (从 #151520 改为更亮)
+          card: '#353555',      // 更亮的卡片背景 (从 #1f1f2e 改为更亮)
           accent: '#ff0080',    // 霓虹粉色强调
           success: '#00ff88',   // 霓虹绿色成功
           warning: '#ffff00',   // 霓虹黄色警告
           info: '#00d4ff',      // 霓虹蓝色信息
-          purple: '#8a2be2',    // 霓虹紫色
+          purple: '#9d4eff',    // 更亮的霓虹紫色
           pink: '#ff1493',      // 深粉色
-          orange: '#ff4500',    // 霓虹橙色
+          orange: '#ff6a00',    // 更亮的霓虹橙色
           cyan: '#00ffff',      // 霓虹青色
-          lime: '#32ff32',      // 霓虹绿
+          lime: '#39ff39',      // 更亮的霓虹绿
           text: '#ffffff',      // 白色文字
-          textMuted: '#888899', // 灰色文字
-          border: '#333344',    // 边框色
+          textMuted: '#aaaacc', // 更亮的灰色文字 (从 #888899 改为更亮)
+          border: '#4a4a66',    // 更亮的边框色 (从 #333344 改为更亮)
         },
       },
       maxWidth: {
@@ -154,8 +154,8 @@ module.exports = {
         'sunrise': 'linear-gradient(to top, #ffab5e, #7d9eff)',
         'dream-mist': 'linear-gradient(45deg, rgba(225, 165, 224, 0.1), rgba(140, 204, 165, 0.1), rgba(125, 158, 255, 0.1))',
         // 像素风背景
-        'pixel-bg': 'linear-gradient(135deg, #0a0a0f 0%, #151520 50%, #1f1f2e 100%)',
-        'pixel-card': 'linear-gradient(135deg, #1f1f2e 0%, #151520 100%)',
+        'pixel-bg': 'linear-gradient(135deg, #1a1a2e 0%, #2a2a40 50%, #353555 100%)',
+        'pixel-card': 'linear-gradient(135deg, #353555 0%, #2a2a40 100%)',
         'pixel-accent': 'linear-gradient(45deg, #ff0080, #ff1493)',
         'pixel-glow': 'radial-gradient(circle, rgba(255, 0, 128, 0.3) 0%, rgba(0, 212, 255, 0.1) 50%, transparent 100%)',
       },

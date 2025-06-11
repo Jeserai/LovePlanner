@@ -62,17 +62,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       isRecurring: false
     },
     {
-      id: '3',
-      title: '每周约会',
-      date: '2024-01-14',
-      time: '18:00',
-      participants: ['cat', 'cow'],
-      color: 'bg-lavender-400', // 初始颜色，会被主题覆盖
-      isRecurring: true,
-      recurrenceType: 'weekly',
-      originalDate: '2024-01-14'
-    },
-    {
       id: '7',
       title: '一起看电影',
       date: new Date().toISOString().split('T')[0], // 今天
@@ -619,7 +608,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Calendar Grid - Left Side */}
         <div className="xl:col-span-3">
-          <div className={`p-6 ${theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg neon-border crt-screen' : 'card-cutesy'}`}>
+          <div className={`p-6 ${theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg neon-border' : 'card-cutesy'}`}>
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-2 mb-4">
               {dayNames.map(day => (
@@ -648,7 +637,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 return (
                   <div
                     key={day}
-                    className={`h-28 p-3 transition-all duration-300 ${
+                    className={`h-28 p-2 transition-all duration-300 flex flex-col ${
                       theme === 'pixel' 
                         ? `border-2 border-pixel-border rounded-pixel hover:shadow-pixel neon-border ${
                             isToday 
@@ -662,23 +651,23 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           }`
                     }`}
                   >
-                    <div className={`text-sm font-medium mb-2 ${
+                    <div className={`text-sm font-medium mb-1 flex-shrink-0 ${
                       theme === 'pixel' 
                         ? `font-mono ${isToday ? 'text-white font-bold neon-text' : 'text-pixel-text'}`
                         : isToday ? 'text-primary-600' : 'text-gray-600'
                     }`}>
                       {theme === 'pixel' ? String(day).padStart(2, '0') : day}
                     </div>
-                    <div className="space-y-1">
-                      {dayEvents.slice(0, 3).map(event => {
+                    <div className="flex-1 space-y-1 overflow-hidden">
+                      {dayEvents.slice(0, 2).map(event => {
                         const hasEditPermission = canEditEvent(event);
                         return (
                           <div
                             key={event.id}
                             onClick={() => handleEventClick(event)}
-                            className={`text-xs px-2 py-1 truncate relative cursor-pointer transition-opacity ${
+                            className={`text-xs px-1.5 py-0.5 truncate relative cursor-pointer transition-opacity ${
                               theme === 'pixel' 
-                                ? `rounded-pixel border-2 border-black font-mono uppercase ${
+                                ? `rounded-pixel border border-black font-mono uppercase ${
                                     hasEditPermission 
                                       ? 'hover:opacity-80 hover:shadow-pixel-neon' 
                                       : 'opacity-75 hover:opacity-90'
@@ -693,17 +682,17 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           >
                             {event.isRecurring && (
                               theme === 'pixel' ? (
-                                <PixelIcon name="refresh" className="absolute right-1 top-0.5 opacity-80 text-white" size="sm" />
+                                <PixelIcon name="refresh" className="absolute right-0.5 top-0 opacity-80 text-white" size="sm" />
                               ) : (
-                                <ArrowPathIcon className="w-3 h-3 absolute right-1 top-0.5 opacity-80" />
+                                <ArrowPathIcon className="w-2.5 h-2.5 absolute right-0.5 top-0 opacity-80" />
                               )
                             )}
                             {!hasEditPermission && (
-                              <div className={`absolute right-1 bottom-0.5 w-2 h-2 opacity-60 ${
+                              <div className={`absolute right-0.5 bottom-0 w-1.5 h-1.5 opacity-60 ${
                                 theme === 'pixel' ? 'bg-white rounded-pixel' : 'bg-gray-400 rounded-full'
                               }`} title="只读"></div>
                             )}
-                            <span className={`${event.isRecurring ? 'pr-4' : ''} ${!hasEditPermission ? 'pr-3' : ''} ${
+                            <span className={`block truncate ${event.isRecurring ? 'pr-3' : ''} ${!hasEditPermission ? 'pr-2' : ''} ${
                               theme === 'pixel' ? 'text-white font-bold' : ''
                             }`}>
                               {theme === 'pixel' ? event.title.toUpperCase() : event.title}
@@ -711,13 +700,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           </div>
                         );
                       })}
-                      {dayEvents.length > 3 && (
-                        <div className={`text-xs ${
+                      {dayEvents.length > 2 && (
+                        <div className={`text-xs px-1 ${
                           theme === 'pixel' 
                             ? 'text-pixel-cyan font-mono neon-text' 
                             : 'text-gray-500'
                         }`}>
-                          {theme === 'pixel' ? `+${dayEvents.length - 3}_MORE` : `+${dayEvents.length - 3} 更多`}
+                          {theme === 'pixel' ? `+${dayEvents.length - 2}_MORE` : `+${dayEvents.length - 2} 更多`}
                         </div>
                       )}
                     </div>
@@ -730,7 +719,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
         {/* Today's Events List - Right Side */}
         <div className="xl:col-span-1">
-          <div className={`p-6 h-fit sticky top-24 ${theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg neon-border pixel-matrix' : 'card-cutesy'}`}>
+          <div className={`p-6 h-fit sticky top-24 ${theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg neon-border' : 'card-cutesy'}`}>
             <div className="flex items-center space-x-2 mb-4">
               {theme === 'pixel' ? (
                 <PixelIcon name="calendar" className="text-pixel-accent" size="lg" glow />
@@ -1230,9 +1219,17 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       {/* Add Event Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="card-cutesy p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-display font-bold mb-4 text-gray-800">
-              添加新日程
+          <div className={`p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto ${
+            theme === 'pixel' 
+              ? 'bg-pixel-panel border-4 border-white rounded-pixel shadow-pixel-lg neon-border' 
+              : 'card-cutesy'
+          }`}>
+            <h3 className={`text-xl font-bold mb-4 ${
+              theme === 'pixel' 
+                ? 'font-retro text-pixel-text uppercase tracking-wider neon-text' 
+                : 'font-display text-gray-800'
+            }`}>
+              {theme === 'pixel' ? 'ADD_NEW_EVENT' : '添加新日程'}
             </h3>
             
             <div className="space-y-4">
