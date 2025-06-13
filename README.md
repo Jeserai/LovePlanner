@@ -1,336 +1,364 @@
 # 💕 Love Planner
-一个充满爱意的情侣互动应用，帮助情侣们更好地规划和管理他们的共同生活。
 
-## ✨ 功能特性
+A love-filled interactive app designed to help couples better plan and manage their shared life together.
 
-### 📅 智能日历模块
-- **多视图支持**: 
-  - 猫咪个人视图 🐱：显示猫咪的所有日程
-  - 奶牛个人视图 🐄：显示奶牛的所有日程
-  - 共同日历视图 💕：显示两人共同参与的日程
-- **月份导航**:
-  - 上一月/下一月切换
-  - 快速返回今天
-  - 当前月份和年份显示
-- **日程管理**:
-  - 新增日程：设置标题、日期、时间、参与者
-  - 编辑日程：修改日程详情
-  - 删除日程：移除不需要的日程
-  - 重复日程：支持每天/每周/每两周/每月/每年重复
-- **日程详情**:
-  - 标题和描述
-  - 日期和时间（支持全天事件）
-  - 参与者（猫咪/奶牛）
-  - 重复设置和结束日期
-  - 权限控制（个人日程只有本人可编辑）
-- **今日议程**:
-  - 右侧显示当天所有日程
-  - 按时间排序
-  - 显示重复标识
-  - 显示权限状态
+## ✨ Features
 
-### 📋 智能任务看板
-- **紧急度管理**: 自动计算任务紧急程度（过期、今日、紧急、即将到期）
-- **截止日期**: 可选的任务截止时间设置
-- **积分奖励**: 完成任务获得积分奖励
-- **状态管理**: 待开始、进行中、已完成三个状态
-- **智能排序**: 按紧急程度和截止时间自动排序
+### 📅 Smart Calendar Module
 
-### 🛍️ 个人商店系统
-- **双方商店**: 分别管理个人商店和商品
-- **分类管理**: 时间、服务、礼物、体验四大类别
-- **积分交易**: 使用任务获得的积分进行购买
-- **购买记录**: 完整的交易历史追踪
+* **Multi-view Support**:
 
-### 🎨 多主题支持
-- **可爱主题**: 粉色渐变，毛玻璃效果，现代圆角设计
-- **像素主题**: 复古像素风格，霓虹灯效果，CRT扫描线
-- **主题切换**: 实时切换，所有组件自动适配
+  * **Cat’s Personal View 🐱**: Displays all events for the Cat user
+  * **Cow’s Personal View 🐄**: Displays all events for the Cow user
+  * **Shared Calendar View 💕**: Shows events participated by both users
+* **Month Navigation**:
 
-### 👥 双用户系统
-- **角色设定**: 🐱 Whimsical Cat 和 🐄 Whimsical Cow
-- **个性化视图**: 登录后自动显示个人相关内容
-- **权限管理**: 智能权限控制，保护个人隐私
-- **用户切换**: 支持快速切换用户身份
+  * Switch between previous/next months
+  * Quick return to today
+  * Display of current month and year
+* **Schedule Management**:
 
-## 🛠️ 技术栈
+  * Add events: set title, date, time, participants
+  * Edit events: modify event details
+  * Delete events: remove unneeded events
+  * Recurring events: supports daily/weekly/biweekly/monthly/yearly repeats
+* **Event Details**:
 
-- **前端框架**: React 18 + Next.js 15
-- **开发语言**: TypeScript
-- **样式方案**: Tailwind CSS + 自定义CSS
-- **UI组件**: NextUI + Heroicons + 像素图标库
-- **动画效果**: Framer Motion + CSS动画
-- **字体方案**: Nunito + Quicksand + 像素字体
-- **状态管理**: React Context + localStorage
+  * Title and description
+  * Date and time (supports all-day events)
+  * Participants (Cat/Cow)
+  * Repeat settings and end date
+  * Permission control (personal events editable only by the owner)
+* **Today’s Agenda**:
 
-## 🎯 设计特色
+  * Display of all events for the current day on the right
+  * Sorted by time
+  * Recurrence indicator
+  * Permission status indicator
 
-### 可爱主题 💖
-- 🌈 粉色和青色渐变配色方案
-- ✨ 毛玻璃效果 (backdrop-blur)
-- 🔮 柔和阴影和圆角设计
-- 💫 流畅的动画过渡效果
-- 📱 完全响应式布局
+### 📋 Smart Task Board
 
-### 像素主题 🕹️
-- 🎮 复古8bit像素艺术风格
-- 💾 霓虹灯发光效果
-- 📺 CRT显示器扫描线模拟
-- 🤖 像素字体和图标
-- ⚡ 赛博朋克色彩搭配
+* **Urgency Management**: Automatically calculates task urgency (Overdue, Today, Urgent, Upcoming)
+* **Deadline Settings**: Optional deadline for tasks
+* **Points Rewards**: Earn points by completing tasks
+* **Task Status**: Three statuses — To-do, In Progress, Completed
+* **Smart Sorting**: Automatically sorted by urgency and deadline
 
-## 🚀 快速开始
+### 🛍️ Personal Shop System
 
-### 环境要求
-- Node.js 18+ 
-- npm 或 yarn
+* **Separate Shops**: Each user manages their own shop and items
+* **Category Management**: Four categories — Time, Services, Gifts, Experiences
+* **Points Transactions**: Use earned points to make purchases
+* **Purchase History**: Full transaction tracking
 
-### 安装运行
+### 🎨 Theme Support
 
-1. **克隆项目**
+* **Cute Theme**: Pink gradient, frosted-glass effect, modern rounded UI
+* **Pixel Theme**: Retro pixel art, neon effects, CRT scanline simulation
+* **Theme Switching**: Real-time theme changes with auto-adaptation
+
+### 👥 Dual-User System
+
+* **Roles**: 🐱 Whimsical Cat & 🐄 Whimsical Cow
+* **Personalized Views**: Auto display content based on logged-in user
+* **Permission Management**: Smart privacy controls
+* **User Switching**: Fast identity switching support
+
+## 🛠️ Tech Stack
+
+* **Frontend Framework**: React 18 + Next.js 15
+* **Language**: TypeScript
+* **Styling**: Tailwind CSS + custom CSS
+* **UI Components**: NextUI + Heroicons + Pixel Icon Library
+* **Animations**: Framer Motion + CSS animations
+* **Fonts**: Nunito + Quicksand + Pixel fonts
+* **State Management**: React Context + localStorage
+
+## 🎯 Design Highlights
+
+### Cute Theme 💖
+
+* 🌈 Pink and cyan gradient palette
+* ✨ Frosted-glass (backdrop-blur) effects
+* 🔮 Soft shadows and rounded design
+* 💫 Smooth transition animations
+* 📱 Fully responsive layout
+
+### Pixel Theme 🕹️
+
+* 🎮 Retro 8-bit pixel art style
+* 💾 Neon glow effects
+* 📺 CRT monitor scanline simulation
+* 🤖 Pixel fonts and icons
+* ⚡ Cyberpunk color scheme
+
+## 🚀 Getting Started
+
+### Requirements
+
+* Node.js 18+
+* npm or yarn
+
+### Installation & Run
+
+1. **Clone the repo**
+
 ```bash
 git clone <repository-url>
 cd ccpm
 ```
 
-2. **安装依赖**
+2. **Install dependencies**
+
 ```bash
 npm install
 ```
 
-3. **启动开发服务器**
+3. **Start development server**
+
 ```bash
 npm run dev
 ```
 
-4. **打开应用**
-访问 [http://localhost:3000](http://localhost:3000)
+4. **Open the app**
+   Go to [http://localhost:3000](http://localhost:3000)
 
-### 构建部署
+### Build & Deploy
 
 ```bash
-# 构建生产版本
+# Build for production
 npm run build
 
-# 启动生产服务器
+# Start production server
 npm start
 ```
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 ccpm/
 ├── src/
-│   ├── components/          # React组件
-│   │   ├── Layout.tsx      # 主布局和导航
-│   │   ├── Calendar.tsx    # 智能日历组件
-│   │   ├── TaskBoard.tsx   # 任务看板组件
-│   │   ├── Shop.tsx        # 个人商店组件
-│   │   ├── PixelIcon.tsx   # 像素图标组件
-│   │   └── LoginForm.tsx   # 登录表单组件
+│   ├── components/          # React components
+│   │   ├── Layout.tsx      # Layout & navigation
+│   │   ├── Calendar.tsx    # Smart calendar component
+│   │   ├── TaskBoard.tsx   # Task board component
+│   │   ├── Shop.tsx        # Shop component
+│   │   ├── PixelIcon.tsx   # Pixel icon component
+│   │   └── LoginForm.tsx   # Login form
 │   ├── contexts/           # React Context
-│   │   └── ThemeContext.tsx # 主题管理
-│   ├── utils/              # 工具函数
-│   │   └── testRouting.js  # 路由测试工具
-│   └── index.css           # 全局样式和主题
+│   │   └── ThemeContext.tsx # Theme manager
+│   ├── utils/              # Utility functions
+│   │   └── testRouting.js  # Routing test tools
+│   └── index.css           # Global styles & themes
 ├── pages/
-│   ├── _app.tsx           # Next.js应用入口
-│   └── index.tsx          # 应用主页
-├── public/                # 静态资源
-├── tailwind.config.js     # Tailwind配置
-├── tsconfig.json          # TypeScript配置
-└── next.config.js         # Next.js配置
+│   ├── _app.tsx           # App entry point
+│   └── index.tsx          # Home page
+├── public/                # Static assets
+├── tailwind.config.js     # Tailwind config
+├── tsconfig.json          # TypeScript config
+└── next.config.js         # Next.js config
 ```
 
-## 📖 使用指南
+## 📖 User Guide
 
-### 🔐 用户登录
-- 首次访问显示登录界面
-- 输入用户名（包含"cat"或"cow"关键词）
-- 系统自动识别用户身份并跳转到对应视图
+### 🔐 Login
 
-### 📅 日历使用
-1. **查看日程**: 切换不同视图查看个人或共同日程
-2. **添加事件**: 点击"添加日程"按钮创建新事件
-3. **重复设置**: 可设置每日/周/月/年重复
-4. **编辑权限**: 个人事件仅本人可编辑，共同事件双方可编辑
-5. **今日议程**: 右侧显示当天所有日程安排
+* Shows login screen on first visit
+* Enter a username containing “cat” or “cow”
+* The system auto-detects identity and redirects to corresponding view
 
-### 📋 任务管理
-1. **创建任务**: 设置标题、截止时间、积分奖励
-2. **状态跟踪**: 拖拽任务卡片改变状态
-3. **紧急提醒**: 系统自动标识紧急和过期任务
-4. **积分获取**: 完成任务获得设定的积分奖励
+### 📅 Calendar Usage
 
-### 🛍️ 商店交易
-1. **上架商品**: 添加服务、礼物等商品
-2. **设置价格**: 使用积分作为交易货币
-3. **购买商品**: 在对方商店购买心仪商品
-4. **交易记录**: 查看完整的购买历史
+1. **View Events**: Switch between views to see personal or shared schedules
+2. **Add Events**: Click “Add Event” to create a new one
+3. **Recurring Settings**: Set daily/weekly/monthly/yearly recurrence
+4. **Edit Permissions**: Personal events editable only by owner; shared events editable by both
+5. **Today’s Agenda**: Right panel shows today’s events
 
-### 🎨 主题切换
-- 点击右上角主题切换按钮
-- 在可爱主题和像素主题间切换
-- 所有界面元素自动适配新主题
+### 📋 Task Management
 
-## 🧪 开发调试
+1. **Create Tasks**: Set title, deadline, point reward
+2. **Track Status**: Drag tasks to update status
+3. **Urgent Reminders**: System auto-labels overdue/urgent tasks
+4. **Earn Points**: Get points when tasks are completed
 
-### 路由测试工具
-在浏览器控制台中可用以下命令：
+### 🛍️ Shop & Purchases
+
+1. **Add Items**: Upload services, gifts, or other items
+2. **Set Prices**: Use points as currency
+3. **Buy Items**: Purchase from the other user's shop
+4. **Track History**: View complete purchase history
+
+### 🎨 Theme Switching
+
+* Click the top-right button to toggle themes
+* Switch between Cute and Pixel themes
+* All UI elements adapt automatically
+
+## 🧪 Developer Tools
+
+### Routing Test Utilities
+
+Available in browser console:
 
 ```javascript
-// 检查当前路由状态
+// Check current route status
 testRouting()
 
-// 测试不同用户登录
-testCatCalendar()  // 测试猫咪用户
-testCowCalendar()  // 测试奶牛用户
+// Test user login
+testCatCalendar()  // Cat user test
+testCowCalendar()  // Cow user test
 
-// 模拟登录/登出
+// Simulate login/logout
 simulateLogin('username')
 simulateLogout()
 
-// 清除所有数据
+// Clear all data
 clearAllData()
 ```
 
-## 🔧 自定义配置
+## 🔧 Customization
 
-### 主题自定义
-在 `src/index.css` 中修改CSS变量：
+### Theme Variables
+
+Modify CSS variables in `src/index.css`:
 
 ```css
 :root {
-  /* 可爱主题色彩 */
+  /* Cute theme colors */
   --primary-50: #fef7ff;
   --primary-400: #e879f9;
-  /* ... */
-  
-  /* 像素主题色彩 */
+
+  /* Pixel theme colors */
   --pixel-bg: #0a0a0f;
   --pixel-accent: #ff0080;
-  /* ... */
 }
 ```
 
-### Tailwind配置
-在 `tailwind.config.js` 中添加自定义颜色和动画。
+### Tailwind Config
 
-## 📝 更新日志
+Add custom colors and animations in `tailwind.config.js`.
 
-### v1.0.0 (2024-01)
-- ✨ 实现基础三大模块（日历、任务、商店）
-- 🎨 添加可爱主题和像素主题
-- 👥 实现双用户系统
-- 📅 Apple风格重复事件功能
-- 🔐 智能权限管理系统
-- 📱 完全响应式设计
+## 📝 Changelog
 
-## 🤝 贡献指南
+### v1.0.0 (Jan 2024)
 
-欢迎提交Issue和Pull Request来帮助改进这个项目！
+* ✨ Implemented core modules (calendar, task board, shop)
+* 🎨 Added Cute and Pixel themes
+* 👥 Dual-user system
+* 📅 Apple-style recurring events
+* 🔐 Smart permission system
+* 📱 Fully responsive design
 
-## 📄 许可证
+## 📄 License
 
 ISC License
 
 ---
 
-💝 **为爱而生，让规划变得甜蜜！** 
+## Key Features Summary
 
-## 功能特点
+### 1. Dual Themes
 
-### 1. 双主题设计
-- **像素风格**：复古游戏风格，充满趣味性
-- **梦幻风格**：柔和浪漫的设计，营造温馨氛围
+* **Pixel Style**: Fun, retro game-inspired
+* **Fantasy Style**: Soft, romantic for a cozy atmosphere
 
-### 2. 积分系统
-- 通过完成任务获得积分
-- 积分可以兑换礼物
-- 积分排行榜激励互动
+### 2. Points System
 
-### 3. 任务系统
-#### 任务类型
-- **日常任务**：日常生活中的小任务
-- **特别任务**：需要特别准备的任务
-- **浪漫任务**：增进感情的浪漫活动
-- **重复性任务**：可以重复执行的任务（如每周约会）
-- **一次性任务**：只需完成一次的任务
+* Earn points by completing tasks
+* Redeem points for gifts
+* Points leaderboard to encourage engagement
 
-#### 任务状态
-- **未开始**：刚领取但还未开始的任务
-- **进行中**：已经开始执行的任务
-- **已完成**：成功完成的任务
-- **已放弃**：被放弃的任务
+### 3. Task System
 
-#### 任务规则
-1. **任务发布**
-   - 标题为必填项
-   - 描述为选填项
-   - 截止日期为必填项
-   - 必须设置任务类型（日常/特别/浪漫）
-   - 必须设置任务性质（一次性/重复性）
-   - 可以设置是否需要上传凭证
-   - 积分奖励范围：10-200分
+#### Task Types
 
-2. **任务领取**
-   - 可以查看所有可领取的任务
-   - 领取后任务进入"未开始"状态
-   - 同一时间只能领取一个任务
+* **Daily Tasks**: Everyday to-dos
+* **Special Tasks**: Require extra prep
+* **Romantic Tasks**: For bonding activities
+* **Recurring Tasks**: e.g., weekly dates
+* **One-Time Tasks**: Only need to be completed once
 
-3. **任务执行**
-   - 未开始的任务可以：
-     - 开始执行（进入"进行中"状态）
-     - 放弃任务（扣除10积分）
-   - 进行中的任务可以：
-     - 上传任务凭证（如果需要）
-     - 完成任务（获得积分奖励）
-   - 进行中的任务不能放弃
+#### Task Status
 
-4. **任务凭证**
-   - 如果任务需要凭证，必须上传后才能完成
-   - 凭证可以是图片、视频等文件
-   - 上传凭证后不能删除或修改
+* **Not Started**
+* **In Progress**
+* **Completed**
+* **Abandoned**
 
-5. **任务完成**
-   - 完成任务后获得相应积分
-   - 重复性任务完成后可以再次领取
-   - 一次性任务完成后不能再次领取
+#### Task Rules
 
-6. **任务放弃**
-   - 只有未开始的任务可以放弃
-   - 放弃任务扣除10积分
-   - 放弃的任务会进入"已放弃"分类
+1. **Task Creation**:
 
-### 4. 日历功能
-- 查看所有任务和事件
-- 支持重复性事件
-- 任务截止日期提醒
+   * Title required
+   * Description optional
+   * Deadline required
+   * Must select task type (Daily/Special/Romantic)
+   * Must define nature (One-time/Recurring)
+   * Can require proof upload
+   * Reward range: 10–200 points
 
-### 5. 礼物系统
-- 使用积分兑换礼物
-- 礼物可以设置兑换条件
-- 支持礼物惊喜功能
+2. **Task Claiming**:
 
-## 技术栈
-- 前端：React + TypeScript
-- 样式：Tailwind CSS
-- 状态管理：React Context
-- 动画：Framer Motion
+   * See all available tasks
+   * Once claimed, task enters "Not Started"
+   * Only one task can be active at a time
 
-## 开发计划
-- [x] 基础框架搭建
-- [x] 主题系统实现
-- [x] 任务系统基础功能
-- [x] 积分系统
-- [ ] 日历功能
-- [ ] 礼物系统
-- [ ] 数据持久化
-- [ ] 用户认证
-- [ ] 移动端适配
+3. **Task Execution**:
 
-## 贡献指南
-欢迎提交 Issue 和 Pull Request 来帮助改进这个项目。
+   * From "Not Started": Start or abandon (loses 10 points)
+   * From "In Progress": Upload proof (if required), mark as complete
+   * In-progress tasks can't be abandoned
 
-## 许可证
-MIT License 
+4. **Task Proof**:
+
+   * Required if specified
+   * Can be image/video/etc.
+   * Cannot be edited or deleted once uploaded
+
+5. **Task Completion**:
+
+   * Earn points on completion
+   * Recurring tasks can be re-claimed
+   * One-time tasks can’t be re-done
+
+6. **Task Abandonment**:
+
+   * Only possible if not started
+   * Costs 10 points
+   * Moved to “Abandoned” category
+
+### 4. Calendar Integration
+
+* View all tasks and events
+* Supports recurring events
+* Deadline reminders
+
+### 5. Gift System
+
+* Use points to exchange gifts
+* Set redemption requirements
+* Surprise gift option supported
+
+## Tech Stack
+
+* Frontend: React + TypeScript
+* Styling: Tailwind CSS
+* State Management: React Context
+* Animation: Framer Motion
+
+## Development Plan
+
+* [x] Basic framework setup
+* [x] Theme system
+* [x] Basic task system
+* [x] Points system
+* [ ] Calendar features
+* [ ] Gift system
+* [ ] Data persistence
+* [ ] User authentication
+* [ ] Mobile optimization
+
+## License
+
+MIT License
