@@ -25,6 +25,10 @@ interface CalendarProps {
 const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const { theme } = useTheme();
   
+  // 添加日历导航状态
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  
   // 获取当前用户类型的辅助函数
   const getCurrentUserType = (): 'cat' | 'cow' | null => {
     if (!currentUser) return null;
@@ -432,8 +436,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // Generate calendar days for current month
   const today = new Date();
-  const currentMonth = today.getMonth();
-  const currentYear = today.getFullYear();
   const firstDay = new Date(currentYear, currentMonth, 1);
   const lastDay = new Date(currentYear, currentMonth + 1, 0);
   const daysInMonth = lastDay.getDate();
@@ -529,9 +531,57 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       } text-primary-500`} />;
     }
   };
-  
+
+  // 添加月份导航处理函数
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(currentYear - 1);
+    } else {
+      setCurrentMonth(currentMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(currentYear + 1);
+    } else {
+      setCurrentMonth(currentMonth + 1);
+    }
+  };
+
+  const handleToday = () => {
+    const today = new Date();
+    setCurrentMonth(today.getMonth());
+    setCurrentYear(today.getFullYear());
+  };
+
+  // 添加调试日志
+  useEffect(() => {
+    console.log('Calendar Navigation State:', {
+      currentMonth,
+      currentYear,
+      months: monthNames,
+      today: new Date()
+    });
+  }, [currentMonth, currentYear]);
+
   return (
     <div className="space-y-6">
+      {/* Debug Info */}
+      <div className="bg-yellow-100 p-4 rounded-lg mb-4">
+        <h3 className="font-bold mb-2">Debug Info:</h3>
+        <pre className="text-sm">
+          {JSON.stringify({
+            currentMonth,
+            currentYear,
+            currentMonthName: monthNames[currentMonth],
+            today: new Date().toISOString()
+          }, null, 2)}
+        </pre>
+      </div>
+
       {/* Header with View Switcher */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -550,7 +600,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               : 'border border-gray-200'
           }`}>
             <button
-              onClick={() => setCurrentView('cat')}
+              onClick={() => {
+                console.log('Switching to cat view');
+                setCurrentView('cat');
+              }}
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel' 
                   ? `font-mono uppercase border-r-4 border-pixel-border ${
@@ -571,7 +624,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               </span>
             </button>
             <button
-              onClick={() => setCurrentView('cow')}
+              onClick={() => {
+                console.log('Switching to cow view');
+                setCurrentView('cow');
+              }}
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel'
                   ? `font-mono uppercase border-r-4 border-pixel-border ${
@@ -592,7 +648,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               </span>
             </button>
             <button
-              onClick={() => setCurrentView('shared')}
+              onClick={() => {
+                console.log('Switching to shared view');
+                setCurrentView('shared');
+              }}
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel'
                   ? `font-mono uppercase ${
@@ -616,7 +675,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         </div>
         
         <button
-          onClick={() => setShowAddForm(true)}
+          onClick={() => {
+            console.log('Adding new event');
+            setShowAddForm(true);
+          }}
           className={`flex items-center space-x-2 px-6 py-3 font-bold transition-all duration-300 ${
             theme === 'pixel'
               ? 'pixel-btn-neon text-white rounded-pixel pixel-border-primary hover:shadow-pixel-neon-strong hover:translate-y-[-2px] font-mono uppercase tracking-wider'
@@ -630,6 +692,73 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           )}
           <span>{theme === 'pixel' ? 'NEW_EVENT' : '新增日程'}</span>
         </button>
+      </div>
+
+      {/* Calendar Navigation */}
+      <div className={`${
+        theme === 'pixel' 
+          ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel p-4'
+          : 'bg-white rounded-xl shadow-soft p-4'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => {
+                console.log('Previous month clicked');
+                handlePrevMonth();
+              }}
+              className={`p-2 rounded-full transition-colors ${
+                theme === 'pixel'
+                  ? 'hover:bg-pixel-accent/20 text-pixel-text'
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
+            >
+              {theme === 'pixel' ? (
+                <PixelIcon name="arrow-left" size="sm" />
+              ) : (
+                <ChevronLeftIcon className="w-5 h-5" />
+              )}
+            </button>
+            <h2 className={`text-lg font-bold ${
+              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+            }`}>
+              {theme === 'pixel' 
+                ? `${monthNames[currentMonth].toUpperCase()} ${currentYear}`
+                : `${monthNames[currentMonth]} ${currentYear}`
+              }
+            </h2>
+            <button
+              onClick={() => {
+                console.log('Next month clicked');
+                handleNextMonth();
+              }}
+              className={`p-2 rounded-full transition-colors ${
+                theme === 'pixel'
+                  ? 'hover:bg-pixel-accent/20 text-pixel-text'
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
+            >
+              {theme === 'pixel' ? (
+                <PixelIcon name="arrow-right" size="sm" />
+              ) : (
+                <ChevronRightIcon className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              console.log('Today button clicked');
+              handleToday();
+            }}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              theme === 'pixel'
+                ? 'bg-pixel-accent text-pixel-text hover:bg-pixel-accent/80 font-mono uppercase'
+                : 'bg-primary-500 text-white hover:bg-primary-600'
+            }`}
+          >
+            {theme === 'pixel' ? 'TODAY' : '今天'}
+          </button>
+        </div>
       </div>
 
       {/* Main Content - Calendar + Today's Events */}
