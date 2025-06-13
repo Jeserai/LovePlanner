@@ -569,19 +569,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info */}
-      <div className="bg-yellow-100 p-4 rounded-lg mb-4">
-        <h3 className="font-bold mb-2">Debug Info:</h3>
-        <pre className="text-sm">
-          {JSON.stringify({
-            currentMonth,
-            currentYear,
-            currentMonthName: monthNames[currentMonth],
-            today: new Date().toISOString()
-          }, null, 2)}
-        </pre>
-      </div>
-
+      
       {/* Header with View Switcher */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">

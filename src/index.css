@@ -462,4 +462,16 @@ body.monet-theme {
       0 0 30px currentColor,
       inset 0 0 10px currentColor;
   }
+}
+
+/* Override gray text in Monet theme with brighter colors */
+html.monet .text-gray-800,
+html.monet .text-gray-700,
+html.monet .text-gray-600,
+html.monet .text-gray-500,
+body.monet-theme .text-gray-800,
+body.monet-theme .text-gray-700,
+body.monet-theme .text-gray-600,
+body.monet-theme .text-gray-500 {
+  @apply text-primary-700;
 } 

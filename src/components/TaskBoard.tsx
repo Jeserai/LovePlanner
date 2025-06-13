@@ -30,6 +30,15 @@ interface Task {
   taskEndTime?: string;
   repeatWeekdays?: number[];
   repeatTime?: string;
+  /** Optional deadline before which task must be accepted */
+  acceptanceDeadline?: string;
+  /** Reward decay config */
+  rewardDecayStart?: string; // ISO date when reward starts to decay
+  decayType?: 'none' | 'linear' | 'exponential' | 'sigmoid' | 'linear+sigmoid' | 'exponential+sigmoid';
+  /** Linear decay rate: percentage per day (e.g., 1 = 1%/day) */
+  linearRate?: number;
+  /** Exponential decay rate constant k (reward*e^{-k*days}) */
+  exponentialRate?: number;
 }
 
 const TaskBoard: React.FC = () => {
@@ -56,7 +65,12 @@ const TaskBoard: React.FC = () => {
       startDate: '2024-03-15',
       endDate: '2024-12-31',
       hasSpecificTime: true,
-      repeatTime: '08:00'
+      repeatTime: '08:00',
+      acceptanceDeadline: '2024-09-25',
+      rewardDecayStart: '2024-09-30',
+      decayType: 'linear',
+      linearRate: 1,
+      exponentialRate: 0.05
     },
     {
       id: '2',
@@ -75,7 +89,12 @@ const TaskBoard: React.FC = () => {
       endDate: '2024-12-31',
       hasSpecificTime: true,
       repeatWeekdays: [6],
-      repeatTime: '14:00'
+      repeatTime: '14:00',
+      acceptanceDeadline: '2024-10-01',
+      rewardDecayStart: '2024-10-15',
+      decayType: 'sigmoid',
+      linearRate: 1,
+      exponentialRate: 0.05
     },
     {
       id: '3',
@@ -241,6 +260,32 @@ const TaskBoard: React.FC = () => {
       endDate: '2024-12-31',
       hasSpecificTime: true,
       repeatTime: '06:00'
+    },
+    {
+      id: '12',
+      title: '制作爱心便当',
+      description: '周三中午给对方准备便当',
+      deadline: '2024-09-30',
+      points: 25,
+      status: 'recruiting',
+      creator: 'Whimsical Cat',
+      createdAt: '2024-06-20',
+      requiresProof: true,
+      taskType: 'special',
+      repeatType: 'once'
+    },
+    {
+      id: '13',
+      title: '打扫房间',
+      description: '周末一起打扫和整理房间',
+      deadline: '2024-10-15',
+      points: 15,
+      status: 'recruiting',
+      creator: 'Whimsical Cat',
+      createdAt: '2024-07-01',
+      requiresProof: false,
+      taskType: 'habit',
+      repeatType: 'once'
     }
   ]);
 
@@ -261,7 +306,12 @@ const TaskBoard: React.FC = () => {
     taskStartTime: '',
     taskEndTime: '',
     repeatWeekdays: [] as number[],
-    repeatTime: ''
+    repeatTime: '',
+    acceptanceDeadline: '',
+    rewardDecayStart: '',
+    decayType: 'none' as 'none' | 'linear' | 'exponential' | 'sigmoid' | 'linear+sigmoid' | 'exponential+sigmoid',
+    linearRate: 1,
+    exponentialRate: 0.05
   });
 
   const [userPoints, setUserPoints] = useState({ me: 230, partner: 180 });
@@ -356,7 +406,7 @@ const TaskBoard: React.FC = () => {
         case 'not_started':
           return (
             <div className={`text-sm ${
-              theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+              theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
             }`}>
               {theme === 'pixel' ? 'STARTS_AT' : '开始时间'}: {formatDateTime(task.taskStartTime || '')}
             </div>
@@ -509,8 +559,8 @@ const TaskBoard: React.FC = () => {
                 />
                 <p className={`text-xs mt-1 ${
                   theme === 'pixel' 
-                    ? 'text-pixel-textMuted font-mono' 
-                    : 'text-gray-500'
+                    ? 'text-pixel-text font-mono' 
+                    : 'text-gray-700'
                 }`}>
                   {theme === 'pixel' 
                     ? 'OPTIONAL: DEFAULT_24_HOURS_AFTER_START' 
@@ -572,7 +622,7 @@ const TaskBoard: React.FC = () => {
             <div className="mt-2">
               <div className="mb-4">
                 <p className={`text-sm mb-2 ${
-                  theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-600'
+                  theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
                 }`}>
                   {theme === 'pixel' ? 'SELECT_WEEKDAYS *' : '选择每周重复的日期 *'}
                 </p>
@@ -616,7 +666,7 @@ const TaskBoard: React.FC = () => {
               </div>
               <div>
                 <p className={`text-sm mb-2 ${
-                  theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-600'
+                  theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
                 }`}>
                   {theme === 'pixel' ? 'SELECT_TIME' : '选择时间'}
                 </p>
@@ -631,8 +681,8 @@ const TaskBoard: React.FC = () => {
                 />
                 <p className={`text-xs mt-1 ${
                   theme === 'pixel' 
-                    ? 'text-pixel-textMuted font-mono' 
-                    : 'text-gray-500'
+                    ? 'text-pixel-text font-mono' 
+                    : 'text-gray-700'
                 }`}>
                   {theme === 'pixel' 
                     ? 'OPTIONAL: IF_NOT_SET_TASK_CAN_BE_COMPLETED_ANYTIME' 
@@ -775,8 +825,8 @@ const TaskBoard: React.FC = () => {
             />
             <p className={`text-xs mt-1 ${
               theme === 'pixel' 
-                ? 'text-pixel-textMuted font-mono' 
-                : 'text-gray-500'
+                ? 'text-pixel-text font-mono' 
+                : 'text-gray-700'
             }`}>
               {theme === 'pixel' 
                 ? 'OPTIONAL: SYSTEM_CALCULATED_BASED_ON_DURATION' 
@@ -806,8 +856,8 @@ const TaskBoard: React.FC = () => {
             {newTask.startDate && newTask.endDate && (
               <p className={`text-xs mt-1 ${
                 theme === 'pixel' 
-                  ? 'text-pixel-textMuted font-mono' 
-                  : 'text-gray-500'
+                  ? 'text-pixel-text font-mono' 
+                  : 'text-gray-700'
               }`}>
                 {theme === 'pixel' 
                   ? `TOTAL_POINTS: ${newTask.points * calculateTaskCount(newTask.startDate, newTask.endDate, newTask.repeatFrequency)}` 
@@ -862,7 +912,12 @@ const TaskBoard: React.FC = () => {
           return undefined;
         })()) : undefined,
         repeatWeekdays: newTask.repeatType === 'repeat' && newTask.hasSpecificTime ? newTask.repeatWeekdays : undefined,
-        repeatTime: newTask.repeatType === 'repeat' && newTask.hasSpecificTime ? newTask.repeatTime : undefined
+        repeatTime: newTask.repeatType === 'repeat' && newTask.hasSpecificTime ? newTask.repeatTime : undefined,
+        acceptanceDeadline: newTask.acceptanceDeadline,
+        rewardDecayStart: newTask.rewardDecayStart,
+        decayType: newTask.decayType,
+        linearRate: newTask.decayType.includes('linear') ? newTask.linearRate : undefined,
+        exponentialRate: newTask.decayType.includes('exponential') ? newTask.exponentialRate : undefined
       };
       setTasks([...tasks, task]);
       setNewTask({
@@ -881,7 +936,12 @@ const TaskBoard: React.FC = () => {
         taskStartTime: '',
         taskEndTime: '',
         repeatWeekdays: [],
-        repeatTime: ''
+        repeatTime: '',
+        acceptanceDeadline: '',
+        rewardDecayStart: '',
+        decayType: 'none',
+        linearRate: 1,
+        exponentialRate: 0.05
       });
       setShowAddForm(false);
     }
@@ -918,7 +978,7 @@ const TaskBoard: React.FC = () => {
           theme === 'pixel' 
             ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel hover:shadow-pixel-lg hover:border-pixel-accent'
             : 'bg-white rounded-xl shadow-soft hover:shadow-lg hover:border-primary-300'
-        } ${isExpiringSoon ? 'border-yellow-500' : ''}`}
+        } ${isExpiringSoon ? 'border-yellow-500' : ''} ${task.acceptanceDeadline && new Date()>new Date(task.acceptanceDeadline) && !task.assignee?'opacity-40 cursor-not-allowed':''}`}
       >
         <div className="flex items-start justify-between mb-2">
           <h4 className={`font-bold ${
@@ -945,7 +1005,7 @@ const TaskBoard: React.FC = () => {
         </div>
 
         <p className={`text-sm mb-3 ${
-          theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
+          theme === 'pixel' ? 'text-pixel-text' : 'text-gray-800'
         }`}>
           {task.description}
         </p>
@@ -955,7 +1015,7 @@ const TaskBoard: React.FC = () => {
           
           {/* 任务时间信息 */}
           <div className={`flex items-center space-x-4 text-sm ${
-            theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-500'
+            theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-700'
           }`}>
             {task.hasSpecificTime ? (
               <>
@@ -998,7 +1058,7 @@ const TaskBoard: React.FC = () => {
 
           {/* 积分信息 */}
           <div className={`flex items-center justify-between text-sm ${
-            theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-500'
+            theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-700'
           }`}>
             <div className="flex items-center space-x-2">
               {theme === 'pixel' ? (
@@ -1006,7 +1066,7 @@ const TaskBoard: React.FC = () => {
               ) : (
                 <StarIcon className="w-4 h-4 text-yellow-500" />
               )}
-              <span>{task.points}</span>
+              <span>{getEffectivePoints(task)}</span>
             </div>
             {task.requiresProof && (
               <div className={`flex items-center space-x-1 ${
@@ -1023,6 +1083,14 @@ const TaskBoard: React.FC = () => {
               </div>
             )}
           </div>
+          {task.decayType && task.decayType !== 'none' && (
+            <div className={`text-xs ${
+              theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+            }`}>
+              {theme === 'pixel' ? 'DECAY' : '衰减'}: {getDecayName(task.decayType)}
+              {task.rewardDecayStart ? ` (${formatDate(task.rewardDecayStart)})` : ''}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1066,9 +1134,7 @@ const TaskBoard: React.FC = () => {
       }
     };
 
-    // 这里应该调用实际的日历API
-    // 例如：Google Calendar API, iCal, 或其他日历服务
-    console.log('Calendar event:', calendarEvent);
+    // TODO: integrate with real calendar API (Google Calendar, iCal, etc.)
   };
 
   // 更新任务详情弹窗中的操作按钮
@@ -1188,7 +1254,7 @@ const TaskBoard: React.FC = () => {
         setUserPoints(prev => ({
           ...prev,
               [task.assignee === 'Whimsical Cat' ? 'me' : 'partner']: 
-                prev[task.assignee === 'Whimsical Cat' ? 'me' : 'partner'] + task.points
+                prev[task.assignee === 'Whimsical Cat' ? 'me' : 'partner'] + getEffectivePoints(task)
         }));
           }
         return { ...task, status: 'completed' };
@@ -1207,7 +1273,7 @@ const TaskBoard: React.FC = () => {
             setUserPoints(prev => ({
               ...prev,
               [task.assignee === 'Whimsical Cat' ? 'me' : 'partner']: 
-                prev[task.assignee === 'Whimsical Cat' ? 'me' : 'partner'] + task.points
+                prev[task.assignee === 'Whimsical Cat' ? 'me' : 'partner'] + getEffectivePoints(task)
             }));
           }
           return { ...task, status: 'completed', reviewComment: comment };
@@ -1576,7 +1642,7 @@ const TaskBoard: React.FC = () => {
                 {selectedTask.title}
               </h4>
               <p className={`text-sm ${
-                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
+                theme === 'pixel' ? 'text-pixel-text' : 'text-gray-800'
               }`}>
                 {selectedTask.description}
               </p>
@@ -1584,7 +1650,7 @@ const TaskBoard: React.FC = () => {
 
             {/* 任务信息 */}
             <div className={`grid grid-cols-2 gap-4 ${
-              theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
+              theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-700'
             }`}>
               <div className="flex items-center space-x-2">
                 {theme === 'pixel' ? (
@@ -1600,7 +1666,7 @@ const TaskBoard: React.FC = () => {
                 ) : (
                   <StarIcon className="w-5 h-5 text-yellow-500" />
                   )}
-                <span>积分奖励：{selectedTask.points}</span>
+                <span>积分奖励：{getEffectivePoints(selectedTask)}</span>
               </div>
                     <div className="flex items-center space-x-2">
                 {theme === 'pixel' ? (
@@ -1942,6 +2008,63 @@ const TaskBoard: React.FC = () => {
     );
   };
 
+  // 计算当前任务应获得的积分（考虑衰减）
+  const getEffectivePoints = (task: Task) => {
+    if (!task.rewardDecayStart || task.decayType === 'none') return task.points;
+    const today = new Date();
+    const decayStart = new Date(task.rewardDecayStart);
+    if (today <= decayStart) return task.points;
+    const daysPassed = Math.floor((today.getTime() - decayStart.getTime()) / (1000*60*60*24));
+    const base = task.points;
+
+    const linearRatio = () => {
+      const rate = (task.linearRate ?? 1)/100;
+      return Math.max(0, 1 - rate*daysPassed);
+    };
+
+    const exponentialRatio = () => {
+      const k = task.exponentialRate ?? 0.05;
+      return Math.exp(-k*daysPassed);
+    };
+
+    const sigmoidRatio = () => {
+      const k = 0.1;
+      return 1/(1 + Math.exp(k*daysPassed));
+    };
+
+    let ratio = 1;
+    switch (task.decayType) {
+      case 'linear':
+        ratio = linearRatio();
+        break;
+      case 'exponential':
+        ratio = exponentialRatio();
+        break;
+      case 'sigmoid':
+        ratio = sigmoidRatio();
+        break;
+      case 'linear+sigmoid':
+        ratio = linearRatio()*sigmoidRatio();
+        break;
+      case 'exponential+sigmoid':
+        ratio = exponentialRatio()*sigmoidRatio();
+        break;
+    }
+    return Math.max(1, Math.round(base*ratio));
+  };
+
+  // 获取衰减方式名称
+  const getDecayName = (decayType?: 'none' | 'linear' | 'exponential' | 'sigmoid' | 'linear+sigmoid' | 'exponential+sigmoid') => {
+    switch (decayType) {
+      case 'linear': return theme === 'pixel' ? 'LINEAR' : '线性';
+      case 'exponential': return theme === 'pixel' ? 'EXPONENTIAL' : '指数';
+      case 'sigmoid': return theme === 'pixel' ? 'SIGMOID' : 'S 型';
+      case 'linear+sigmoid': return theme === 'pixel' ? 'LIN+SIG' : '线性+S';
+      case 'exponential+sigmoid': return theme === 'pixel' ? 'EXP+SIG' : '指数+S';
+    }
+    return theme === 'pixel' ? 'NONE' : '无';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with View Switcher */}
@@ -2269,6 +2392,122 @@ const TaskBoard: React.FC = () => {
                     {theme === 'pixel' ? 'TASK_REQUIRES_PROOF' : '任务需要上传完成凭证'}
                   </span>
                 </div>
+              </div>
+              {/* 奖励衰减 */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'pixel'
+                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                    : 'text-gray-700'
+                }`}>
+                  {theme === 'pixel' ? 'REWARD_DECAY' : '奖励衰减'}
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={newTask.decayType !== 'none'}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setNewTask({
+                          ...newTask,
+                          decayType: 'linear',
+                          rewardDecayStart: newTask.rewardDecayStart || new Date().toISOString().split('T')[0]
+                        });
+                      } else {
+                        setNewTask({ ...newTask, decayType: 'none', rewardDecayStart: '' });
+                      }
+                    }}
+                    className={`w-4 h-4 ${
+                      theme === 'pixel' ? 'pixel-checkbox' : 'rounded text-primary-500'
+                    }`}
+                  />
+                  <span className={theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-600'}>
+                    {theme === 'pixel' ? 'ENABLE_REWARD_DECAY' : '启用奖励衰减'}
+                  </span>
+                </div>
+
+                {newTask.decayType !== 'none' && (
+                  <>
+                    {/* 衰减方式 */}
+                    <div className="mt-3">
+                      <label className={`block text-sm font-medium mb-2 ${
+                        theme === 'pixel'
+                          ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                          : 'text-gray-700'
+                      }`}>
+                        {theme === 'pixel' ? 'DECAY_TYPE' : '衰减方式'}
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { value: 'linear', label: theme === 'pixel' ? 'LINEAR' : '线性' },
+                          { value: 'exponential', label: theme === 'pixel' ? 'EXP' : '指数' },
+                          { value: 'sigmoid', label: theme === 'pixel' ? 'SIG' : 'S 型' },
+                          { value: 'linear+sigmoid', label: theme === 'pixel' ? 'LIN+SIG' : '线+S' },
+                          { value: 'exponential+sigmoid', label: theme === 'pixel' ? 'EXP+SIG' : '指+S' }
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setNewTask({ ...newTask, decayType: opt.value as any })}
+                            className={`py-2 px-3 text-sm transition-all duration-300 ${
+                              theme === 'pixel'
+                                ? `rounded-pixel border-2 font-mono uppercase ${
+                                    newTask.decayType === opt.value
+                                      ? 'bg-pixel-accent text-black border-white shadow-pixel neon-border'
+                                      : 'border-pixel-border text-pixel-text hover:border-pixel-info hover:bg-pixel-card'
+                                  }`
+                                : `rounded-xl border-2 ${
+                                    newTask.decayType === opt.value
+                                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                  }`
+                              }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 衰减开始日期 */}
+                    <div className="mt-3">
+                      <label className={`block text-sm font-medium mb-2 ${
+                        theme === 'pixel'
+                          ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                          : 'text-gray-700'
+                      }`}>
+                        {theme === 'pixel' ? 'DECAY_START_DATE' : '衰减开始日期'}
+                      </label>
+                      <input
+                        type="date"
+                        value={newTask.rewardDecayStart}
+                        onChange={(e) => setNewTask({ ...newTask, rewardDecayStart: e.target.value })}
+                        className={`w-full ${
+                          theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                        }`}
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
+
+                    {/* 线性衰减率 */}
+                    {(newTask.decayType.includes('linear')) && (
+                      <div className="mt-3">
+                        <label className={`block text-sm font-medium mb-2 ${theme==='pixel'?'text-pixel-cyan font-mono uppercase tracking-wide neon-text':'text-gray-700'}`}>{theme==='pixel'?'LINEAR_RATE(%)':'线性衰减率(％/天)'}</label>
+                        <input type="number" min="0" max="100" step="0.1" value={newTask.linearRate}
+                          onChange={(e)=>setNewTask({...newTask,linearRate:parseFloat(e.target.value)||0})}
+                          className={`w-full ${theme==='pixel'?'pixel-input-glow':'input-cutesy'}`}/>
+                      </div>
+                    )}
+                    {/* 指数衰减率 */}
+                    {(newTask.decayType.includes('exponential')) && (
+                      <div className="mt-3">
+                        <label className={`block text-sm font-medium mb-2 ${theme==='pixel'?'text-pixel-cyan font-mono uppercase tracking-wide neon-text':'text-gray-700'}`}>{theme==='pixel'?'EXP_RATE':'指数衰减常数k'}</label>
+                        <input type="number" min="0" max="1" step="0.01" value={newTask.exponentialRate}
+                          onChange={(e)=>setNewTask({...newTask,exponentialRate:parseFloat(e.target.value)||0})}
+                          className={`w-full ${theme==='pixel'?'pixel-input-glow':'input-cutesy'}`}/>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
