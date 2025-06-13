@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { PlusIcon, UserIcon, ArrowPathIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, UserIcon, ArrowPathIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, CalendarDaysIcon, HeartIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
+import ConfirmDialog from './ConfirmDialog';
+import { format, subMonths, addMonths, isSameDay, isSameMonth } from 'date-fns';
 
 interface Event {
   id: string;
@@ -47,7 +49,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   useEffect(() => {
     const newDefaultView = getDefaultView();
     setCurrentView(newDefaultView);
-    console.log(`📅 用户切换到: ${currentUser}, 默认视图设置为: ${newDefaultView}`);
   }, [currentUser]);
   
   const [events, setEvents] = useState<Event[]>([
@@ -144,6 +145,15 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     recurrenceEnd: '', // 结束日期（非必填）
     time: '', // 时间（非必填）
     participants: [] as ('cat' | 'cow')[]
+  });
+
+  // 确认弹窗状态
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning' as 'warning' | 'danger' | 'info',
+    onConfirm: () => {}
   });
 
   // 检查用户是否有编辑权限
@@ -297,7 +307,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
     // 检查权限
     if (!canEditEvent(selectedEvent)) {
-      alert('你没有权限编辑这个事件！');
+      setConfirmDialog({
+        isOpen: true,
+        title: theme === 'pixel' ? 'ACCESS_DENIED' : '权限不足',
+        message: theme === 'pixel' ? 'NO_PERMISSION_TO_EDIT_THIS_EVENT' : '你没有权限编辑这个事件！',
+        type: 'warning',
+        onConfirm: () => setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+      });
       return;
     }
 
@@ -329,22 +345,35 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     
     // 检查权限
     if (!canEditEvent(selectedEvent)) {
-      alert('你没有权限删除这个事件！');
+      setConfirmDialog({
+        isOpen: true,
+        title: theme === 'pixel' ? 'ACCESS_DENIED' : '权限不足',
+        message: theme === 'pixel' ? 'NO_PERMISSION_TO_DELETE_THIS_EVENT' : '你没有权限删除这个事件！',
+        type: 'warning',
+        onConfirm: () => setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+      });
       return;
     }
     
-    if (window.confirm('确定要删除这个事件吗？')) {
-      setEvents(events.filter(event => event.id !== selectedEvent.id));
-      setShowDetailModal(false);
-      setSelectedEvent(null);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: theme === 'pixel' ? 'DELETE_EVENT' : '删除事件',
+      message: theme === 'pixel' ? 'ARE_YOU_SURE_TO_DELETE_THIS_EVENT' : '确定要删除这个事件吗？',
+      type: 'danger',
+      onConfirm: () => {
+        setEvents(events.filter(event => event.id !== selectedEvent.id));
+        setShowDetailModal(false);
+        setSelectedEvent(null);
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   // 根据参与者生成颜色
   const getEventColor = (participants: ('cat' | 'cow')[]): string => {
     if (theme === 'pixel') {
       if (participants.includes('cat') && participants.includes('cow')) {
-        return 'bg-pixel-accent'; // 双方参与：像素风红色
+        return 'bg-pixel-warning'; // 双方参与：像素风黄色（更醒目）
       } else if (participants.includes('cat')) {
         return 'bg-pixel-info'; // 只有猫咪：像素风青色
       } else if (participants.includes('cow')) {
@@ -354,7 +383,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     }
     
     if (participants.includes('cat') && participants.includes('cow')) {
-      return 'bg-lavender-400'; // 双方参与：浅薰衣草紫
+      return 'bg-orange-500'; // 双方参与：明亮的橙色（更醒目）
     } else if (participants.includes('cat')) {
       return 'bg-blue-400'; // 只有猫咪：天空梦境蓝
     } else if (participants.includes('cow')) {
@@ -365,7 +394,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 获取参与者显示文本
   const getParticipantsText = (participants: ('cat' | 'cow')[]): string => {
-    const names = participants.map(p => p === 'cat' ? '🐱 Whimsical Cat' : '🐄 Whimsical Cow');
+    const names = participants.map(p => p === 'cat' ? 'Whimsical Cat' : 'Whimsical Cow');
     return names.join(', ');
   };
 
@@ -471,128 +500,127 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   const todayEvents = getTodayEvents();
   
+  // 获取用户图标
+  const getUserIcon = (userType: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
+    if (theme === 'pixel') {
+      return (
+        <PixelIcon 
+          name="user" 
+          className={userType === 'cat' ? 'text-pixel-info' : 'text-pixel-purple'}
+          size={size}
+        />
+      );
+    } else {
+      return (
+        <UserIcon className={`${
+          size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
+        } ${userType === 'cat' ? 'text-blue-500' : 'text-primary-500'}`} />
+      );
+    }
+  };
+
+  // 获取心形图标
+  const getHeartIcon = (size: 'sm' | 'md' | 'lg' = 'md') => {
+    if (theme === 'pixel') {
+      return <PixelIcon name="heart" className="text-pixel-accent" size={size} glow />;
+    } else {
+      return <HeartIcon className={`${
+        size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
+      } text-primary-500`} />;
+    }
+  };
+  
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with View Switcher */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-4">
           <h2 className={`text-3xl font-bold ${
             theme === 'pixel' 
-              ? 'font-retro text-pixel-text uppercase tracking-wider neon-text' 
+              ? 'font-retro text-pixel-text uppercase tracking-wider' 
               : 'font-display text-gray-700'
           }`}>
-            {theme === 'pixel' 
-              ? `${currentYear}_${String(currentMonth + 1).padStart(2, '0')}.CALENDAR` 
-              : `${currentYear}年 ${monthNames[currentMonth]}`
-            }
+            {theme === 'pixel' ? 'CALENDAR.EXE' : '日程安排'}
           </h2>
           
-          {/* 视图切换按钮 */}
-          <div className={`flex items-center space-x-2 p-1 ${
+          {/* View Switcher */}
+          <div className={`flex ${
             theme === 'pixel' 
-              ? 'bg-pixel-card border-4 border-black rounded-pixel shadow-pixel neon-border' 
-              : 'bg-white/40 backdrop-blur-md rounded-2xl border border-secondary-200/30'
+              ? 'border-4 border-pixel-border bg-pixel-card shadow-pixel' 
+              : 'border border-gray-200'
           }`}>
             <button
               onClick={() => setCurrentView('cat')}
-              className={`flex items-center space-x-2 px-4 py-2 transition-all duration-300 ${
+              className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel' 
-                  ? `rounded-pixel font-mono text-sm uppercase font-bold ${
+                  ? `font-mono uppercase border-r-4 border-pixel-border ${
                       currentView === 'cat'
-                        ? 'bg-pixel-info text-black shadow-pixel border-2 border-white neon-border'
-                        : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-info'
+                        ? 'bg-pixel-accent text-black shadow-pixel-inner'
+                        : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                     }`
-                  : `rounded-xl ${
+                  : `${
                       currentView === 'cat'
-                        ? 'bg-blue-400 text-white shadow-dream'
-                        : 'text-sage-600 hover:bg-blue-50/60'
+                        ? 'bg-blue-400 text-white'
+                        : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
             >
-              <span className="text-lg">🐱</span>
+              {getUserIcon('cat', 'sm')}
               <span className="font-medium">
                 {theme === 'pixel' ? 'CAT_LOG' : '猫猫日历'}
               </span>
             </button>
-            
             <button
               onClick={() => setCurrentView('cow')}
-              className={`flex items-center space-x-2 px-4 py-2 transition-all duration-300 ${
-                theme === 'pixel' 
-                  ? `rounded-pixel font-mono text-sm uppercase font-bold ${
+              className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
+                theme === 'pixel'
+                  ? `font-mono uppercase border-r-4 border-pixel-border ${
                       currentView === 'cow'
-                        ? 'bg-pixel-purple text-white shadow-pixel border-2 border-white neon-border'
-                        : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-purple'
+                        ? 'bg-pixel-accent text-black shadow-pixel-inner'
+                        : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                     }`
-                  : `rounded-xl ${
+                  : `${
                       currentView === 'cow'
-                        ? 'bg-primary-400 text-white shadow-dream'
-                        : 'text-sage-600 hover:bg-primary-50/60'
+                        ? 'bg-primary-400 text-white'
+                        : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
             >
-              <span className="text-lg">🐄</span>
+              {getUserIcon('cow', 'sm')}
               <span className="font-medium">
                 {theme === 'pixel' ? 'COW_LOG' : '奶牛日历'}
               </span>
             </button>
-            
             <button
               onClick={() => setCurrentView('shared')}
-              className={`flex items-center space-x-2 px-4 py-2 transition-all duration-300 ${
-                theme === 'pixel' 
-                  ? `rounded-pixel font-mono text-sm uppercase font-bold ${
+              className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
+                theme === 'pixel'
+                  ? `font-mono uppercase ${
                       currentView === 'shared'
-                        ? 'bg-pixel-accent text-white shadow-pixel border-2 border-white neon-border'
+                        ? 'bg-pixel-accent text-black shadow-pixel-inner'
                         : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                     }`
-                  : `rounded-xl ${
+                  : `${
                       currentView === 'shared'
-                        ? 'bg-lavender-400 text-white shadow-dream'
-                        : 'text-sage-600 hover:bg-lavender-50/60'
+                        ? 'bg-lavender-400 text-white'
+                        : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
             >
-              <span className="text-lg">💕</span>
+              {getHeartIcon('sm')}
               <span className="font-medium">
                 {theme === 'pixel' ? 'SHARED_LOG' : '共同日历'}
               </span>
             </button>
           </div>
-          
-          {/* 当前视图提示信息 */}
-          {currentUser && (
-            <div className={`text-sm ${
-              theme === 'pixel' 
-                ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                : 'text-gray-600'
-            }`}>
-              {(() => {
-                const userType = getCurrentUserType();
-                if (currentView === userType) {
-                  return theme === 'pixel' 
-                    ? `CURRENT_VIEW: ${userType?.toUpperCase()}_PERSONAL_LOG` 
-                    : `当前显示: ${currentUser}的个人日历`;
-                } else if (currentView === 'shared') {
-                  return theme === 'pixel' 
-                    ? 'CURRENT_VIEW: SHARED_EVENTS_LOG' 
-                    : '当前显示: 共同活动日历';
-                } else {
-                  return theme === 'pixel' 
-                    ? `CURRENT_VIEW: ${currentView.toUpperCase()}_LOG` 
-                    : `当前显示: ${currentView === 'cat' ? '猫猫' : '奶牛'}的日历`;
-                }
-              })()}
-            </div>
-          )}
         </div>
         
         <button
           onClick={() => setShowAddForm(true)}
           className={`flex items-center space-x-2 px-6 py-3 font-bold transition-all duration-300 ${
             theme === 'pixel'
-              ? 'pixel-btn-neon text-white rounded-pixel shadow-pixel-neon hover:shadow-pixel-neon-strong hover:translate-y-[-2px] border-4 border-white font-mono uppercase tracking-wider'
-              : 'btn-primary'
+              ? 'pixel-btn-neon text-white rounded-pixel pixel-border-primary hover:shadow-pixel-neon-strong hover:translate-y-[-2px] font-mono uppercase tracking-wider'
+            : 'btn-primary'
           }`}
         >
           {theme === 'pixel' ? (
@@ -600,7 +628,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           ) : (
             <PlusIcon className="w-5 h-5" />
           )}
-          <span>{theme === 'pixel' ? 'ADD_EVENT' : '添加日程'}</span>
+          <span>{theme === 'pixel' ? 'NEW_EVENT' : '新增日程'}</span>
         </button>
       </div>
 
@@ -608,13 +636,17 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Calendar Grid - Left Side */}
         <div className="xl:col-span-3">
-          <div className={`p-6 ${theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg neon-border' : 'card-cutesy'}`}>
+          <div className={`p-6 ${
+            theme === 'pixel' 
+              ? 'bg-pixel-panel border-4 border-black rounded-2xl shadow-pixel-lg neon-border' 
+              : 'card-cutesy rounded-3xl'
+          }`}>
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-2 mb-4">
               {dayNames.map(day => (
                 <div key={day} className={`text-center font-medium py-2 ${
-                  theme === 'pixel' 
-                    ? 'text-pixel-text font-mono uppercase bg-pixel-card border-2 border-pixel-border rounded-pixel neon-text' 
+                  theme === 'pixel'
+                    ? 'text-pixel-text font-mono uppercase bg-pixel-card border-2 border-pixel-border rounded-xl neon-text' 
                     : 'text-gray-500'
                 }`}>
                   {theme === 'pixel' ? day.toUpperCase() : day}
@@ -633,19 +665,19 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 const isToday = day === today.getDate() && 
                                currentMonth === today.getMonth() && 
                                currentYear === today.getFullYear();
-
+                
                 return (
                   <div
                     key={day}
                     className={`h-28 p-2 transition-all duration-300 flex flex-col ${
-                      theme === 'pixel' 
-                        ? `border-2 border-pixel-border rounded-pixel hover:shadow-pixel neon-border ${
-                            isToday 
+                      theme === 'pixel'
+                        ? `border-2 border-pixel-border rounded-xl hover:shadow-pixel neon-border ${
+                            isToday
                               ? 'bg-pixel-accent border-white shadow-pixel-neon animate-neon-glow' 
                               : 'bg-pixel-card hover:bg-pixel-panel'
                           }`
-                        : `border rounded-xl hover:shadow-soft ${
-                            isToday 
+                        : `border rounded-2xl hover:shadow-soft ${
+                            isToday
                               ? 'bg-gradient-to-br from-primary-100/60 to-secondary-100/60 border-primary-300/50' 
                               : 'bg-white/40 border-gray-200/60 hover:bg-white/60'
                           }`
@@ -667,7 +699,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             onClick={() => handleEventClick(event)}
                             className={`text-xs px-1.5 py-0.5 truncate relative cursor-pointer transition-opacity ${
                               theme === 'pixel' 
-                                ? `rounded-pixel border border-black font-mono uppercase ${
+                                ? `rounded-xl font-mono uppercase ${
                                     hasEditPermission 
                                       ? 'hover:opacity-80 hover:shadow-pixel-neon' 
                                       : 'opacity-75 hover:opacity-90'
@@ -689,7 +721,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             )}
                             {!hasEditPermission && (
                               <div className={`absolute right-0.5 bottom-0 w-1.5 h-1.5 opacity-60 ${
-                                theme === 'pixel' ? 'bg-white rounded-pixel' : 'bg-gray-400 rounded-full'
+                                theme === 'pixel' ? 'bg-white rounded-xl' : 'bg-gray-400 rounded-full'
                               }`} title="只读"></div>
                             )}
                             <span className={`block truncate ${event.isRecurring ? 'pr-3' : ''} ${!hasEditPermission ? 'pr-2' : ''} ${
@@ -735,9 +767,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                   ? (currentView === 'cat' ? 'CAT_TODAY' : 
                      currentView === 'cow' ? 'COW_TODAY' : 
                      'SHARED_TODAY')
-                  : (currentView === 'cat' ? '🐱 猫猫今日' : 
-                     currentView === 'cow' ? '🐄 奶牛今日' : 
-                     '💕 共同今日')
+                  : (currentView === 'cat' ? '猫猫今日' : 
+                     currentView === 'cow' ? '奶牛今日' : 
+                     '共同今日')
                 }
               </h3>
             </div>
@@ -843,9 +875,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       <div className="flex items-center justify-between mt-3">
                         <div className="flex items-center space-x-1">
                           {event.participants.map(participant => (
-                            <span key={participant} className="text-lg">
-                              {participant === 'cat' ? '🐱' : '🐄'}
-                            </span>
+                            <div key={participant} className="flex items-center">
+                              {getUserIcon(participant, 'sm')}
+                            </div>
                           ))}
                           <span className={`text-sm ml-1 ${
                             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
@@ -908,7 +940,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className={`p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto ${
             theme === 'pixel' 
-              ? 'bg-pixel-panel border-4 border-white rounded-pixel shadow-pixel-lg neon-border' 
+              ? 'bg-pixel-panel pixel-container rounded-pixel shadow-pixel-lg neon-border' 
               : 'card-cutesy'
           }`}>
             <div className="flex items-center justify-between mb-4">
@@ -929,25 +961,61 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     {!isEditing && (
                       <button
                         onClick={() => setIsEditing(true)}
-                        className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
-                        title="编辑"
+                        className={`p-2 transition-colors ${
+                          theme === 'pixel'
+                            ? 'text-pixel-cyan hover:text-pixel-accent rounded-pixel border-2 border-pixel-border hover:border-pixel-accent'
+                            : 'text-gray-500 hover:text-blue-600'
+                        }`}
+                        title={theme === 'pixel' ? 'EDIT' : '编辑'}
                       >
-                        <PencilIcon className="w-5 h-5" />
+                        {theme === 'pixel' ? (
+                          <PixelIcon name="pencil" size="sm" />
+                        ) : (
+                          <PencilIcon className="w-5 h-5" />
+                        )}
                       </button>
                     )}
                     <button
                       onClick={handleDeleteEvent}
-                      className="p-2 text-gray-500 hover:text-red-600 transition-colors"
-                      title="删除"
+                      className={`p-2 transition-colors ${
+                        theme === 'pixel'
+                          ? 'text-pixel-textMuted hover:text-pixel-accent rounded-pixel border-2 border-pixel-border hover:border-pixel-accent'
+                          : 'text-gray-500 hover:text-red-600'
+                      }`}
+                      title={theme === 'pixel' ? 'DELETE' : '删除'}
                     >
-                      <TrashIcon className="w-5 h-5" />
+                      {theme === 'pixel' ? (
+                        <PixelIcon name="trash" size="sm" />
+                      ) : (
+                        <TrashIcon className="w-5 h-5" />
+                      )}
                     </button>
                   </>
                 )}
                 {/* 没有权限时显示只读标识 */}
                 {!canEditEvent(selectedEvent) && (
-                  <div className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-lg">
-                    <span className="text-xs text-gray-500">👁️ 只读</span>
+                  <div className={`flex items-center space-x-2 px-3 py-1 ${
+                    theme === 'pixel'
+                      ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel'
+                      : 'bg-gray-100 rounded-lg'
+                  }`}>
+                    <span className={`text-xs ${
+                      theme === 'pixel'
+                        ? 'text-pixel-textMuted font-mono uppercase'
+                        : 'text-gray-500'
+                    }`}>
+                      {theme === 'pixel' ? (
+                        <div className="flex items-center space-x-1">
+                          <PixelIcon name="eye" size="sm" />
+                          <span>READONLY</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1">
+                          <EyeIcon className="w-3 h-3" />
+                          <span>只读</span>
+                        </div>
+                      )}
+                    </span>
                   </div>
                 )}
                 <button
@@ -956,9 +1024,17 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     setIsEditing(false);
                     setSelectedEvent(null);
                   }}
-                  className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                  className={`p-2 transition-colors ${
+                    theme === 'pixel'
+                      ? 'text-pixel-textMuted hover:text-pixel-text rounded-pixel border-2 border-pixel-border hover:border-pixel-textMuted'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  {theme === 'pixel' ? (
+                    <PixelIcon name="x" size="sm" />
+                  ) : (
+                    <XMarkIcon className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -967,49 +1043,95 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               // 详情视图
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    标题
+                  <label className={`block text-sm font-medium mb-1 ${
+                    theme === 'pixel'
+                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                      : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'EVENT_TITLE' : '标题'}
                   </label>
-                  <p className="text-lg font-medium text-gray-900">{selectedEvent.title}</p>
+                  <p className={`text-lg font-medium ${
+                    theme === 'pixel'
+                      ? 'text-pixel-text font-mono uppercase'
+                      : 'text-gray-900'
+                  }`}>
+                    {selectedEvent.title}
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    日期
+                  <label className={`block text-sm font-medium mb-1 ${
+                    theme === 'pixel'
+                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                      : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'DATE' : '日期'}
                   </label>
-                  <p className="text-gray-900">
+                  <p className={`${
+                    theme === 'pixel'
+                      ? 'text-pixel-text font-mono'
+                      : 'text-gray-900'
+                  }`}>
                     {formatDate(selectedEvent.originalDate || selectedEvent.date)}
                   </p>
                 </div>
 
                 {selectedEvent.time && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      时间
+                    <label className={`block text-sm font-medium mb-1 ${
+                      theme === 'pixel'
+                        ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                        : 'text-gray-700'
+                    }`}>
+                      {theme === 'pixel' ? 'TIME' : '时间'}
                     </label>
-                    <p className="text-gray-900">{selectedEvent.time}</p>
+                    <p className={`${
+                      theme === 'pixel'
+                        ? 'text-pixel-text font-mono'
+                        : 'text-gray-900'
+                    }`}>
+                      {selectedEvent.time}
+                    </p>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    参与者
+                  <label className={`block text-sm font-medium mb-1 ${
+                    theme === 'pixel'
+                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                      : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'PARTICIPANTS' : '参与者'}
                   </label>
-                  <p className="text-gray-900">{getParticipantsText(selectedEvent.participants)}</p>
+                  <p className={`${
+                    theme === 'pixel'
+                      ? 'text-pixel-text font-mono'
+                      : 'text-gray-900'
+                  }`}>
+                    {getParticipantsText(selectedEvent.participants)}
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    重复
+                  <label className={`block text-sm font-medium mb-1 ${
+                    theme === 'pixel'
+                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                      : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'RECURRENCE' : '重复'}
                   </label>
-                  <p className="text-gray-900">
+                  <p className={`${
+                    theme === 'pixel'
+                      ? 'text-pixel-text font-mono'
+                      : 'text-gray-900'
+                  }`}>
                     {selectedEvent.isRecurring 
                       ? `${getRecurrenceText(selectedEvent.recurrenceType!)}${
                           selectedEvent.recurrenceEnd 
                             ? `，直到 ${formatDate(selectedEvent.recurrenceEnd)}` 
                             : ''
                         }`
-                      : '一次性事件'
+                      : (theme === 'pixel' ? 'ONE_TIME_EVENT' : '一次性事件')
                     }
                   </p>
                 </div>
@@ -1094,68 +1216,103 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 {/* 3. 重复频率 */}
                 {editEvent.isRecurring && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      重复频率 *
+                    <label className={`block text-sm font-medium mb-2 ${
+                      theme === 'pixel'
+                        ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                        : 'text-gray-700'
+                    }`}>
+                      {theme === 'pixel' ? 'FREQUENCY *' : '重复频率 *'}
                     </label>
                     <select
                       value={editEvent.recurrenceType || 'weekly'}
                       onChange={(e) => setEditEvent({...editEvent, recurrenceType: e.target.value as any})}
-                      className="input-cutesy w-full"
+                      className={`w-full ${
+                        theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                      }`}
                     >
-                      <option value="daily">每天</option>
-                      <option value="weekly">每周</option>
-                      <option value="biweekly">每两周</option>
-                      <option value="monthly">每月</option>
-                      <option value="yearly">每年</option>
+                      <option value="daily">{theme === 'pixel' ? 'DAILY' : '每天'}</option>
+                      <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : '每周'}</option>
+                      <option value="biweekly">{theme === 'pixel' ? 'BI_WEEKLY' : '每两周'}</option>
+                      <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : '每月'}</option>
+                      <option value="yearly">{theme === 'pixel' ? 'YEARLY' : '每年'}</option>
                     </select>
                   </div>
                 )}
 
                 {/* 4. 日期 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {editEvent.isRecurring ? '起始日期' : '日期'} *
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'pixel'
+                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                      : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' 
+                      ? (editEvent.isRecurring ? 'START_DATE *' : 'DATE *')
+                      : (editEvent.isRecurring ? '起始日期' : '日期') + ' *'
+                    }
                   </label>
                   <input
                     type="date"
                     value={editEvent.date || ''}
                     onChange={(e) => setEditEvent({...editEvent, date: e.target.value})}
-                    className="input-cutesy w-full"
+                    className={`w-full ${
+                      theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                    }`}
                   />
                 </div>
 
                 {/* 5. 结束日期 */}
                 {editEvent.isRecurring && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      结束日期
+                    <label className={`block text-sm font-medium mb-2 ${
+                      theme === 'pixel'
+                        ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                        : 'text-gray-700'
+                    }`}>
+                      {theme === 'pixel' ? 'END_DATE' : '结束日期'}
                     </label>
                     <input
                       type="date"
                       value={editEvent.recurrenceEnd || ''}
                       onChange={(e) => setEditEvent({...editEvent, recurrenceEnd: e.target.value})}
-                      className="input-cutesy w-full"
+                      className={`w-full ${
+                        theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                      }`}
                       min={editEvent.date}
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      留空则默认重复一年
+                    <p className={`text-xs mt-1 ${
+                      theme === 'pixel'
+                        ? 'text-pixel-textMuted font-mono'
+                        : 'text-gray-500'
+                    }`}>
+                      {theme === 'pixel' ? 'LEAVE_EMPTY_FOR_ONE_YEAR_DEFAULT' : '留空则默认重复一年'}
                     </p>
                   </div>
                 )}
 
                 {/* 6. 时间 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    时间
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'pixel'
+                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
+                      : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'TIME' : '时间'}
                   </label>
                   <input
                     type="time"
                     value={editEvent.time || ''}
                     onChange={(e) => setEditEvent({...editEvent, time: e.target.value})}
-                    className="input-cutesy w-full"
+                    className={`w-full ${
+                      theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
+                    }`}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    可选，不填写时间的话为全天事件
+                  <p className={`text-xs mt-1 ${
+                    theme === 'pixel'
+                      ? 'text-pixel-textMuted font-mono'
+                      : 'text-gray-500'
+                  }`}>
+                    {theme === 'pixel' ? 'OPTIONAL_LEAVE_EMPTY_FOR_ALL_DAY' : '可选，不填写时间的话为全天事件'}
                   </p>
                 </div>
 
@@ -1204,7 +1361,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           }`}>✓</span>
                         )}
                       </div>
-                      <span className="text-2xl">🐱</span>
+                      {getUserIcon('cat', 'sm')}
                       <span className={`font-medium ${
                         theme === 'pixel' ? 'font-mono uppercase' : ''
                       }`}>
@@ -1247,7 +1404,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           }`}>✓</span>
                         )}
                       </div>
-                      <span className="text-2xl">🐄</span>
+                      {getUserIcon('cow', 'sm')}
                       <span className={`font-medium ${
                         theme === 'pixel' ? 'font-mono uppercase' : ''
                       }`}>
@@ -1275,20 +1432,32 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                   <>
                     <button
                       onClick={() => setIsEditing(false)}
-                      className="flex-1 py-3 px-4 border-2 border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all duration-300"
+                      className={`flex-1 py-3 px-4 border-2 transition-all duration-300 ${
+                        theme === 'pixel'
+                          ? 'border-pixel-border text-pixel-text rounded-pixel hover:bg-pixel-card font-mono uppercase'
+                          : 'border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50'
+                      }`}
                     >
-                      取消
+                      {theme === 'pixel' ? 'CANCEL' : '取消'}
                     </button>
                     <button
                       onClick={handleUpdateEvent}
                       disabled={!editEvent.title || !editEvent.date || !editEvent.participants?.length}
-                      className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
-                        editEvent.title && editEvent.date && editEvent.participants?.length
-                          ? 'btn-primary'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                        theme === 'pixel'
+                          ? `rounded-pixel font-mono uppercase ${
+                              editEvent.title && editEvent.date && editEvent.participants?.length
+                                ? 'pixel-btn-neon text-white border-4 border-white'
+                                : 'bg-pixel-card text-pixel-textMuted border-2 border-pixel-border cursor-not-allowed'
+                            }`
+                          : `rounded-xl ${
+                              editEvent.title && editEvent.date && editEvent.participants?.length
+                                ? 'btn-primary'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`
                       }`}
                     >
-                      保存
+                      {theme === 'pixel' ? 'SAVE' : '保存'}
                     </button>
                   </>
                 )
@@ -1299,9 +1468,16 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     setShowDetailModal(false);
                     setSelectedEvent(null);
                   }}
-                  className="flex-1 btn-primary"
+                  className={`flex-1 ${
+                    theme === 'pixel'
+                      ? 'py-3 px-4 font-mono uppercase pixel-btn-neon text-white rounded-pixel border-4 border-white'
+                      : 'btn-primary'
+                  }`}
                 >
-                  {canEditEvent(selectedEvent) ? '关闭' : '确定'}
+                  {canEditEvent(selectedEvent) 
+                    ? (theme === 'pixel' ? 'CLOSE' : '关闭')
+                    : (theme === 'pixel' ? 'OK' : '确定')
+                  }
                 </button>
               )}
             </div>
@@ -1314,16 +1490,32 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className={`p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto ${
             theme === 'pixel' 
-              ? 'bg-pixel-panel border-4 border-white rounded-pixel shadow-pixel-lg neon-border' 
+              ? 'bg-pixel-panel pixel-container rounded-pixel shadow-pixel-lg neon-border' 
               : 'card-cutesy'
           }`}>
-            <h3 className={`text-xl font-bold mb-4 ${
-              theme === 'pixel' 
-                ? 'font-retro text-pixel-text uppercase tracking-wider neon-text' 
-                : 'font-display text-gray-800'
-            }`}>
-              {theme === 'pixel' ? 'ADD_NEW_EVENT' : '添加新日程'}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-xl font-bold ${
+                theme === 'pixel' 
+                  ? 'font-retro text-pixel-text uppercase tracking-wider neon-text' 
+                  : 'font-display text-gray-800'
+              }`}>
+                {theme === 'pixel' ? 'ADD_NEW_EVENT' : '添加新日程'}
+              </h3>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className={`p-2 transition-colors ${
+                  theme === 'pixel'
+                    ? 'text-pixel-textMuted hover:text-pixel-text rounded-pixel border-2 border-pixel-border hover:border-pixel-textMuted'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {theme === 'pixel' ? (
+                  <PixelIcon name="x" size="sm" />
+                ) : (
+                  <XMarkIcon className="w-5 h-5" />
+                )}
+              </button>
+            </div>
             
             <div className="space-y-4">
               {/* 1. 日程标题 */}
@@ -1548,7 +1740,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         }`}>✓</span>
                       )}
                     </div>
-                    <span className="text-2xl">🐱</span>
+                    {getUserIcon('cat', 'sm')}
                     <span className={`font-medium ${
                       theme === 'pixel' ? 'font-mono uppercase' : ''
                     }`}>
@@ -1591,7 +1783,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         }`}>✓</span>
                       )}
                     </div>
-                    <span className="text-2xl">🐄</span>
+                    {getUserIcon('cow', 'sm')}
                     <span className={`font-medium ${
                       theme === 'pixel' ? 'font-mono uppercase' : ''
                     }`}>
@@ -1639,12 +1831,22 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       }`
                 }`}
               >
-                {theme === 'pixel' ? 'ADD_EVENT' : '添加'}
+                {theme === 'pixel' ? 'PUBLISH_EVENT' : '发布'}
               </button>
             </div>
           </div>
         </div>
       )}
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

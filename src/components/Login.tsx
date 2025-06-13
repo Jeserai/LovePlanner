@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { EyeIcon, EyeSlashIcon, HeartIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, UserIcon, HeartIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 
 interface LoginProps {
@@ -9,17 +9,37 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const { theme } = useTheme();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 预设用户
-  const users = [
-    { username: 'whimsical cat', password: '0521', emoji: '🐱', color: 'blue' },
-    { username: 'whimsical cow', password: '0223', emoji: '🐄', color: 'primary' }
+  // 快速登录选项
+  const quickLogins = [
+    { username: 'whimsical cat', password: '0521', color: 'blue' },
+    { username: 'whimsical cow', password: '0223', color: 'primary' }
   ];
+
+  // 获取用户图标
+  const getUserIcon = (username: string, size: 'sm' | 'md' | 'lg' = 'md') => {
+    const userType = username.toLowerCase().includes('cat') ? 'cat' : 'cow';
+    
+    if (theme === 'pixel') {
+      return (
+        <PixelIcon 
+          name="user" 
+          className={userType === 'cat' ? 'text-pixel-info' : 'text-pixel-purple'}
+          size={size}
+        />
+      );
+    } else {
+      return (
+        <UserIcon className={`${
+          size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
+        } ${userType === 'cat' ? 'text-blue-500' : 'text-primary-500'}`} />
+      );
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,9 +49,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     // 模拟加载延迟
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const user = users.find(u => 
-      u.username.toLowerCase() === username.toLowerCase() && 
-      u.password === password
+    const user = quickLogins.find(u => 
+      u.username.toLowerCase() === loginData.username.toLowerCase() && 
+      u.password === loginData.password
     );
 
     if (user) {
@@ -44,8 +64,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   const handleQuickLogin = async (user: { username: string; password: string }) => {
-    setUsername(user.username);
-    setPassword(user.password);
+    setLoginData({ username: user.username, password: user.password });
     setError('');
     setIsLoading(true);
 
@@ -105,7 +124,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </h1>
               <div className="bg-pixel-card border-2 border-pixel-cyan rounded-pixel p-2 mb-2 neon-border">
                 <p className="text-pixel-cyan text-sm font-mono neon-text">
-                  ♥ WELCOME TO YOUR LOVE QUEST! ♥
+                  WELCOME TO YOUR LOVE QUEST!
                 </p>
               </div>
               <div className="text-pixel-success text-xs font-mono neon-text animate-neon-glow">
@@ -119,7 +138,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <p className="text-sm font-mono text-pixel-text text-center mb-3 uppercase tracking-wide neon-text">
                   &gt;&gt;&gt; SELECT PLAYER &lt;&lt;&lt;
                 </p>
-                {users.map((user, index) => (
+                {quickLogins.map((user, index) => (
                   <button
                     key={user.username}
                     onClick={() => handleQuickLogin(user)}
@@ -133,7 +152,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <div className={`w-12 h-12 border-2 border-white rounded-pixel flex items-center justify-center text-2xl ${
                       user.color === 'blue' ? 'bg-pixel-info' : 'bg-pixel-purple'
                     } neon-border`}>
-                      {user.emoji}
+                      {getUserIcon(user.username, 'sm')}
                     </div>
                     <div className="flex-1 text-left">
                       <div className="font-mono text-pixel-text uppercase tracking-wide font-bold neon-text">
@@ -169,13 +188,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               {/* 用户名输入 */}
               <div>
                 <label className="block text-sm font-mono text-pixel-text mb-2 uppercase tracking-wide flex items-center space-x-2">
-                  <PixelIcon name="user" className="text-pixel-cyan" />
+                  {getUserIcon('whimsical cat')}
                   <span>&gt; USERNAME:</span>
                 </label>
                 <input
                   type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={loginData.username}
+                  onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
                   className="w-full pixel-input-glow rounded-pixel px-4 py-3 font-mono text-pixel-text placeholder-pixel-textMuted uppercase transition-all duration-200"
                   placeholder="ENTER_USERNAME..."
                   required
@@ -192,8 +211,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={loginData.password}
+                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                     className="w-full pixel-input-glow rounded-pixel px-4 py-3 pr-12 font-mono text-pixel-text placeholder-pixel-textMuted transition-all duration-200"
                     placeholder="ENTER_PASSWORD..."
                     required
@@ -222,9 +241,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               {/* 登录按钮 */}
               <button
                 type="submit"
-                disabled={isLoading || !username || !password}
+                disabled={isLoading || !loginData.username || !loginData.password}
                 className={`w-full py-4 px-6 rounded-pixel font-mono font-bold transition-all duration-200 flex items-center justify-center space-x-2 uppercase tracking-wider border-4 ${
-                  isLoading || !username || !password
+                  isLoading || !loginData.username || !loginData.password
                     ? 'bg-pixel-border text-pixel-textMuted cursor-not-allowed border-pixel-border'
                     : 'pixel-btn-neon text-white shadow-pixel-neon hover:shadow-pixel-neon-strong'
                 }`}
@@ -295,14 +314,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               爱情规划师
             </h1>
             <p className="text-sage-600 text-sm">
-              欢迎回到你们的甜蜜小天地 💕
+              欢迎回到你们的甜蜜小天地
             </p>
           </div>
 
           {/* 快速登录按钮 */}
           <div className="space-y-3 mb-6">
             <p className="text-sm font-medium text-sage-700 text-center mb-3">快速登录</p>
-            {users.map((user) => (
+            {quickLogins.map((user) => (
               <button
                 key={user.username}
                 onClick={() => handleQuickLogin(user)}
@@ -313,7 +332,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     : 'border-primary-200/40 bg-primary-100/30 hover:border-primary-300/50 hover:bg-primary-200/40'
                 } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-dream'}`}
               >
-                <div className="text-3xl">{user.emoji}</div>
+                <div className="text-3xl">{getUserIcon(user.username, 'lg')}</div>
                 <div className="flex-1 text-left">
                   <div className="font-medium text-sage-700 capitalize">
                     {user.username}
@@ -345,8 +364,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </label>
               <input
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={loginData.username}
+                onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
                 className="input-cutesy w-full"
                 placeholder="输入用户名..."
                 required
@@ -362,8 +381,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                   className="input-cutesy w-full pr-12"
                   placeholder="输入密码..."
                   required
@@ -394,9 +413,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             {/* 登录按钮 */}
             <button
               type="submit"
-              disabled={isLoading || !username || !password}
+              disabled={isLoading || !loginData.username || !loginData.password}
               className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${
-                isLoading || !username || !password
+                isLoading || !loginData.username || !loginData.password
                   ? 'bg-sage-200 text-sage-500 cursor-not-allowed'
                   : 'bg-water-lily text-white hover:scale-[1.02] shadow-dream hover:shadow-monet'
               }`}
@@ -426,7 +445,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         {/* 底部装饰文字 */}
         <div className="text-center mt-6">
           <p className="text-sm text-sage-600">
-            用爱记录每一个美好瞬间 ✨
+            用爱记录每一个美好瞬间
           </p>
         </div>
       </div>

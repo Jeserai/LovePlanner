@@ -28,6 +28,7 @@ const PixelIcon: React.FC<PixelIconProps> = ({
     'check': '■✓■',
     'x': '■✕■',
     'edit': '■✎■',
+    'pencil': '■✏■',
     'delete': '■✖■',
     'trash': '■🗑■',
     'save': '■💾■',

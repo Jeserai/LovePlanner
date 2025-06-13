@@ -12,8 +12,6 @@ export const resetToDefaultTheme = () => {
   document.documentElement.className = 'pixel';
   document.body.className = 'pixel-theme';
   
-  console.log('🎮 Theme reset to Pixel Cyberpunk (default)');
-  
   // 刷新页面以确保完全应用
   window.location.reload();
 };
@@ -21,5 +19,4 @@ export const resetToDefaultTheme = () => {
 // 在浏览器控制台中可用的全局函数
 if (typeof window !== 'undefined') {
   window.resetTheme = resetToDefaultTheme;
-  console.log('🎮 Pixel theme is now the default! Use resetTheme() in console to reset if needed.');
 } 

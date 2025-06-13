@@ -13,6 +13,8 @@ module.exports = {
         // 像素风字体
         pixel: ['Courier New', 'monospace'],
         retro: ['VT323', 'monospace'],
+        // 星露谷字体
+        stardew: ['Press Start 2P', 'monospace'],
       },
       colors: {
         // 梦幻莫内风格：极浅的水莲花粉色
@@ -125,6 +127,51 @@ module.exports = {
           textMuted: '#aaaacc', // 更亮的灰色文字 (从 #888899 改为更亮)
           border: '#4a4a66',    // 更亮的边框色 (从 #333344 改为更亮)
         },
+        // 星露谷主题配色
+        stardew: {
+          // 季节色彩 - 更饱和的像素风格
+          spring: '#7cbb5e',    // 春季嫩绿 - 更深的像素绿
+          summer: '#4a9cd4',    // 夏季天蓝 - 保持原样
+          fall: '#d4a24a',      // 秋季金黄 - 保持原样
+          winter: '#a4c4e8',    // 冬季雪蓝 - 保持原样
+          
+          // 主题色 - 更像素化的配色
+          accent: '#e6a4a4',    // 粉红点缀 - 保持原样
+          text: '#2d2d2d',      // 主要文字 - 更深的像素黑
+          textMuted: '#6b6b6b', // 次要文字 - 保持原样
+          border: '#4a4a4a',    // 边框颜色 - 更深的像素灰
+          
+          // 功能色 - 更像素化的配色
+          success: '#7cbb5e',   // 成功（春季绿）
+          warning: '#d4a24a',   // 警告（秋季黄）
+          error: '#e6a4a4',     // 错误（粉红）
+          info: '#4a9cd4',      // 信息（夏季蓝）
+
+          // 像素风格元素
+          pixel: {
+            bg: '#f4f1de',      // 背景色 - 温暖的米色
+            panel: '#e9e6d3',   // 面板背景 - 浅米色
+            card: '#e0dcc9',    // 卡片背景 - 中米色
+            border: '#4a4a4a',  // 边框色 - 深灰
+            shadow: '#2d2d2d',  // 阴影色 - 深黑
+          },
+
+          // 新增：游戏UI元素
+          ui: {
+            wood: '#8b7355',    // 木纹色
+            woodLight: '#a89078', // 浅木纹色
+            woodDark: '#6b5b4a',  // 深木纹色
+            stone: '#9e9e9e',   // 石灰色
+            stoneLight: '#bdbdbd', // 浅石灰色
+            stoneDark: '#757575',  // 深石灰色
+            soil: '#8d6e63',    // 土壤色
+            soilLight: '#a1887f',  // 浅土壤色
+            soilDark: '#6d4c41',   // 深土壤色
+            grass: '#81c784',   // 草地色
+            grassLight: '#a5d6a7', // 浅草地色
+            grassDark: '#66bb6a',  // 深草地色
+          }
+        },
       },
       maxWidth: {
         '8xl': '88rem',
@@ -135,6 +182,8 @@ module.exports = {
         '2xl': '1.5rem',
         // 像素风：不使用圆角
         'pixel': '0px',
+        // 星露谷：小圆角
+        'stardew': '4px',
       },
       boxShadow: {
         'soft': '0 4px 14px 0 rgba(0, 0, 0, 0.03)',
@@ -147,6 +196,12 @@ module.exports = {
         'pixel-lg': '6px 6px 0px #000000, 0 0 15px rgba(255, 0, 128, 0.7)',
         'pixel-neon': '0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor',
         'pixel-neon-strong': '0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor, 0 0 40px currentColor',
+        // 星露谷风格阴影 - 更像素化的效果
+        'stardew': '4px 4px 0 #2d2d2d, 0 6px 10px rgba(0, 0, 0, 0.1)',
+        'stardew-lg': '6px 6px 0 #2d2d2d, 0 8px 15px rgba(0, 0, 0, 0.15)',
+        'stardew-sm': '2px 2px 0 #2d2d2d, 0 4px 6px rgba(0, 0, 0, 0.1)',
+        'stardew-wood': '4px 4px 0 #6b5b4a, 0 6px 10px rgba(0, 0, 0, 0.1)',
+        'stardew-stone': '4px 4px 0 #757575, 0 6px 10px rgba(0, 0, 0, 0.1)',
       },
       backgroundImage: {
         'monet-gradient': 'linear-gradient(135deg, #f7faff 0%, #f8fdfb 25%, #fffcf8 50%, #fcfbff 75%, #fafbfa 100%)',
@@ -158,6 +213,15 @@ module.exports = {
         'pixel-card': 'linear-gradient(135deg, #353555 0%, #2a2a40 100%)',
         'pixel-accent': 'linear-gradient(45deg, #ff0080, #ff1493)',
         'pixel-glow': 'radial-gradient(circle, rgba(255, 0, 128, 0.3) 0%, rgba(0, 212, 255, 0.1) 50%, transparent 100%)',
+        // 星露谷背景
+        'stardew-spring': 'linear-gradient(135deg, #7cbb5e 0%, #a4d494 100%)',
+        'stardew-summer': 'linear-gradient(135deg, #4a9cd4 0%, #6bb5e6 100%)',
+        'stardew-fall': 'linear-gradient(135deg, #d4a24a 0%, #e6b86c 100%)',
+        'stardew-winter': 'linear-gradient(135deg, #a4c4e8 0%, #c4d8f0 100%)',
+        'stardew-wood': 'linear-gradient(45deg, #8b7355 25%, #a89078 25%, #a89078 50%, #8b7355 50%, #8b7355 75%, #a89078 75%, #a89078 100%)',
+        'stardew-stone': 'linear-gradient(45deg, #9e9e9e 25%, #bdbdbd 25%, #bdbdbd 50%, #9e9e9e 50%, #9e9e9e 75%, #bdbdbd 75%, #bdbdbd 100%)',
+        'stardew-soil': 'linear-gradient(45deg, #8d6e63 25%, #a1887f 25%, #a1887f 50%, #8d6e63 50%, #8d6e63 75%, #a1887f 75%, #a1887f 100%)',
+        'stardew-grass': 'linear-gradient(45deg, #81c784 25%, #a5d6a7 25%, #a5d6a7 50%, #81c784 50%, #81c784 75%, #a5d6a7 75%, #a5d6a7 100%)',
       },
       // 像素风专用动画
       animation: {
@@ -166,6 +230,9 @@ module.exports = {
         'neon-glow': 'neon-glow 2s ease-in-out infinite alternate',
         'neon-flicker': 'neon-flicker 0.15s infinite linear',
         'cyberpunk-slide': 'cyberpunk-slide 0.5s ease-out',
+        'stardew-bounce': 'stardew-bounce 1s infinite',
+        'stardew-pulse': 'stardew-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'stardew-shake': 'stardew-shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
       },
       keyframes: {
         'pixel-pulse': {
@@ -213,7 +280,37 @@ module.exports = {
             transform: 'translateX(0)',
             opacity: '1'
           }
-        }
+        },
+        'stardew-bounce': {
+          '0%, 100%': {
+            transform: 'translateY(0)',
+          },
+          '50%': {
+            transform: 'translateY(-4px)',
+          },
+        },
+        'stardew-pulse': {
+          '0%, 100%': {
+            opacity: '1',
+          },
+          '50%': {
+            opacity: '0.8',
+          },
+        },
+        'stardew-shake': {
+          '10%, 90%': {
+            transform: 'translate3d(-1px, 0, 0)',
+          },
+          '20%, 80%': {
+            transform: 'translate3d(2px, 0, 0)',
+          },
+          '30%, 50%, 70%': {
+            transform: 'translate3d(-4px, 0, 0)',
+          },
+          '40%, 60%': {
+            transform: 'translate3d(4px, 0, 0)',
+          },
+        },
       }
     },
   },

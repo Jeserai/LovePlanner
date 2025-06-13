@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 // 导入主题初始化工具
 import '../utils/themeInit.js';
 
-export type ThemeType = 'monet' | 'pixel';
+export type ThemeType = 'monet' | 'pixel' | 'stardew';
 
 interface ThemeContextType {
   theme: ThemeType;
@@ -30,7 +30,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
-    if (savedTheme && ['monet', 'pixel'].includes(savedTheme)) {
+    if (savedTheme && ['monet', 'pixel', 'stardew'].includes(savedTheme)) {
       setThemeState(savedTheme);
     } else {
       // 如果没有保存的主题，默认使用像素风格
@@ -44,7 +44,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     localStorage.setItem('theme', theme);
     document.documentElement.className = theme;
     // 确保body也有对应的类名
-    document.body.className = theme === 'pixel' ? 'pixel-theme' : 'monet-theme';
+    document.body.className = `${theme}-theme`;
   }, [theme]);
 
   const setTheme = (newTheme: ThemeType) => {
@@ -52,7 +52,18 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const toggleTheme = () => {
-    setThemeState(prev => prev === 'monet' ? 'pixel' : 'monet');
+    setThemeState(prev => {
+      switch (prev) {
+        case 'monet':
+          return 'pixel';
+        case 'pixel':
+          return 'stardew';
+        case 'stardew':
+          return 'monet';
+        default:
+          return 'pixel';
+      }
+    });
   };
 
   const value = {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { HeartIcon, CalendarIcon, ClipboardDocumentListIcon, ShoppingBagIcon, Cog6ToothIcon, UserIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { HeartIcon, CalendarDaysIcon, ListBulletIcon, ShoppingBagIcon, Cog6ToothIcon, UserIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import PixelIcon from './PixelIcon';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,23 +15,36 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
   const { theme } = useTheme();
   
   const tabs = [
-    { id: 'calendar', name: theme === 'pixel' ? 'CALENDAR' : '日历', icon: CalendarIcon },
-    { id: 'tasks', name: theme === 'pixel' ? 'TASKS' : '任务看板', icon: ClipboardDocumentListIcon },
+    { id: 'calendar', name: theme === 'pixel' ? 'CALENDAR' : '日历', icon: CalendarDaysIcon },
+    { id: 'tasks', name: theme === 'pixel' ? 'TASKS' : '任务看板', icon: ListBulletIcon },
     { id: 'shop', name: theme === 'pixel' ? 'SHOP' : '个人商店', icon: ShoppingBagIcon },
     { id: 'settings', name: theme === 'pixel' ? 'SETTINGS' : '设置', icon: Cog6ToothIcon },
   ];
 
-  // 获取用户显示信息
-  const getUserDisplayInfo = (username: string) => {
+  // 根据用户名判断用户类型并返回相应信息
+  const getUserInfo = (username: string) => {
     if (username.toLowerCase().includes('cat')) {
-      return { emoji: '🐱', name: theme === 'pixel' ? 'PLAYER_CAT' : 'Whimsical Cat', color: 'blue' };
+      return { 
+        icon: theme === 'pixel' ? 'user' : 'user',
+        name: theme === 'pixel' ? 'PLAYER_CAT' : 'Whimsical Cat', 
+        color: 'blue' 
+      };
     } else if (username.toLowerCase().includes('cow')) {
-      return { emoji: '🐄', name: theme === 'pixel' ? 'PLAYER_COW' : 'Whimsical Cow', color: 'primary' };
+      return { 
+        icon: theme === 'pixel' ? 'user' : 'user',
+        name: theme === 'pixel' ? 'PLAYER_COW' : 'Whimsical Cow', 
+        color: 'primary' 
+      };
+    } else {
+      return { 
+        icon: theme === 'pixel' ? 'user' : 'user',
+        name: username, 
+        color: 'gray' 
+      };
     }
-    return { emoji: '👤', name: username, color: 'gray' };
   };
 
-  const userInfo = currentUser ? getUserDisplayInfo(currentUser) : null;
+  const userInfo = currentUser ? getUserInfo(currentUser) : null;
 
   return (
     <div className={`min-h-screen ${theme === 'pixel' ? 'bg-pixel-bg' : 'bg-monet-gradient'}`}>
@@ -43,7 +57,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
         <div className="max-w-8xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <HeartIcon className={`w-8 h-8 ${theme === 'pixel' ? 'text-pixel-accent' : 'text-secondary-500'}`} />
+              {theme === 'pixel' ? (
+                <PixelIcon name="heart" className="text-pixel-accent" size="lg" glow />
+              ) : (
+                <HeartIcon className="w-8 h-8 text-secondary-500" />
+              )}
               <h1 className={`text-2xl font-bold ${
                 theme === 'pixel' 
                   ? 'font-retro text-pixel-text tracking-wider' 
@@ -107,7 +125,23 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                           : 'bg-sage-100/50 border border-sage-200/40'
                       }`
                 }`}>
-                  <span className="text-lg">{userInfo.emoji}</span>
+                  {theme === 'pixel' ? (
+                    <PixelIcon 
+                      name="user" 
+                      className={`${
+                        userInfo.color === 'blue' ? 'text-pixel-info' :
+                        userInfo.color === 'primary' ? 'text-pixel-purple' :
+                        'text-pixel-text'
+                      }`}
+                      size="sm"
+                    />
+                  ) : (
+                    <UserIcon className={`w-4 h-4 ${
+                      userInfo.color === 'blue' ? 'text-blue-600' :
+                      userInfo.color === 'primary' ? 'text-primary-600' :
+                      'text-gray-600'
+                    }`} />
+                  )}
                   <span className={`text-sm font-medium ${
                     theme === 'pixel' 
                       ? 'text-pixel-text font-mono'
