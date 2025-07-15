@@ -711,8 +711,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               }}
               className={`p-2 rounded-full transition-colors ${
                 theme === 'pixel'
-                  ? 'hover:bg-pixel-accent/20 text-pixel-text'
-                  : 'hover:bg-gray-100 text-gray-600'
+                  ? 'hover:text-pixel-accent text-pixel-textMuted'
+                  : 'hover:text-primary-500 text-gray-400'
               }`}
             >
               {theme === 'pixel' ? (
@@ -736,8 +736,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               }}
               className={`p-2 rounded-full transition-colors ${
                 theme === 'pixel'
-                  ? 'hover:bg-pixel-accent/20 text-pixel-text'
-                  : 'hover:bg-gray-100 text-gray-600'
+                  ? 'hover:text-pixel-accent text-pixel-textMuted'
+                  : 'hover:text-primary-500 text-gray-400'
               }`}
             >
               {theme === 'pixel' ? (

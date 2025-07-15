@@ -132,3 +132,7 @@ prisma/migrations/*/migration.sql
 
 # Local configuration - 本地配置
 .local 
+
+# deployment
+.vercel
+.netlify 

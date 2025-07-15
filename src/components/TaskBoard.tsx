@@ -51,6 +51,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     return 'Whimsical Cat'; // 默认用户
   };
 
+  // 调试信息
+  console.log('DEBUG: Current publishedPage state:', publishedPage);
+  console.log('DEBUG: Current theme:', theme);
+
   // 获取对方用户名称
   const getPartnerUserName = () => {
     const currentUserName = getCurrentUserName();
@@ -1265,13 +1269,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             </div>
           );
         case 'in_time_range':
-          return (
-            <div className={`text-sm ${
-              theme === 'pixel' ? 'text-pixel-success font-mono' : 'text-green-500'
-            }`}>
-              {theme === 'pixel' ? 'IN_TIME_RANGE' : '在时间范围内'}
-            </div>
-          );
+          return null; // 不显示"在时间范围内"状态
       }
     } else {
       switch (status) {
@@ -1292,15 +1290,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             </div>
           );
         case 'upcoming':
-          return (
-            <div className={`text-sm ${
-              theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
-            }`}>
-              {theme === 'pixel' ? 'DUE_AT' : '截止时间'}: {formatDate(task.deadline)}
-            </div>
-          );
+          return null; // 不显示"截止时间"字段
       }
     }
+    return null;
   };
 
   // 格式化日期时间
@@ -2064,11 +2057,6 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           status: 'assigned' as const
         };
         
-        // 如果任务有指定时间，添加到日历
-        if (task.hasSpecificTime && task.repeatType === 'repeat') {
-          addTaskToCalendar(updatedTask);
-        }
-        
         return updatedTask;
       }
       return task;
@@ -2082,37 +2070,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           status: 'assigned' as const
         };
         
-        // 如果任务有指定时间，添加到日历
-        if (task.hasSpecificTime && task.repeatType === 'repeat') {
-          addTaskToCalendar(updatedTask);
-        }
-        
         return updatedTask;
       }
       return task;
     }));
-  };
-
-  // 添加到日历的函数（需要实现）
-  const addTaskToCalendar = (task: Task) => {
-    if (!task.hasSpecificTime || task.repeatType !== 'repeat' || !task.repeatTime) return;
-
-    const calendarEvent = {
-      title: task.title,
-      description: task.description,
-      startTime: task.repeatTime,
-      endTime: task.repeatTime, // 可以根据需要设置结束时间
-      repeatRule: {
-        frequency: task.repeatFrequency,
-        weekdays: task.repeatWeekdays,
-        startDate: task.startDate,
-        endDate: task.endDate
-      }
-    };
-
-    // 这里应该调用实际的日历API
-    // 例如：Google Calendar API, iCal, 或其他日历服务
-    console.log('Calendar event:', calendarEvent);
   };
 
   const handleStartTask = (taskId: string) => {
@@ -2126,7 +2087,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     setCowTasks(cowTasks.map(task => {
       if (task.id === taskId && task.status === 'assigned') {
         return { ...task, status: 'in-progress' };
-      }
+    }
       return task;
     }));
   };
@@ -2137,8 +2098,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         // 检查任务是否过期，如果过期则移动到abandoned状态
         if (isTaskOverdue(task)) {
           return { ...task, status: 'abandoned' };
-        }
-        
+    }
+
         if (task.requiresProof) {
           // 如果需要凭证，任务进入待审核状态
           return { 
@@ -2623,7 +2584,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     ? 'hover:text-pixel-accent text-pixel-textMuted'
                     : 'hover:text-primary-500 text-gray-400'
                 }`}
-                aria-label="下一页"
+                aria-label="上一页"
               >
                 {theme === 'pixel' ? (
                   <PixelIcon name="arrow-left" size="sm" />
@@ -2692,7 +2653,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       } else {
         return (
           <div className="space-y-6">
-            {/* 已完成/已放弃任务页面 */}
+            {/* 已完成/已关闭任务页面 */}
             {/* 分类标题行 - 作为一个整体 */}
             <div className="relative mb-6">
               {/* 左侧箭头 */}
@@ -2720,7 +2681,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     ? 'hover:text-pixel-accent text-pixel-textMuted'
                     : 'hover:text-primary-500 text-gray-400'
                 }`}
-                aria-label="上一页"
+                aria-label="下一页"
               >
                 {theme === 'pixel' ? (
                   <PixelIcon name="arrow-right" size="sm" />
@@ -2730,7 +2691,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               </button>
               
               {/* 分类标题行 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-12">
           <div>
                   <h3 className={`text-lg font-bold ${
               theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
@@ -2742,7 +2703,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   <h3 className={`text-lg font-bold ${
               theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
           }`}>
-              {theme === 'pixel' ? 'CLOSED' : '已关闭'}
+                    {theme === 'pixel' ? 'CLOSED' : '已关闭'}
             </h3>
                 </div>
               </div>
@@ -3194,29 +3155,6 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   }`}
                 >
                   {theme === 'pixel' ? 'REPUBLISH_TASK' : '重新发布'}
-                </button>
-              )}
-              
-              {/* 下架按钮 - 只有任务创建者且任务状态为recruiting时显示 */}
-              {isTaskOwner && selectedTask.status === 'recruiting' && (
-                <button
-                  onClick={() => {
-                    if (window.confirm(
-                      theme === 'pixel'
-                        ? 'CLOSE_TASK_CONFIRMATION'
-                        : '确定要下架这个任务吗？'
-                    )) {
-                      handleCloseTask(selectedTask.id);
-                      setSelectedTask(null);
-                    }
-                  }}
-                  className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
-                    theme === 'pixel'
-                      ? 'bg-pixel-card text-pixel-text rounded-pixel border-2 border-pixel-border hover:bg-pixel-accent hover:text-black'
-                      : 'bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200'
-                  }`}
-                >
-                  {theme === 'pixel' ? 'CLOSE_TASK' : '下架任务'}
                         </button>
                       )}
             </div>
@@ -3226,130 +3164,6 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               );
   };
 
-  // 日历视图状态
-  const today = new Date();
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
-
-  const months = [
-    '一月', '二月', '三月', '四月', '五月', '六月',
-    '七月', '八月', '九月', '十月', '十一月', '十二月'
-  ];
-
-  const handlePrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
-  };
-
-  const handleToday = () => {
-    setCurrentMonth(today.getMonth());
-    setCurrentYear(today.getFullYear());
-  };
-
-  // 更新日历视图渲染
-  const renderCalendarView = () => {
-    return (
-      <div className="space-y-4">
-        {/* 日历导航 */}
-        <div className={`${
-          theme === 'pixel' 
-            ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel p-4'
-            : 'bg-white rounded-xl shadow-soft p-4'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handlePrevMonth}
-                className={`p-2 rounded-full transition-colors ${
-                  theme === 'pixel'
-                    ? 'hover:bg-pixel-accent/20 text-pixel-text'
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}
-              >
-                {theme === 'pixel' ? (
-                  <PixelIcon name="arrow-left" size="sm" />
-                ) : (
-                  <ChevronLeftIcon className="w-4 h-4" />
-                )}
-              </button>
-              <h2 className={`text-lg font-bold ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
-              }`}>
-                {theme === 'pixel' 
-                  ? `${months[currentMonth].toUpperCase()} ${currentYear}`
-                  : `${months[currentMonth]} ${currentYear}`
-                }
-              </h2>
-              <button
-                onClick={handleNextMonth}
-                className={`p-2 rounded-full transition-colors ${
-                  theme === 'pixel'
-                    ? 'hover:bg-pixel-accent/20 text-pixel-text'
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}
-              >
-                {theme === 'pixel' ? (
-                  <PixelIcon name="arrow-right" size="sm" />
-                ) : (
-                  <ChevronRightIcon className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            <button
-              onClick={handleToday}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                theme === 'pixel'
-                  ? 'bg-pixel-accent text-pixel-text hover:bg-pixel-accent/80 font-mono uppercase'
-                  : 'bg-primary-500 text-white hover:bg-primary-600'
-              }`}
-            >
-              {theme === 'pixel' ? 'TODAY' : '今天'}
-            </button>
-          </div>
-        </div>
-
-        {/* 日历卡片 */}
-        <div className={`${
-          theme === 'pixel' 
-            ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel p-4'
-            : 'bg-white rounded-xl shadow-soft p-4'
-        }`}>
-          {/* 日历内容 */}
-          <div className="grid grid-cols-7 gap-2">
-            {/* 星期标题 */}
-            {['日', '一', '二', '三', '四', '五', '六'].map((day, index) => (
-              <div
-                key={day}
-                className={`text-center py-2 font-medium ${
-                  theme === 'pixel'
-                    ? 'text-pixel-text font-mono uppercase'
-                    : 'text-gray-600'
-                } ${index === 0 || index === 6 ? 'text-red-500' : ''}`}
-              >
-                {theme === 'pixel' ? day.toUpperCase() : day}
-              </div>
-            ))}
-            
-            {/* 日历格子 */}
-            {/* 这里可以添加日历格子的渲染逻辑 */}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   // 更新任务详情弹窗中的操作按钮
   const renderTaskActions = (task: Task) => {
@@ -3362,40 +3176,40 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const isOverdue = isTaskOverdue(task);
 
     if (view === 'available' && !task.assignee) {
-      return (
-        <button
+    return (
+              <button
           onClick={() => {
             handleAcceptTask(task.id);
             setSelectedTask(null);
           }}
           className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
-            theme === 'pixel'
+                  theme === 'pixel'
               ? 'pixel-btn-neon text-white rounded-pixel border-2 border-white'
               : 'btn-primary'
-          }`}
-        >
+                }`}
+              >
           {theme === 'pixel' ? 'ACCEPT_TASK' : '领取任务'}
-        </button>
+              </button>
       );
     }
 
     if (isAssignee && isAssigned) {
       return (
         <>
-          <button
+              <button
             onClick={() => {
               handleStartTask(task.id);
               setSelectedTask(null);
             }}
             className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
-              theme === 'pixel'
+                  theme === 'pixel'
                 ? 'pixel-btn-neon text-white rounded-pixel border-2 border-white'
                 : 'btn-primary'
-            }`}
-          >
+                }`}
+              >
             {theme === 'pixel' ? 'START_TASK' : '开始任务'}
-          </button>
-          <button
+              </button>
+            <button
             onClick={() => {
               if (window.confirm(
                 theme === 'pixel'
@@ -3410,10 +3224,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               theme === 'pixel'
                 ? 'bg-pixel-card text-pixel-text rounded-pixel border-2 border-pixel-border hover:bg-pixel-accent hover:text-black'
                 : 'bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200'
-            }`}
-          >
+              }`}
+            >
             {theme === 'pixel' ? 'ABANDON_TASK (-10 POINTS)' : '放弃任务 (-10积分)'}
-          </button>
+            </button>
         </>
       );
     }
@@ -3425,7 +3239,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     <div className="space-y-6">
       {/* Header with View Switcher */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 flex-1">
           <h2 className={`text-3xl font-bold ${
             theme === 'pixel' 
               ? 'font-retro text-pixel-text uppercase tracking-wider' 
@@ -3515,8 +3329,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 {theme === 'pixel' ? 'AVAILABLE' : '可领取'}
             </span>
             </button>
+          </div>
         </div>
 
+        <div className="flex-shrink-0 ml-4">
         <button
           onClick={() => setShowAddForm(true)}
           className={`flex items-center space-x-2 px-6 py-3 font-bold transition-all duration-300 ${

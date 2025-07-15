@@ -90,7 +90,7 @@ const Settings: React.FC = () => {
       {/* Theme Description */}
       <div className="card-cutesy p-6">
         <h3 className="text-lg font-bold mb-3 text-pixel-text font-retro">
-          >>> CURRENT THEME INFO
+          {'>>> CURRENT THEME INFO'}
         </h3>
         
         <div className="space-y-3">
