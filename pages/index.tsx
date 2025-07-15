@@ -153,7 +153,7 @@ const AppContent: React.FC = () => {
       case 'calendar':
         return <Calendar currentUser={currentUser} />;
       case 'tasks':
-        return <TaskBoard />;
+        return <TaskBoard currentUser={currentUser} />;
       case 'shop':
         return <Shop />;
       case 'settings':

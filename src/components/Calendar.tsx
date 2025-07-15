@@ -83,7 +83,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       date: '2024-01-16',
       time: '20:00',
       participants: ['cow'],
-      color: 'bg-primary-400', // 初始颜色，会被主题覆盖
+      color: 'bg-blue-400', // 初始颜色，会被主题覆盖
       isRecurring: false
     },
     {
@@ -92,7 +92,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       date: new Date().toISOString().split('T')[0], // 今天
       time: '10:00',
       participants: ['cow'],
-      color: 'bg-primary-400',
+      color: 'bg-blue-400',
       isRecurring: false
     },
     {
@@ -101,7 +101,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       date: '2024-01-18',
       time: '14:00',
       participants: ['cow'],
-      color: 'bg-primary-400',
+      color: 'bg-blue-400',
       isRecurring: false
     },
     
@@ -112,7 +112,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       date: '2024-01-17',
       time: '08:00',
       participants: ['cat'],
-      color: 'bg-blue-400', // 初始颜色，会被主题覆盖
+      color: 'bg-primary-400', // 初始颜色，会被主题覆盖
       isRecurring: false
     },
     {
@@ -121,7 +121,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       date: new Date().toISOString().split('T')[0], // 今天
       time: '15:30',
       participants: ['cat'],
-      color: 'bg-blue-400',
+      color: 'bg-primary-400',
       isRecurring: false
     },
     {
@@ -130,7 +130,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       date: '2024-01-19',
       time: '19:30',
       participants: ['cat'],
-      color: 'bg-blue-400',
+      color: 'bg-primary-400',
       isRecurring: false
     }
   ]);
@@ -377,21 +377,21 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const getEventColor = (participants: ('cat' | 'cow')[]): string => {
     if (theme === 'pixel') {
       if (participants.includes('cat') && participants.includes('cow')) {
-        return 'bg-pixel-warning'; // 双方参与：像素风黄色（更醒目）
+        return 'bg-pixel-purple'; // 双方参与：像素风紫色
       } else if (participants.includes('cat')) {
-        return 'bg-pixel-info'; // 只有猫咪：像素风青色
+        return 'bg-pixel-warning'; // 只有猫咪：像素风黄色
       } else if (participants.includes('cow')) {
-        return 'bg-pixel-purple'; // 只有奶牛：像素风紫色
+        return 'bg-pixel-info'; // 只有奶牛：像素风蓝色
       }
       return 'bg-pixel-textMuted';
     }
     
     if (participants.includes('cat') && participants.includes('cow')) {
-      return 'bg-orange-500'; // 双方参与：明亮的橙色（更醒目）
+      return 'bg-lavender-400'; // 双方参与：紫色
     } else if (participants.includes('cat')) {
-      return 'bg-blue-400'; // 只有猫咪：天空梦境蓝
+      return 'bg-primary-400'; // 只有猫咪：粉色
     } else if (participants.includes('cow')) {
-      return 'bg-primary-400'; // 只有奶牛：梦幻莲花粉
+      return 'bg-blue-400'; // 只有奶牛：蓝色
     }
     return 'bg-sage-500';
   };
@@ -508,7 +508,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return (
         <PixelIcon 
           name="user" 
-          className={userType === 'cat' ? 'text-pixel-info' : 'text-pixel-purple'}
+          className={userType === 'cat' ? 'text-pixel-warning' : 'text-pixel-info'}
           size={size}
         />
       );
@@ -516,7 +516,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return (
         <UserIcon className={`${
           size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
-        } ${userType === 'cat' ? 'text-blue-500' : 'text-primary-500'}`} />
+        } ${userType === 'cat' ? 'text-primary-500' : 'text-blue-500'}`} />
       );
     }
   };
@@ -569,7 +569,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info */}
+      {/* Debug Info - 暂时隐藏 */}
+      {/* 
       <div className="bg-yellow-100 p-4 rounded-lg mb-4">
         <h3 className="font-bold mb-2">Debug Info:</h3>
         <pre className="text-sm">
@@ -581,6 +582,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           }, null, 2)}
         </pre>
       </div>
+      */}
 
       {/* Header with View Switcher */}
       <div className="flex items-center justify-between">
@@ -613,7 +615,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     }`
                   : `${
                       currentView === 'cat'
-                        ? 'bg-blue-400 text-white'
+                        ? 'bg-primary-400 text-white'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
@@ -637,7 +639,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     }`
                   : `${
                       currentView === 'cow'
-                        ? 'bg-primary-400 text-white'
+                        ? 'bg-blue-400 text-white'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
@@ -767,8 +769,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         <div className="xl:col-span-3">
           <div className={`p-6 ${
             theme === 'pixel' 
-              ? 'bg-pixel-panel border-4 border-black rounded-2xl shadow-pixel-lg neon-border' 
-              : 'card-cutesy rounded-3xl'
+              ? 'bg-pixel-panel border-4 border-black shadow-pixel-lg neon-border' 
+              : 'card-cutesy'
           }`}>
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-2 mb-4">
@@ -1322,8 +1324,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         theme === 'pixel'
                           ? `rounded-pixel font-mono uppercase ${
                               editEvent.isRecurring
-                                ? 'bg-pixel-purple text-white border-white shadow-pixel neon-border'
-                                : 'border-pixel-border text-pixel-text hover:border-pixel-purple'
+                                ? 'bg-pixel-warning text-black border-white shadow-pixel neon-border'
+                                : 'border-pixel-border text-pixel-text hover:border-pixel-warning'
                             }`
                           : `rounded-xl ${
                               editEvent.isRecurring
@@ -1461,13 +1463,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         theme === 'pixel'
                           ? `rounded-pixel font-mono ${
                               editEvent.participants?.includes('cat')
-                                ? 'border-white bg-pixel-info text-black shadow-pixel neon-border'
-                                : 'border-pixel-border text-pixel-text hover:border-pixel-info hover:bg-pixel-card'
+                                ? 'border-white bg-pixel-warning text-black shadow-pixel neon-border'
+                                : 'border-pixel-border text-pixel-text hover:border-pixel-warning hover:bg-pixel-card'
                             }`
                           : `rounded-xl ${
                               editEvent.participants?.includes('cat')
-                                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                                ? 'border-primary-500 bg-primary-50 text-primary-700'
+                                : 'border-gray-200 text-gray-600 hover:border-primary-300'
                             }`
                       }`}
                     >
@@ -1480,7 +1482,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             }`
                           : `rounded ${
                               editEvent.participants?.includes('cat') 
-                                ? 'border-blue-500 bg-blue-500' 
+                                ? 'border-primary-500 bg-primary-500' 
                                 : 'border-gray-300'
                             }`
                       }`}>
@@ -1504,13 +1506,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         theme === 'pixel'
                           ? `rounded-pixel font-mono ${
                               editEvent.participants?.includes('cow')
-                                ? 'border-white bg-pixel-purple text-white shadow-pixel neon-border'
-                                : 'border-pixel-border text-pixel-text hover:border-pixel-purple hover:bg-pixel-card'
+                                ? 'border-white bg-pixel-info text-black shadow-pixel neon-border'
+                                : 'border-pixel-border text-pixel-text hover:border-pixel-info hover:bg-pixel-card'
                             }`
                           : `rounded-xl ${
                               editEvent.participants?.includes('cow')
-                                ? 'border-primary-500 bg-primary-50 text-primary-700'
-                                : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                : 'border-gray-200 text-gray-600 hover:border-blue-300'
                             }`
                       }`}
                     >
@@ -1523,7 +1525,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             }`
                           : `rounded ${
                               editEvent.participants?.includes('cow') 
-                                ? 'border-primary-500 bg-primary-500' 
+                                ? 'border-blue-500 bg-blue-500' 
                                 : 'border-gray-300'
                             }`
                       }`}>
@@ -1701,8 +1703,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       theme === 'pixel'
                         ? `rounded-pixel font-mono uppercase ${
                             newEvent.isRecurring
-                              ? 'bg-pixel-purple text-white border-white shadow-pixel neon-border'
-                              : 'border-pixel-border text-pixel-text hover:border-pixel-purple'
+                              ? 'bg-pixel-warning text-black border-white shadow-pixel neon-border'
+                              : 'border-pixel-border text-pixel-text hover:border-pixel-warning'
                           }`
                         : `rounded-xl ${
                             newEvent.isRecurring
@@ -1840,13 +1842,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       theme === 'pixel'
                         ? `rounded-pixel font-mono ${
                             newEvent.participants.includes('cat')
-                              ? 'border-white bg-pixel-info text-black shadow-pixel neon-border'
-                              : 'border-pixel-border text-pixel-text hover:border-pixel-info hover:bg-pixel-card'
+                              ? 'border-white bg-pixel-warning text-black shadow-pixel neon-border'
+                              : 'border-pixel-border text-pixel-text hover:border-pixel-warning hover:bg-pixel-card'
                           }`
                         : `rounded-xl ${
                             newEvent.participants.includes('cat')
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                              ? 'border-primary-500 bg-primary-50 text-primary-700'
+                              : 'border-gray-200 text-gray-600 hover:border-primary-300'
                           }`
                     }`}
                   >
@@ -1859,7 +1861,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           }`
                         : `rounded ${
                             newEvent.participants.includes('cat') 
-                              ? 'border-blue-500 bg-blue-500' 
+                              ? 'border-primary-500 bg-primary-500' 
                               : 'border-gray-300'
                           }`
                     }`}>
@@ -1883,13 +1885,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       theme === 'pixel'
                         ? `rounded-pixel font-mono ${
                             newEvent.participants.includes('cow')
-                              ? 'border-white bg-pixel-purple text-white shadow-pixel neon-border'
-                              : 'border-pixel-border text-pixel-text hover:border-pixel-purple hover:bg-pixel-card'
+                              ? 'border-white bg-pixel-info text-black shadow-pixel neon-border'
+                              : 'border-pixel-border text-pixel-text hover:border-pixel-info hover:bg-pixel-card'
                           }`
                         : `rounded-xl ${
                             newEvent.participants.includes('cow')
-                              ? 'border-primary-500 bg-primary-50 text-primary-700'
-                              : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 text-gray-600 hover:border-blue-300'
                           }`
                     }`}
                   >
@@ -1902,7 +1904,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           }`
                         : `rounded ${
                             newEvent.participants.includes('cow') 
-                              ? 'border-primary-500 bg-primary-500' 
+                              ? 'border-blue-500 bg-blue-500' 
                               : 'border-gray-300'
                           }`
                     }`}>

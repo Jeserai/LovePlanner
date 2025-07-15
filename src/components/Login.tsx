@@ -16,8 +16,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   // 快速登录选项
   const quickLogins = [
-    { username: 'whimsical cat', password: '0521', color: 'blue' },
-    { username: 'whimsical cow', password: '0223', color: 'primary' }
+    { username: 'whimsical cat', password: '0521', color: 'primary' },
+    { username: 'whimsical cow', password: '0223', color: 'blue' }
   ];
 
   // 获取用户图标
@@ -28,7 +28,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       return (
         <PixelIcon 
           name="user" 
-          className={userType === 'cat' ? 'text-pixel-info' : 'text-pixel-purple'}
+          className={userType === 'cat' ? 'text-pixel-warning' : 'text-pixel-info'}
           size={size}
         />
       );
@@ -36,7 +36,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       return (
         <UserIcon className={`${
           size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
-        } ${userType === 'cat' ? 'text-blue-500' : 'text-primary-500'}`} />
+        } ${userType === 'cat' ? 'text-primary-500' : 'text-blue-500'}`} />
       );
     }
   };
@@ -144,13 +144,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     onClick={() => handleQuickLogin(user)}
                     disabled={isLoading}
                     className={`w-full p-4 mb-2 border-4 transition-all duration-200 flex items-center space-x-4 rounded-pixel ${
-                      user.color === 'blue'
-                        ? 'border-pixel-info bg-pixel-panel hover:bg-pixel-card neon-border'
-                        : 'border-pixel-purple bg-pixel-panel hover:bg-pixel-card neon-border'
+                      user.color === 'primary'
+                        ? 'border-pixel-warning bg-pixel-panel hover:bg-pixel-card neon-border'
+                        : 'border-pixel-info bg-pixel-panel hover:bg-pixel-card neon-border'
                     } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-pixel-neon hover:translate-y-[-2px] pixel-btn-neon'}`}
                   >
                     <div className={`w-12 h-12 border-2 border-white rounded-pixel flex items-center justify-center text-2xl ${
-                      user.color === 'blue' ? 'bg-pixel-info' : 'bg-pixel-purple'
+                      user.color === 'primary' ? 'bg-pixel-warning' : 'bg-pixel-info'
                     } neon-border`}>
                       {getUserIcon(user.username, 'sm')}
                     </div>
@@ -327,9 +327,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 onClick={() => handleQuickLogin(user)}
                 disabled={isLoading}
                 className={`w-full p-4 rounded-2xl border-2 transition-all duration-300 flex items-center space-x-4 hover:scale-[1.02] backdrop-blur-md ${
-                  user.color === 'blue'
-                    ? 'border-blue-200/40 bg-blue-100/30 hover:border-blue-300/50 hover:bg-blue-200/40'
-                    : 'border-primary-200/40 bg-primary-100/30 hover:border-primary-300/50 hover:bg-primary-200/40'
+                  user.color === 'primary'
+                    ? 'border-primary-200/40 bg-primary-100/30 hover:border-primary-300/50 hover:bg-primary-200/40'
+                    : 'border-blue-200/40 bg-blue-100/30 hover:border-blue-300/50 hover:bg-blue-200/40'
                 } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-dream'}`}
               >
                 <div className="text-3xl">{getUserIcon(user.username, 'lg')}</div>

@@ -27,13 +27,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
       return { 
         icon: theme === 'pixel' ? 'user' : 'user',
         name: theme === 'pixel' ? 'PLAYER_CAT' : 'Whimsical Cat', 
-        color: 'blue' 
+        color: 'primary' 
       };
     } else if (username.toLowerCase().includes('cow')) {
       return { 
         icon: theme === 'pixel' ? 'user' : 'user',
         name: theme === 'pixel' ? 'PLAYER_COW' : 'Whimsical Cow', 
-        color: 'primary' 
+        color: 'blue' 
       };
     } else {
       return { 
@@ -114,7 +114,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                         userInfo.color === 'blue' 
                           ? 'border-pixel-info bg-pixel-panel' 
                           : userInfo.color === 'primary'
-                          ? 'border-pixel-purple bg-pixel-panel'
+                          ? 'border-pixel-warning bg-pixel-panel'
                           : 'border-pixel-border bg-pixel-panel'
                       }`
                     : `rounded-xl backdrop-blur-md ${
@@ -130,7 +130,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                       name="user" 
                       className={`${
                         userInfo.color === 'blue' ? 'text-pixel-info' :
-                        userInfo.color === 'primary' ? 'text-pixel-purple' :
+                        userInfo.color === 'primary' ? 'text-pixel-warning' :
                         'text-pixel-text'
                       }`}
                       size="sm"
