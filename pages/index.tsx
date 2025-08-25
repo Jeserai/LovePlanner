@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
+import { useAuth } from '../src/hooks/useAuth';
+import { userService } from '../src/services/database';
 import Layout from '../src/components/Layout';
 import Calendar from '../src/components/Calendar';
 import TaskBoard from '../src/components/TaskBoard';
 import Shop from '../src/components/Shop';
 import Settings from '../src/components/Settings';
-import Login from '../src/components/Login';
+import AuthForm from '../src/components/AuthForm';
 // 导入路由测试工具（开发环境）
 import '../src/utils/testRouting.js';
 
@@ -103,83 +105,111 @@ const LoadingScreen: React.FC = () => {
 // 主应用组件
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('calendar'); // 默认显示日历
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const { user, loading: authLoading, signOut } = useAuth();
 
-  // 在组件挂载时检查本地存储的登录状态
+  // 当认证状态变化时，获取或创建用户档案
   useEffect(() => {
-    const checkAuthStatus = () => {
-      try {
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
-          setCurrentUser(savedUser);
-          // 已登录用户默认显示日历视图
-          setActiveTab('calendar');
-          console.log(`✅ 用户已登录: ${savedUser}, 默认显示日历视图`);
-        } else {
-          console.log('📝 用户未登录，将显示登录页面');
+    const initializeUser = async () => {
+      if (user && !authLoading) {
+        try {
+          // 尝试获取用户档案
+          let profile = await userService.getProfile(user.id);
+          
+          if (!profile) {
+            // 如果没有档案，可能是新用户，等待触发器创建
+            // 稍等一下再重试
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            profile = await userService.getProfile(user.id);
+          }
+
+          if (profile) {
+            setUserProfile(profile);
+            console.log(`✅ 用户档案加载成功: ${profile.display_name} (${profile.role})`);
+          } else {
+            console.warn('⚠️ 未找到用户档案，可能需要完善信息');
+            // 可以在这里引导用户完善档案
+          }
+        } catch (error) {
+          console.error('❌ 初始化用户档案时出错:', error);
         }
-      } catch (error) {
-        console.error('❌ 检查登录状态时出错:', error);
-      } finally {
-        setIsLoading(false);
+      } else if (!user && !authLoading) {
+        // 用户未登录
+        setUserProfile(null);
+        console.log('📝 用户未登录');
       }
+      
+      setIsInitializing(false);
     };
 
-    // 稍微延迟以确保主题正确加载
-    const timer = setTimeout(checkAuthStatus, 100);
-    return () => clearTimeout(timer);
-  }, []);
+    initializeUser();
+  }, [user, authLoading]);
 
-  // 处理登录
-  const handleLogin = (username: string) => {
-    setCurrentUser(username);
-    localStorage.setItem('currentUser', username);
-    localStorage.setItem('hasLoggedInBefore', 'true'); // 记录已登录过
-    setIsLoading(false);
+  // 处理认证成功
+  const handleAuthSuccess = (authUser: any, profile: any) => {
+    console.log('🎉 认证成功:', authUser.email);
+    console.log('📝 用户对象:', authUser);
+    console.log('👤 用户档案:', profile);
+    
+    if (profile) {
+      setUserProfile(profile);
+    }
+    
+    // 强制更新初始化状态，确保页面重新渲染
+    setIsInitializing(false);
+    setActiveTab('calendar');
   };
 
-  // 处理登出 - 登出后清理状态
-  const handleLogout = () => {
-    const userName = currentUser;
-    setCurrentUser(null);
-    localStorage.removeItem('currentUser');
-    setActiveTab('calendar'); // 重置到默认标签页
+  // 处理登出
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setUserProfile(null);
+      setActiveTab('calendar');
+      console.log('👋 用户已登出');
+    } catch (error) {
+      console.error('❌ 登出时出错:', error);
+    }
   };
 
   // 渲染主应用内容
   const renderContent = () => {
+    const currentUserName = userProfile?.display_name || user?.email || null;
+    
     switch (activeTab) {
       case 'calendar':
-        return <Calendar currentUser={currentUser} />;
+        return <Calendar currentUser={currentUserName} />;
       case 'tasks':
-        return <TaskBoard currentUser={currentUser} />;
+        return <TaskBoard currentUser={currentUserName} />;
       case 'shop':
         return <Shop />;
       case 'settings':
         return <Settings />;
       default:
-        return <Calendar currentUser={currentUser} />;
+        return <Calendar currentUser={currentUserName} />;
     }
   };
 
-  // 加载状态 - 检查登录状态时显示
-  if (isLoading) {
+  // 加载状态 - 认证状态检查中或用户初始化中
+  if (authLoading || isInitializing) {
     return <LoadingScreen />;
   }
 
   // 路由逻辑：
-  // 1. 未登录用户 -> 显示登录页面
-  if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+  // 1. 未登录用户 -> 显示认证页面
+  if (!user) {
+    return <AuthForm onAuthSuccess={handleAuthSuccess} />;
   }
 
   // 2. 已登录用户 -> 显示主应用（默认日历视图）
+  const currentUserName = userProfile?.display_name || user?.email || 'User';
+  
   return (
     <Layout 
       activeTab={activeTab} 
       onTabChange={setActiveTab}
-      currentUser={currentUser}
+      currentUser={currentUserName}
       onLogout={handleLogout}
     >
       {renderContent()}

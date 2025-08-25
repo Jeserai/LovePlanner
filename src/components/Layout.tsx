@@ -13,12 +13,13 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, currentUser, onLogout }) => {
   const { theme } = useTheme();
+  const isLightPixel = theme === 'lightPixel';
   
   const tabs = [
-    { id: 'calendar', name: theme === 'pixel' ? 'CALENDAR' : '日历', icon: CalendarDaysIcon },
-    { id: 'tasks', name: theme === 'pixel' ? 'TASKS' : '任务看板', icon: ListBulletIcon },
-    { id: 'shop', name: theme === 'pixel' ? 'SHOP' : '个人商店', icon: ShoppingBagIcon },
-    { id: 'settings', name: theme === 'pixel' ? 'SETTINGS' : '设置', icon: Cog6ToothIcon },
+    { id: 'calendar', name: 'CALENDAR', icon: CalendarDaysIcon },
+    { id: 'tasks', name: 'TASKS', icon: ListBulletIcon },
+    { id: 'shop', name: 'SHOP', icon: ShoppingBagIcon },
+    { id: 'settings', name: 'SETTINGS', icon: Cog6ToothIcon },
   ];
 
   // 根据用户名判断用户类型并返回相应信息
@@ -47,12 +48,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
   const userInfo = currentUser ? getUserInfo(currentUser) : null;
 
   return (
-    <div className={`min-h-screen ${theme === 'pixel' ? 'bg-pixel-bg' : 'bg-monet-gradient'}`}>
+    <div className={`min-h-screen ${theme === 'pixel' ? 'bg-pixel-bg' : theme === 'lightPixel' ? 'bg-light-pixel-bg' : 'bg-pixel-bg'}`}>
       {/* Header */}
       <header className={`sticky top-0 z-50 ${
         theme === 'pixel' 
           ? 'bg-pixel-panel border-b-2 border-pixel-border' 
-          : 'bg-white/50 backdrop-blur-md border-b border-secondary-200/30'
+          : theme === 'lightPixel'
+          ? 'lightPixel-panel border-b-2 lightPixel-border-dark'
+          : 'bg-pixel-panel border-b-2 border-pixel-border'
       }`}>
         <div className="max-w-8xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">

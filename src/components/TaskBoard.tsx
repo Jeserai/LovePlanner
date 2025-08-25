@@ -1138,6 +1138,96 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     setTasks([...catTasks, ...cowTasks]);
   }, [catTasks, cowTasks]);
 
+  // 将“已领取/进行中”的任务同步到本地存储供日历使用
+  useEffect(() => {
+    const toParticipant = (name?: string): 'cat' | 'cow' | null => {
+      if (!name) return null;
+      if (name.toLowerCase().includes('cat')) return 'cat';
+      if (name.toLowerCase().includes('cow')) return 'cow';
+      return null;
+    };
+
+    type CalendarEventLike = {
+      id: string;
+      title: string;
+      date: string;
+      time?: string;
+      participants: ('cat' | 'cow')[];
+      color: string;
+      isRecurring: boolean;
+      recurrenceType?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
+      recurrenceEnd?: string;
+      originalDate?: string;
+    };
+
+    const mapTaskToEvent = (task: Task): CalendarEventLike | null => {
+      const assigneeP = toParticipant(task.assignee);
+      const creatorP = toParticipant(task.creator);
+      if (!assigneeP && !creatorP) return null;
+
+      // 基础日期与时间推导
+      let date: string;
+      let time: string | undefined;
+
+      if (task.hasSpecificTime) {
+        // 有具体时间：优先使用 taskStartTime 的日期与时间；否则使用 repeatTime；否则用截止日
+        if (task.taskStartTime) {
+          const d = new Date(task.taskStartTime);
+          date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        } else {
+          date = task.startDate || task.deadline;
+          time = task.repeatTime;
+        }
+      } else {
+        // 无具体时间：显示在截止日期当天（全天）
+        date = task.deadline;
+        time = undefined;
+      }
+
+      const isRecurring = task.repeatType === 'repeat';
+      const recurrenceType = task.repeatFrequency as 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | undefined;
+      const recurrenceEnd = task.endDate;
+      const originalDate = isRecurring ? (task.startDate || date) : undefined;
+
+      // 基于参与者设定颜色，保证与现有配色接近
+      const participants = [assigneeP, creatorP].filter(Boolean) as ('cat' | 'cow')[];
+      const isShared = participants.length === 2;
+      const color = isShared ? 'bg-lavender-400' : (participants[0] === 'cat' ? 'bg-primary-400' : 'bg-blue-400');
+
+      return {
+        id: `task-${task.id}`,
+        title: task.title,
+        date,
+        time,
+        participants,
+        color,
+        isRecurring,
+        recurrenceType,
+        recurrenceEnd,
+        originalDate,
+      };
+    };
+
+    try {
+      const acceptedOrInProgress = tasks.filter(t =>
+        (t.status === 'assigned' || t.status === 'in-progress') && !!t.assignee
+      );
+      const events = acceptedOrInProgress
+        .map(mapTaskToEvent)
+        .filter((e): e is NonNullable<typeof e> => !!e);
+      localStorage.setItem('calendarTaskEvents', JSON.stringify(events));
+
+      // 通知日历刷新
+      if (typeof window !== 'undefined') {
+        const evt = new CustomEvent('calendarTaskEventsUpdated');
+        window.dispatchEvent(evt);
+      }
+    } catch (err) {
+      // 忽略本地存储异常
+    }
+  }, [tasks]);
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
@@ -2527,6 +2617,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       if (task.status === 'in-progress' && isTaskOverdue(task)) {
         return { ...task, status: 'abandoned' };
       }
+      // assigned状态（已领取未开始）且过期的任务自动变为abandoned
+      if (task.status === 'assigned' && isTaskOverdue(task)) {
+        return { ...task, status: 'abandoned' };
+      }
       // recruiting状态且过期的任务变为abandoned（包括已发布但没人领取的）
       if (task.status === 'recruiting' && isTaskOverdue(task)) {
         return { ...task, status: 'abandoned' };
@@ -2537,6 +2631,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     setCowTasks(cowTasks.map(task => {
       // in-progress状态且过期的任务自动变为abandoned
       if (task.status === 'in-progress' && isTaskOverdue(task)) {
+        return { ...task, status: 'abandoned' };
+      }
+      // assigned状态（已领取未开始）且过期的任务自动变为abandoned
+      if (task.status === 'assigned' && isTaskOverdue(task)) {
         return { ...task, status: 'abandoned' };
       }
       // recruiting状态且过期的任务变为abandoned（包括已发布但没人领取的）
@@ -2722,7 +2820,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       );
       }
     } else if (type === 'assigned') {
-      const notStartedTasks = taskList.filter(task => task.status === 'recruiting');
+      const notStartedTasks = taskList.filter(task => task.status === 'assigned');
       const inProgressTasks = taskList.filter(task => task.status === 'in-progress');
       const completedTasks = taskList.filter(task => task.status === 'completed');
       const abandonedTasks = taskList.filter(task => task.status === 'abandoned');

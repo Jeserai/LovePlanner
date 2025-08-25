@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 // 导入主题初始化工具
 import '../utils/themeInit.js';
 
-export type ThemeType = 'monet' | 'pixel' | 'stardew';
+export type ThemeType = 'pixel' | 'lightPixel';
 
 interface ThemeContextType {
   theme: ThemeType;
@@ -30,7 +30,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
-    if (savedTheme && ['monet', 'pixel', 'stardew'].includes(savedTheme)) {
+    if (savedTheme && ['pixel', 'lightPixel'].includes(savedTheme)) {
       setThemeState(savedTheme);
     } else {
       // 如果没有保存的主题，默认使用像素风格
@@ -54,12 +54,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const toggleTheme = () => {
     setThemeState(prev => {
       switch (prev) {
-        case 'monet':
-          return 'pixel';
         case 'pixel':
-          return 'stardew';
-        case 'stardew':
-          return 'monet';
+          return 'lightPixel';
+        case 'lightPixel':
+          return 'pixel';
         default:
           return 'pixel';
       }

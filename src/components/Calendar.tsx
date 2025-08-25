@@ -220,19 +220,52 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return events;
   };
 
-  // 获取所有事件（包括重复事件的实例）
+  // 从任务板(localStorage)读取任务事件
+  const readTaskEvents = (): Event[] => {
+    try {
+      const raw = localStorage.getItem('calendarTaskEvents');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as any[];
+      return parsed.map((e, idx) => ({
+        id: typeof e.id === 'string' ? e.id : `task-${idx}`,
+        title: String(e.title || 'Task'),
+        date: String(e.date),
+        time: e.time ? String(e.time) : undefined,
+        participants: Array.isArray(e.participants) ? e.participants.filter((p: any) => p === 'cat' || p === 'cow') : [],
+        color: typeof e.color === 'string' ? e.color : 'bg-lavender-400',
+        isRecurring: Boolean(e.isRecurring),
+        recurrenceType: e.recurrenceType,
+        recurrenceEnd: e.recurrenceEnd,
+        originalDate: e.originalDate
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  // 获取所有事件（包括重复事件的实例）+ 合并任务事件，并对任务事件也做重复展开
   const getAllEvents = (): Event[] => {
-    const allEvents: Event[] = [];
+    const baseEvents: Event[] = [];
     
     events.forEach(event => {
       if (event.isRecurring) {
-        allEvents.push(...generateRecurringEvents(event));
+        baseEvents.push(...generateRecurringEvents(event));
       } else {
-        allEvents.push(event);
+        baseEvents.push(event);
       }
     });
 
-    return allEvents;
+    const taskEvents = readTaskEvents();
+    const expandedTaskEvents: Event[] = [];
+    taskEvents.forEach(event => {
+      if (event.isRecurring) {
+        expandedTaskEvents.push(...generateRecurringEvents(event));
+      } else {
+        expandedTaskEvents.push(event);
+      }
+    });
+
+    return [...baseEvents, ...expandedTaskEvents];
   };
 
   // 根据当前视图筛选事件
@@ -265,6 +298,21 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const dayStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     return filteredEvents.filter(event => event.date === dayStr);
   };
+
+  // 监听任务事件更新，触发日历刷新
+  useEffect(() => {
+    const handler = () => {
+      setEvents(prev => [...prev]);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('calendarTaskEventsUpdated', handler);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('calendarTaskEventsUpdated', handler);
+      }
+    };
+  }, []);
 
   // 处理事件点击
   const handleEventClick = (event: Event) => {
@@ -515,21 +563,22 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
   };
 
-  // 获取今日日程
-  const getTodayEvents = () => {
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const allEvents = getAllEvents();
-    const filteredEvents = getFilteredEvents(allEvents);
-    const todayEvents = filteredEvents.filter(event => event.date === todayStr);
-    
-    // 按时间排序
-    return todayEvents.sort((a, b) => {
+  // 按时间排序
+  const sortEventsByTime = (events: Event[]): Event[] => {
+    return [...events].sort((a, b) => {
       if (!a.time && !b.time) return 0;
       if (!a.time) return 1;
       if (!b.time) return -1;
-      return a.time.localeCompare(b.time);
+      return a.time!.localeCompare(b.time!);
     });
+  };
+
+  // 获取指定日期（YYYY-MM-DD）的事件
+  const getEventsForDate = (dateStr: string) => {
+    const allEvents = getAllEvents();
+    const filteredEvents = getFilteredEvents(allEvents);
+    const dayEvents = filteredEvents.filter(event => event.date === dateStr);
+    return sortEventsByTime(dayEvents);
   };
 
   // 格式化时间显示
@@ -539,7 +588,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return `${hours}:${minutes}`;
   };
 
-  const todayEvents = getTodayEvents();
+  const buildDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayStrForPanel = buildDateStr(new Date());
+  const panelDateStr = selectedDate || todayStrForPanel;
+  const [pYear, pMonth, pDay] = panelDateStr.split('-').map(n => parseInt(n, 10));
+  const panelDate = new Date(pYear, (pMonth || 1) - 1, pDay || 1);
+  const isPanelToday = panelDateStr === todayStrForPanel;
+  const panelEvents = getEventsForDate(panelDateStr);
   
   // 获取用户图标
   const getUserIcon = (userType: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
@@ -968,12 +1023,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                   : 'font-display text-gray-800'
               }`}>
                 {theme === 'pixel' 
-                  ? (currentView === 'cat' ? 'CAT_TODAY' : 
-                     currentView === 'cow' ? 'COW_TODAY' : 
-                     'SHARED_TODAY')
-                  : (currentView === 'cat' ? '猫猫今日' : 
-                     currentView === 'cow' ? '奶牛今日' : 
-                     '共同今日')
+                  ? (currentView === 'cat' ? 'CAT_DAY' : 
+                     currentView === 'cow' ? 'COW_DAY' : 
+                     'SHARED_DAY')
+                  : (currentView === 'cat' ? '猫猫日程' : 
+                     currentView === 'cow' ? '奶牛日程' : 
+                     '共同日程')
                 }
               </h3>
             </div>
@@ -984,12 +1039,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 : 'text-gray-600'
             }`}>
               {theme === 'pixel' 
-                ? `${String(today.getMonth() + 1).padStart(2, '0')}_${String(today.getDate()).padStart(2, '0')}.DAY`
-                : `${today.getMonth() + 1}月${today.getDate()}日 · ${['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][today.getDay()]}`
+                ? `${String(panelDate.getMonth() + 1).padStart(2, '0')}_${String(panelDate.getDate()).padStart(2, '0')}.DAY${isPanelToday ? '' : ''}`
+                : `${panelDate.getMonth() + 1}月${panelDate.getDate()}日 · ${['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][panelDate.getDay()]}${isPanelToday ? '（今天）' : ''}`
               }
             </div>
 
-            {todayEvents.length === 0 ? (
+            {panelEvents.length === 0 ? (
               <div className="text-center py-8">
                 <div className={`mb-2 ${theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-400'}`}>
                   {theme === 'pixel' ? (
@@ -998,16 +1053,16 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     <CalendarDaysIcon className="w-12 h-12 mx-auto opacity-50" />
                   )}
                 </div>
-                <p className={`${theme === 'pixel' ? 'text-pixel-textMuted font-mono uppercase' : 'text-gray-500'}`}>
-                  {theme === 'pixel' 
-                    ? (currentView === 'cat' ? 'NO_CAT_EVENTS' : 
-                       currentView === 'cow' ? 'NO_COW_EVENTS' : 
-                       'NO_SHARED_EVENTS')
-                    : (currentView === 'cat' ? '猫猫今天没有日程安排' : 
-                       currentView === 'cow' ? '奶牛今天没有日程安排' : 
-                       '今天没有共同日程')
-                  }
-                </p>
+                 <p className={`${theme === 'pixel' ? 'text-pixel-textMuted font-mono uppercase' : 'text-gray-500'}`}>
+                   {theme === 'pixel' 
+                     ? (currentView === 'cat' ? 'NO_CAT_EVENTS' : 
+                        currentView === 'cow' ? 'NO_COW_EVENTS' : 
+                        'NO_SHARED_EVENTS')
+                     : (currentView === 'cat' ? '猫猫该日没有日程安排' : 
+                        currentView === 'cow' ? '奶牛该日没有日程安排' : 
+                        '该日没有共同日程')
+                   }
+                 </p>
                 <p className={`text-sm mt-1 ${
                   theme === 'pixel' 
                     ? 'text-pixel-textMuted font-mono'
@@ -1018,7 +1073,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {todayEvents.map(event => {
+                {panelEvents.map(event => {
                   const hasEditPermission = canEditEvent(event);
                   return (
                     <div

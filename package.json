@@ -25,6 +25,7 @@
     "@headlessui/react": "^2.0.0",
     "@heroicons/react": "^2.0.0",
     "@nextui-org/react": "^2.0.0",
+    "@supabase/supabase-js": "^2.56.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
@@ -41,5 +42,8 @@
     "react-dom": "^18.0.0",
     "tailwindcss": "^3.0.0",
     "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "supabase": "^2.34.3"
   }
 }
