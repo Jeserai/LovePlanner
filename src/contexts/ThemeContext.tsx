@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 // 导入主题初始化工具
 import '../utils/themeInit.js';
 
-export type ThemeType = 'pixel' | 'lightPixel';
+export type ThemeType = 'pixel';
 
 interface ThemeContextType {
   theme: ThemeType;
@@ -30,10 +30,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
-    if (savedTheme && ['pixel', 'lightPixel'].includes(savedTheme)) {
+    if (savedTheme && savedTheme === 'pixel') {
       setThemeState(savedTheme);
     } else {
-      // 如果没有保存的主题，默认使用像素风格
+      // 只支持像素风主题
       setThemeState('pixel');
       localStorage.setItem('theme', 'pixel');
     }
@@ -52,16 +52,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const toggleTheme = () => {
-    setThemeState(prev => {
-      switch (prev) {
-        case 'pixel':
-          return 'lightPixel';
-        case 'lightPixel':
-          return 'pixel';
-        default:
-          return 'pixel';
-      }
-    });
+    // 只有一个主题，保持不变
+    setThemeState('pixel');
   };
 
   const value = {

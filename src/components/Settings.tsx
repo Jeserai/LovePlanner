@@ -27,18 +27,10 @@ const Settings: React.FC = () => {
     {
       id: 'pixel' as const,
       name: '深色像素风',
-      description: '赛博朋克霓虹风格，神秘的深色8位游戏体验',
+      description: '经典8位游戏风格，深色背景配霓虹色彩',
       icon: CommandLineIcon,
       preview: 'bg-gradient-to-br from-pixel-accent to-pixel-purple',
       color: 'text-pixel-accent'
-    },
-    {
-      id: 'lightPixel' as const,
-      name: '浅色像素风',
-      description: '明亮清新的8位游戏风格，阳光般的复古体验',
-      icon: CommandLineIcon,
-      preview: 'bg-gradient-to-br from-lightPixel-accent to-lightPixel-info',
-      color: 'text-lightPixel-accent'
     }
   ];
 
@@ -58,35 +50,30 @@ const Settings: React.FC = () => {
                 {theme === 'pixel' ? 'CHOOSE YOUR ADVENTURE STYLE!' : '选择你喜欢的视觉风格，设置会自动保存'}
               </p>
 
-              <div className="grid grid-cols-1 gap-4">
-                {themes.map((themeOption) => (
-                  <button
-                    key={themeOption.id}
-                    onClick={() => setTheme(themeOption.id)}
-                    className={`p-4 rounded-xl transition-all duration-300 ${
-                      theme === themeOption.id
-                        ? theme === 'pixel' 
-                          ? 'bg-pixel-card border-4 border-pixel-accent shadow-pixel-lg neon-border'
-                          : 'bg-primary-100/50 border-2 border-primary-300 shadow-dream'
-                        : 'bg-white/40 hover:bg-white/60 border-2 border-sage-200/40'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3 mb-3">
-                      {theme === 'pixel' ? (
-                        <PixelIcon name="command" className="text-pixel-accent" glow />
-                      ) : (
-                        <themeOption.icon className={`w-6 h-6 ${themeOption.color}`} />
-                      )}
-                      <h3 className={theme === 'pixel' ? 'font-bold font-retro text-pixel-text uppercase' : 'font-bold text-gray-800'}>
-                        {themeOption.name}
-                      </h3>
-                    </div>
-                    <p className={`text-sm ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-sage-600'}`}>
-                      {themeOption.description}
-                    </p>
-                    <div className={`mt-3 h-24 rounded-lg ${themeOption.preview} ${theme === 'pixel' ? 'border-2 border-white' : ''}`}></div>
-                  </button>
-                ))}
+                                        <div className="space-y-4">
+                            {/* 当前主题显示 */}
+                            <div className="bg-pixel-card border-4 border-pixel-accent shadow-pixel-lg neon-border p-4 rounded-pixel">
+                              <div className="flex items-center space-x-3 mb-3">
+                                <PixelIcon name="command" className="text-pixel-accent" glow />
+                                <h3 className="font-bold font-retro text-pixel-text uppercase">
+                                  深色像素风
+                                </h3>
+                              </div>
+                              <p className="text-sm text-pixel-textMuted font-mono">
+                                经典8位游戏风格，深色背景配霓虹色彩
+                              </p>
+                              <div className="mt-3 h-24 rounded-lg bg-gradient-to-br from-pixel-accent to-pixel-purple border-2 border-white"></div>
+                            </div>
+                            
+                            {/* 主题说明 */}
+                            <div className="bg-pixel-panel border-2 border-pixel-border rounded-pixel p-4">
+                              <p className="text-pixel-text font-mono text-sm">
+                                &gt;&gt;&gt; 当前使用统一像素风主题 &lt;&lt;&lt;
+                              </p>
+                              <p className="text-pixel-textMuted font-mono text-xs mt-2">
+                                为保持视觉一致性，已固定使用深色像素风主题
+                              </p>
+                            </div>
               </div>
             </div>
 
@@ -118,29 +105,7 @@ const Settings: React.FC = () => {
               </div>
             )}
 
-            {/* Quick Theme Toggle */}
-            <div className={theme === 'pixel' ? 'bg-pixel-card border-4 border-pixel-border rounded-pixel p-4 neon-border' : 'card-cutesy p-4'}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className={`font-bold ${theme === 'pixel' ? 'text-pixel-text font-retro uppercase' : 'text-gray-800'}`}>
-                    {theme === 'pixel' ? 'QUICK SWITCH' : '快速切换'}
-                  </h4>
-                  <p className={`text-sm ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-sage-600'}`}>
-                    {theme === 'pixel' ? 'TOGGLE BETWEEN THEMES' : '在主题之间快速切换'}
-                  </p>
-                </div>
-                
-                <button
-                  onClick={() => setTheme('pixel')}
-                  className={theme === 'pixel' 
-                    ? 'px-4 py-2 font-bold transition-all duration-300 bg-pixel-warning text-black rounded-pixel shadow-pixel hover:shadow-pixel-lg hover:translate-y-[-2px] border-2 border-black font-mono uppercase'
-                    : 'px-4 py-2 font-medium transition-all duration-300 bg-water-lily text-white rounded-xl hover:scale-[1.02] shadow-dream'
-                  }
-                >
-                  {theme === 'pixel' ? 'SWITCH!' : '切换'}
-                </button>
-              </div>
-            </div>
+            
           </div>
         );
       default:

@@ -10,7 +10,7 @@
   }
 
   /* 像素风主题基础样式 */
-  html.pixel {
+  html.pixel, html.lightPixel {
     font-family: 'VT323', monospace;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
@@ -19,6 +19,11 @@
   /* 深色像素风主题 */
   html.pixel body {
     @apply bg-pixel-bg min-h-screen;
+  }
+
+  /* 浅色像素风主题 */
+  html.lightPixel body {
+    @apply bg-lightPixel-bg min-h-screen;
   }
 }
 
@@ -40,7 +45,22 @@
     @apply bg-pixel-panel border-2 border-pixel-border rounded-pixel px-4 py-3 focus:border-pixel-accent transition-all duration-300 text-pixel-text placeholder-pixel-textMuted;
   }
 
-
+  /* 统一像素风组件样式 - 浅色主题（完全相同的结构，只是颜色不同） */
+  .lightPixel .card-cutesy {
+    @apply bg-lightPixel-card border-2 border-lightPixel-border rounded-pixel shadow-pixel;
+  }
+  
+  .lightPixel .btn-primary {
+    @apply bg-lightPixel-accent text-white px-6 py-3 rounded-pixel font-bold shadow-pixel border-2 border-black transition-all duration-300 hover:shadow-pixel-lg hover:translate-y-[-2px];
+  }
+  
+  .lightPixel .btn-secondary {
+    @apply bg-lightPixel-success text-white px-6 py-3 rounded-pixel font-bold shadow-pixel border-2 border-black transition-all duration-300 hover:shadow-pixel-lg hover:translate-y-[-2px];
+  }
+  
+  .lightPixel .input-cutesy {
+    @apply bg-lightPixel-panel border-2 border-lightPixel-border rounded-pixel px-4 py-3 focus:border-lightPixel-accent transition-all duration-300 text-lightPixel-text placeholder-lightPixel-textMuted;
+  }
 
   /* 通用样式（默认使用深色像素风） */  
   .card-cutesy {

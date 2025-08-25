@@ -39,27 +39,7 @@ module.exports = {
           textMuted: '#aaaacc', // 灰色文字
           border: '#4a4a66',    // 边框色
         },
-        // 浅色像素风配色方案（只改变背景和文字色）
-        lightPixel: {
-          // 功能色彩（与深色主题完全相同）
-          accent: '#ff0080',    // 霓虹粉色强调
-          success: '#00ff88',   // 霓虹绿色成功
-          warning: '#ffff00',   // 霓虹黄色警告
-          info: '#00d4ff',      // 霓虹蓝色信息
-          purple: '#9d4eff',    // 霓虹紫色
-          pink: '#ff1493',      // 粉色
-          orange: '#ff6a00',    // 橙色
-          cyan: '#00ffff',      // 青色
-          lime: '#39ff39',      // 青柠色
-          
-          // 浅色主题变量（只有背景和文字不同）
-          bg: '#f0f4f8',        // 浅色背景
-          panel: '#ffffff',     // 白色面板背景
-          card: '#f8fafc',      // 浅色卡片背景
-          text: '#1a1a2e',      // 深色文字（与深色主题背景色相同）
-          textMuted: '#666666', // 中灰色文字
-          border: '#e2e8f0',    // 浅色边框
-        },
+
 
       },
       maxWidth: {

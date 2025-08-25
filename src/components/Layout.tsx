@@ -13,7 +13,6 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, currentUser, onLogout }) => {
   const { theme } = useTheme();
-  const isLightPixel = theme === 'lightPixel';
   
   const tabs = [
     { id: 'calendar', name: 'CALENDAR', icon: CalendarDaysIcon },
