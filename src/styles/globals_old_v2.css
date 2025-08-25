@@ -9,26 +9,30 @@
     font-family: 'Nunito', sans-serif;
   }
 
-  /* 像素风主题基础样式 */
-  html.pixel, html.lightPixel {
+  /* 深色像素风主题样式 */
+  html.pixel {
     font-family: 'VT323', monospace;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
   }
   
-  /* 深色像素风主题 */
   html.pixel body {
     @apply bg-pixel-bg min-h-screen;
   }
 
-  /* 浅色像素风主题 */
+  /* 浅色像素风主题样式 */
+  html.lightPixel {
+    font-family: 'VT323', monospace;
+    image-rendering: pixelated;
+  }
+
   html.lightPixel body {
-    @apply bg-lightPixel-bg min-h-screen;
+    @apply bg-light-pixel-bg min-h-screen;
   }
 }
 
 @layer components {
-  /* 统一像素风组件样式 - 深色主题 */
+  /* 深色像素风主题组件样式 */
   .pixel .card-cutesy {
     @apply bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel;
   }
@@ -45,24 +49,60 @@
     @apply bg-pixel-panel border-2 border-pixel-border rounded-pixel px-4 py-3 focus:border-pixel-accent transition-all duration-300 text-pixel-text placeholder-pixel-textMuted;
   }
 
-  /* 统一像素风组件样式 - 浅色主题（完全相同的结构，只是颜色不同） */
+  /* 浅色像素风主题组件样式 - 使用自定义CSS */
   .lightPixel .card-cutesy {
-    @apply bg-lightPixel-card border-2 border-lightPixel-border rounded-pixel shadow-pixel;
+    background: #e8f2ff;
+    border: 2px solid #d9d9d9;
+    border-radius: 0;
+    box-shadow: 2px 2px 0px #d9d9d9, 0 1px 4px rgba(0, 0, 0, 0.08);
   }
   
   .lightPixel .btn-primary {
-    @apply bg-lightPixel-accent text-white px-6 py-3 rounded-pixel font-bold shadow-pixel border-2 border-black transition-all duration-300 hover:shadow-pixel-lg hover:translate-y-[-2px];
+    background: linear-gradient(45deg, #ff6b9d, #eb2f96);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0;
+    font-weight: bold;
+    border: 2px solid #bfbfbf;
+    box-shadow: 3px 3px 0px rgba(255, 107, 157, 0.3), 0 2px 8px rgba(255, 107, 157, 0.2);
+    transition: all 0.3s;
+  }
+  
+  .lightPixel .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 4px 4px 0px rgba(255, 107, 157, 0.4), 0 4px 12px rgba(255, 107, 157, 0.3);
   }
   
   .lightPixel .btn-secondary {
-    @apply bg-lightPixel-success text-white px-6 py-3 rounded-pixel font-bold shadow-pixel border-2 border-black transition-all duration-300 hover:shadow-pixel-lg hover:translate-y-[-2px];
+    background: #52c41a;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0;
+    font-weight: bold;
+    border: 2px solid #bfbfbf;
+    box-shadow: 3px 3px 0px rgba(82, 196, 26, 0.3), 0 2px 8px rgba(82, 196, 26, 0.2);
+    transition: all 0.3s;
+  }
+  
+  .lightPixel .btn-secondary:hover {
+    transform: translateY(-2px);
   }
   
   .lightPixel .input-cutesy {
-    @apply bg-lightPixel-panel border-2 border-lightPixel-border rounded-pixel px-4 py-3 focus:border-lightPixel-accent transition-all duration-300 text-lightPixel-text placeholder-lightPixel-textMuted;
+    background: #e8f2ff;
+    border: 2px solid #d9d9d9;
+    border-radius: 0;
+    padding: 0.75rem 1rem;
+    color: #262626;
+    transition: all 0.3s;
+  }
+  
+  .lightPixel .input-cutesy:focus {
+    border-color: #ff6b9d;
+    box-shadow: 2px 2px 0px rgba(255, 107, 157, 0.3), 0 1px 4px rgba(255, 107, 157, 0.2);
   }
 
-  /* 通用样式（默认使用深色像素风） */  
+  /* 通用样式（默认使用像素风格） */  
   .card-cutesy {
     @apply bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel;
   }
@@ -79,12 +119,12 @@
     @apply bg-pixel-panel border-2 border-pixel-border rounded-pixel px-4 py-3 focus:border-pixel-accent transition-all duration-300 text-pixel-text placeholder-pixel-textMuted;
   }
 
-  /* 像素风专用效果（主题无关） */
-  .pixel-scanlines, .lightPixel .pixel-scanlines {
+  /* 像素风专用效果 */
+  .pixel-scanlines {
     position: relative;
   }
   
-  .pixel-scanlines::before, .lightPixel .pixel-scanlines::before {
+  .pixel-scanlines::before {
     content: '';
     position: absolute;
     top: 0;

@@ -18,46 +18,47 @@ module.exports = {
       },
       colors: {
 
-        // 像素风配色方案 - 深色赛博朋克霓虹风格
+        // 统一像素风配色方案
         pixel: {
-          // 8位游戏机经典色彩 - 深色赛博朋克版本
-          bg: '#1a1a2e',        // 深色背景
-          panel: '#2a2a40',     // 深色面板背景
-          card: '#353555',      // 深色卡片背景
+          // 功能色彩（两个主题共用相同的强调色）
           accent: '#ff0080',    // 霓虹粉色强调
           success: '#00ff88',   // 霓虹绿色成功
           warning: '#ffff00',   // 霓虹黄色警告
           info: '#00d4ff',      // 霓虹蓝色信息
           purple: '#9d4eff',    // 霓虹紫色
-          pink: '#ff1493',      // 深粉色
-          orange: '#ff6a00',    // 霓虹橙色
-          cyan: '#00ffff',      // 霓虹青色
-          lime: '#39ff39',      // 霓虹绿
+          pink: '#ff1493',      // 粉色
+          orange: '#ff6a00',    // 橙色
+          cyan: '#00ffff',      // 青色
+          lime: '#39ff39',      // 青柠色
+          
+          // 深色主题变量（默认）
+          bg: '#1a1a2e',        // 深色背景
+          panel: '#2a2a40',     // 深色面板背景
+          card: '#353555',      // 深色卡片背景
           text: '#ffffff',      // 白色文字
           textMuted: '#aaaacc', // 灰色文字
           border: '#4a4a66',    // 边框色
         },
-        // 浅色像素风配色方案 - 明亮清新的8位游戏风格
+        // 浅色像素风配色方案（只改变背景和文字色）
         lightPixel: {
-          // 浅色8位游戏机经典色彩 - 明亮清新版本
-          bg: '#f0f4f8',        // 浅蓝灰色背景
-          panel: '#ffffff',     // 纯白面板背景
-          card: '#e8f2ff',      // 淡蓝色卡片背景
-          accent: '#ff6b9d',    // 樱花粉色强调
-          success: '#52c41a',   // 明亮绿色成功
-          warning: '#fa8c16',   // 明亮橙色警告
-          info: '#1890ff',      // 明亮蓝色信息
-          purple: '#722ed1',    // 明亮紫色
-          pink: '#eb2f96',      // 明亮粉色
-          orange: '#fa541c',    // 明亮橙红色
-          cyan: '#13c2c2',      // 明亮青色
-          lime: '#a0d911',      // 明亮青柠色
-          yellow: '#fadb14',    // 明亮黄色
-          indigo: '#597ef7',    // 明亮靛蓝色
-          text: '#262626',      // 深灰色文字
-          textMuted: '#8c8c8c', // 中灰色文字
-          border: '#d9d9d9',    // 浅灰色边框
-          borderDark: '#bfbfbf', // 深一点的边框
+          // 功能色彩（与深色主题完全相同）
+          accent: '#ff0080',    // 霓虹粉色强调
+          success: '#00ff88',   // 霓虹绿色成功
+          warning: '#ffff00',   // 霓虹黄色警告
+          info: '#00d4ff',      // 霓虹蓝色信息
+          purple: '#9d4eff',    // 霓虹紫色
+          pink: '#ff1493',      // 粉色
+          orange: '#ff6a00',    // 橙色
+          cyan: '#00ffff',      // 青色
+          lime: '#39ff39',      // 青柠色
+          
+          // 浅色主题变量（只有背景和文字不同）
+          bg: '#f0f4f8',        // 浅色背景
+          panel: '#ffffff',     // 白色面板背景
+          card: '#f8fafc',      // 浅色卡片背景
+          text: '#1a1a2e',      // 深色文字（与深色主题背景色相同）
+          textMuted: '#666666', // 中灰色文字
+          border: '#e2e8f0',    // 浅色边框
         },
 
       },
@@ -94,19 +95,12 @@ module.exports = {
 
       },
       backgroundImage: {
-        // 深色像素风背景
-        'pixel-bg': 'linear-gradient(135deg, #1a1a2e 0%, #2a2a40 50%, #353555 100%)',
-        'pixel-card': 'linear-gradient(135deg, #353555 0%, #2a2a40 100%)',
+        // 统一像素风背景（主题无关）
         'pixel-accent': 'linear-gradient(45deg, #ff0080, #ff1493)',
         'pixel-glow': 'radial-gradient(circle, rgba(255, 0, 128, 0.3) 0%, rgba(0, 212, 255, 0.1) 50%, transparent 100%)',
-        // 浅色像素风背景
-        'light-pixel-bg': 'linear-gradient(135deg, #f0f4f8 0%, #e8f2ff 50%, #ffffff 100%)',
-        'light-pixel-card': 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
-        'light-pixel-accent': 'linear-gradient(45deg, #ff6b9d, #eb2f96)',
-        'light-pixel-glow': 'radial-gradient(circle, rgba(255, 107, 157, 0.15) 0%, rgba(24, 144, 255, 0.1) 50%, transparent 100%)',
-        'light-pixel-success': 'linear-gradient(45deg, #52c41a, #73d13d)',
-        'light-pixel-warning': 'linear-gradient(45deg, #fa8c16, #ffa940)',
-        'light-pixel-info': 'linear-gradient(45deg, #1890ff, #40a9ff)',
+        'pixel-success': 'linear-gradient(45deg, #00ff88, #32cd32)',
+        'pixel-warning': 'linear-gradient(45deg, #ffff00, #ffd700)',
+        'pixel-info': 'linear-gradient(45deg, #00d4ff, #87ceeb)',
 
       },
       // 像素风专用动画
