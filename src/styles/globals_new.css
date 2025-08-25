@@ -49,57 +49,21 @@
     @apply bg-pixel-panel border-2 border-pixel-border rounded-pixel px-4 py-3 focus:border-pixel-accent transition-all duration-300 text-pixel-text placeholder-pixel-textMuted;
   }
 
-  /* 浅色像素风主题组件样式 - 使用自定义CSS */
+  /* 浅色像素风主题组件样式 */
   .lightPixel .card-cutesy {
-    background: #e8f2ff;
-    border: 2px solid #d9d9d9;
-    border-radius: 0;
-    box-shadow: 2px 2px 0px #d9d9d9, 0 1px 4px rgba(0, 0, 0, 0.08);
+    @apply lightPixel-card border-2 lightPixel-border rounded-pixel;
   }
   
   .lightPixel .btn-primary {
-    background: linear-gradient(45deg, #ff6b9d, #eb2f96);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0;
-    font-weight: bold;
-    border: 2px solid #bfbfbf;
-    box-shadow: 3px 3px 0px rgba(255, 107, 157, 0.3), 0 2px 8px rgba(255, 107, 157, 0.2);
-    transition: all 0.3s;
-  }
-  
-  .lightPixel .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 4px 4px 0px rgba(255, 107, 157, 0.4), 0 4px 12px rgba(255, 107, 157, 0.3);
+    @apply lightPixel-btn-accent text-white px-6 py-3 rounded-pixel font-bold lightPixel-border-dark border-2 transition-all duration-300 hover:translate-y-[-2px];
   }
   
   .lightPixel .btn-secondary {
-    background: #52c41a;
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0;
-    font-weight: bold;
-    border: 2px solid #bfbfbf;
-    box-shadow: 3px 3px 0px rgba(82, 196, 26, 0.3), 0 2px 8px rgba(82, 196, 26, 0.2);
-    transition: all 0.3s;
-  }
-  
-  .lightPixel .btn-secondary:hover {
-    transform: translateY(-2px);
+    @apply bg-lightPixel-success text-white px-6 py-3 rounded-pixel font-bold lightPixel-border-dark border-2 transition-all duration-300 hover:translate-y-[-2px];
   }
   
   .lightPixel .input-cutesy {
-    background: #e8f2ff;
-    border: 2px solid #d9d9d9;
-    border-radius: 0;
-    padding: 0.75rem 1rem;
-    color: #262626;
-    transition: all 0.3s;
-  }
-  
-  .lightPixel .input-cutesy:focus {
-    border-color: #ff6b9d;
-    box-shadow: 2px 2px 0px rgba(255, 107, 157, 0.3), 0 1px 4px rgba(255, 107, 157, 0.2);
+    @apply lightPixel-input border-2 lightPixel-border rounded-pixel px-4 py-3 transition-all duration-300 lightPixel-text;
   }
 
   /* 通用样式（默认使用像素风格） */  
