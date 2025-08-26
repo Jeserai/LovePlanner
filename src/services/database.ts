@@ -105,11 +105,7 @@ export const taskService = {
   async getCoupleTasksOld(coupleId: string): Promise<Task[]> {
     const { data, error } = await supabase
       .from('tasks')
-      .select(`
-        *,
-        creator:creator_id(display_name, role),
-        assignee:assignee_id(display_name, role)
-      `)
+      .select('*')
       .eq('couple_id', coupleId)
       .order('created_at', { ascending: false })
 
