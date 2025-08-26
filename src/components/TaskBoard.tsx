@@ -717,11 +717,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               </button>
               
               {/* 分类标题 */}
-              <div className="flex justify-center items-center space-x-8">
+              <div className="grid grid-cols-2 gap-8 px-16">
                 <div className={`text-center ${
                   theme === 'pixel' ? 'font-mono uppercase' : ''
                 }`}>
-                  <h3 className={`font-bold ${
+                  <h3 className={`font-bold text-lg mb-1 ${
                     theme === 'pixel' ? 'text-pixel-success' : 'text-green-600'
                   }`}>
                     {theme === 'pixel' ? 'COMPLETED' : '已完成'}
@@ -729,13 +729,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   <span className={`text-sm ${
                     theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
                   }`}>
-                    {completedTasks.length}
+                    {completedTasks.length} 个任务
                   </span>
                 </div>
                 <div className={`text-center ${
                   theme === 'pixel' ? 'font-mono uppercase' : ''
                 }`}>
-                  <h3 className={`font-bold ${
+                  <h3 className={`font-bold text-lg mb-1 ${
                     theme === 'pixel' ? 'text-pixel-accent' : 'text-red-600'
                   }`}>
                     {theme === 'pixel' ? 'ABANDONED' : '已关闭'}
@@ -743,7 +743,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   <span className={`text-sm ${
                     theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
                   }`}>
-                    {abandonedTasks.length}
+                    {abandonedTasks.length} 个任务
                   </span>
                 </div>
               </div>
