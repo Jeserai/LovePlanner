@@ -27,7 +27,7 @@ export type Database = {
           username: string
           display_name: string
           avatar_url: string | null
-          role: 'cat' | 'cow'
+          birthday: string | null
           points: number
           timezone: string
           created_at: string
@@ -41,7 +41,7 @@ export type Database = {
           username: string
           display_name: string
           avatar_url?: string | null
-          role: 'cat' | 'cow'
+          birthday?: string | null
           points?: number
           timezone?: string
           created_at?: string
@@ -55,7 +55,7 @@ export type Database = {
           username?: string
           display_name?: string
           avatar_url?: string | null
-          role?: 'cat' | 'cow'
+          birthday?: string | null
           points?: number
           timezone?: string
           created_at?: string
@@ -67,26 +67,29 @@ export type Database = {
       couples: {
         Row: {
           id: string
-          cat_user_id: string
-          cow_user_id: string
+          user1_id: string
+          user2_id: string
           relationship_started: string
           created_at: string
+          updated_at: string
           is_active: boolean
         }
         Insert: {
           id?: string
-          cat_user_id: string
-          cow_user_id: string
+          user1_id: string
+          user2_id: string
           relationship_started?: string
           created_at?: string
+          updated_at?: string
           is_active?: boolean
         }
         Update: {
           id?: string
-          cat_user_id?: string
-          cow_user_id?: string
+          user1_id?: string
+          user2_id?: string
           relationship_started?: string
           created_at?: string
+          updated_at?: string
           is_active?: boolean
         }
       }

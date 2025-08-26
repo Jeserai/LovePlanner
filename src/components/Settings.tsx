@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { Cog6ToothIcon, CommandLineIcon, UserIcon, PaintBrushIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, CommandLineIcon, UserIcon, PaintBrushIcon, HeartIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 import UserProfile from './UserProfile';
 
@@ -11,13 +11,13 @@ const Settings: React.FC = () => {
   const sections = [
     {
       id: 'profile',
-      name: (theme === 'pixel' || theme === 'lightPixel') ? 'USER_PROFILE' : '用户档案',
+      name: theme === 'pixel' ? 'USER_PROFILE' : '用户档案',
       icon: UserIcon,
       pixelIcon: 'user'
     },
     {
       id: 'theme',
-      name: (theme === 'pixel' || theme === 'lightPixel') ? 'THEME_SETTINGS' : '主题设置',
+      name: theme === 'pixel' ? 'THEME_SETTINGS' : '主题设置',
       icon: PaintBrushIcon,
       pixelIcon: 'palette'
     }
@@ -31,6 +31,22 @@ const Settings: React.FC = () => {
       icon: CommandLineIcon,
       preview: 'bg-gradient-to-br from-pixel-accent to-pixel-purple',
       color: 'text-pixel-accent'
+    },
+    {
+      id: 'romantic' as const,
+      name: '浪漫粉色系',
+      description: '温柔梦幻的粉色主题，清新可爱的设计风格',
+      icon: HeartIcon,
+      preview: 'bg-gradient-to-br from-romantic-accent to-romantic-heart',
+      color: 'text-romantic-accent'
+    },
+    {
+      id: 'fresh' as const,
+      name: '清新淡雅',
+      description: '简约现代的设计风格，清新淡雅的绿色系配色',
+      icon: PaintBrushIcon,
+      preview: 'bg-gradient-to-br from-fresh-accent to-fresh-mint',
+      color: 'text-fresh-accent'
     }
   ];
 
@@ -42,38 +58,84 @@ const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             {/* Theme Selection */}
-            <div className={theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg p-8 neon-border pixel-matrix' : 'card-cutesy p-6'}>
-              <h3 className={`text-xl font-bold mb-4 ${theme === 'pixel' ? 'text-pixel-text font-retro uppercase tracking-wider' : 'text-gray-800'}`}>
-                {theme === 'pixel' ? '>>> SELECT THEME' : '选择主题风格'}
+            <div className={theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg p-8 neon-border pixel-matrix' : theme === 'romantic' ? 'bg-romantic-card border-2 border-romantic-border rounded-romantic-lg shadow-romantic p-6' : theme === 'fresh' ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-6' : 'card-cutesy p-6'}>
+              <h3 className={`text-xl font-bold mb-4 ${theme === 'pixel' ? 'text-pixel-text font-retro uppercase tracking-wider' : theme === 'romantic' ? 'text-romantic-text romantic-gradient-text' : theme === 'fresh' ? 'text-fresh-text fresh-gradient-text' : 'text-gray-800'}`}>
+                {theme === 'pixel' ? '>>> SELECT THEME' : theme === 'romantic' ? '选择主题风格 ✨' : theme === 'fresh' ? '选择主题风格 🌿' : '选择主题风格'}
               </h3>
-              <p className={`text-sm mb-6 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-sage-600'}`}>
-                {theme === 'pixel' ? 'CHOOSE YOUR ADVENTURE STYLE!' : '选择你喜欢的视觉风格，设置会自动保存'}
+              <p className={`text-sm mb-6 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'romantic' ? 'text-romantic-textMuted' : theme === 'fresh' ? 'text-fresh-textMuted' : 'text-sage-600'}`}>
+                {theme === 'pixel' ? 'CHOOSE YOUR ADVENTURE STYLE!' : theme === 'romantic' ? '选择你喜欢的视觉风格，每一种都有独特的魅力 💖' : theme === 'fresh' ? '选择适合你的风格，享受简约清新的体验 🌱' : '选择你喜欢的视觉风格，设置会自动保存'}
               </p>
 
-                                        <div className="space-y-4">
-                            {/* 当前主题显示 */}
-                            <div className="bg-pixel-card border-4 border-pixel-accent shadow-pixel-lg neon-border p-4 rounded-pixel">
-                              <div className="flex items-center space-x-3 mb-3">
-                                <PixelIcon name="command" className="text-pixel-accent" glow />
-                                <h3 className="font-bold font-retro text-pixel-text uppercase">
-                                  深色像素风
-                                </h3>
-                              </div>
-                              <p className="text-sm text-pixel-textMuted font-mono">
-                                经典8位游戏风格，深色背景配霓虹色彩
-                              </p>
-                              <div className="mt-3 h-24 rounded-lg bg-gradient-to-br from-pixel-accent to-pixel-purple border-2 border-white"></div>
-                            </div>
-                            
-                            {/* 主题说明 */}
-                            <div className="bg-pixel-panel border-2 border-pixel-border rounded-pixel p-4">
-                              <p className="text-pixel-text font-mono text-sm">
-                                &gt;&gt;&gt; 当前使用统一像素风主题 &lt;&lt;&lt;
-                              </p>
-                              <p className="text-pixel-textMuted font-mono text-xs mt-2">
-                                为保持视觉一致性，已固定使用深色像素风主题
-                              </p>
-                            </div>
+              {/* 主题网格 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {themes.map((themeOption) => {
+                  const Icon = themeOption.icon;
+                  const isActive = theme === themeOption.id;
+                  
+                  return (
+                    <div
+                      key={themeOption.id}
+                      onClick={() => setTheme(themeOption.id)}
+                      className={`p-6 cursor-pointer transition-all duration-300 ${
+                        theme === 'pixel' 
+                          ? `border-4 rounded-pixel ${isActive ? 'border-pixel-accent bg-pixel-card shadow-pixel-lg scale-105' : 'border-pixel-border bg-pixel-panel hover:border-pixel-accent hover:scale-102'}`
+                          : theme === 'romantic'
+                          ? `border-2 rounded-romantic-lg ${isActive ? 'border-romantic-accent bg-romantic-primary shadow-romantic-lg scale-105' : 'border-romantic-border bg-romantic-card hover:border-romantic-accent hover:scale-102'}`
+                          : theme === 'fresh'
+                          ? `border rounded-fresh-lg ${isActive ? 'border-fresh-accent bg-fresh-primary shadow-fresh-lg' : 'border-fresh-border bg-fresh-card hover:border-fresh-accent hover:shadow-fresh-sm'}`
+                          : `border-2 rounded-xl ${isActive ? 'border-primary-300 bg-primary-50' : 'border-gray-200 hover:border-primary-200'}`
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3 mb-3">
+                        {theme === 'pixel' ? (
+                          <PixelIcon name="command" className={isActive ? 'text-pixel-accent' : 'text-pixel-text'} glow={isActive} />
+                        ) : (
+                          <Icon className={`w-6 h-6 ${isActive ? themeOption.color : theme === 'romantic' ? 'text-romantic-textMuted' : theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-500'}`} />
+                        )}
+                        <h4 className={`font-bold ${
+                          theme === 'pixel' 
+                            ? `font-retro uppercase ${isActive ? 'text-pixel-accent' : 'text-pixel-text'}`
+                            : theme === 'romantic'
+                            ? `${isActive ? 'text-romantic-accent' : 'text-romantic-text'}`
+                            : theme === 'fresh'
+                            ? `${isActive ? 'text-fresh-accent' : 'text-fresh-text'}`
+                            : `${isActive ? 'text-primary-700' : 'text-gray-700'}`
+                        }`}>
+                          {themeOption.name}
+                        </h4>
+                      </div>
+                      <p className={`text-sm mb-4 ${
+                        theme === 'pixel' 
+                          ? 'text-pixel-textMuted font-mono'
+                          : theme === 'romantic'
+                          ? 'text-romantic-textMuted'
+                          : theme === 'fresh'
+                          ? 'text-fresh-textMuted'
+                          : 'text-gray-600'
+                      }`}>
+                        {themeOption.description}
+                      </p>
+                      <div className={`h-20 rounded-lg ${themeOption.preview} border-2 ${
+                        theme === 'pixel' ? 'border-white' : theme === 'romantic' ? 'border-romantic-border' : theme === 'fresh' ? 'border-fresh-border' : 'border-gray-200'
+                      }`}></div>
+                      
+                      {/* 当前使用标识 */}
+                      {isActive && (
+                        <div className={`mt-3 text-center text-sm font-medium ${
+                          theme === 'pixel' 
+                            ? 'text-pixel-accent font-mono'
+                            : theme === 'romantic'
+                            ? 'text-romantic-accent'
+                            : theme === 'fresh'
+                            ? 'text-fresh-accent'
+                            : 'text-primary-600'
+                        }`}>
+                          {theme === 'pixel' ? '>>> CURRENT THEME <<<' : theme === 'romantic' ? '✨ 当前使用 ✨' : theme === 'fresh' ? '🌿 当前使用 🌿' : '当前使用'}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -100,6 +162,74 @@ const Settings: React.FC = () => {
                     <div className="w-4 h-4 bg-pixel-warning rounded-pixel border border-black"></div>
                     <div className="w-4 h-4 bg-pixel-purple rounded-pixel border border-black"></div>
                     <div className="w-4 h-4 bg-pixel-pink rounded-pixel border border-black"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {theme === 'romantic' && (
+              <div className="bg-romantic-card border-2 border-romantic-border rounded-romantic-lg shadow-romantic-lg p-6 romantic-sparkle">
+                <h3 className="text-xl font-bold mb-4 text-romantic-text romantic-gradient-text">
+                  主题预览 ✨
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-2xl animate-romantic-heartbeat">💖</span>
+                    <span className="text-romantic-text font-semibold">浪漫粉色系主题</span>
+                  </div>
+                  <p className="text-romantic-textMuted text-sm leading-relaxed">
+                    灵感来源于温柔的粉色系和梦幻的设计元素。<br/>
+                    特色包括柔和的渐变、优雅的圆角和温馨的动画效果。<br/>
+                    完美适合喜欢清新可爱风格的情侣用户！💕
+                  </p>
+                  <div className="flex space-x-3 mt-4">
+                    <div className="w-6 h-6 bg-romantic-accent rounded-romantic-full border-2 border-white shadow-romantic-sm"></div>
+                    <div className="w-6 h-6 bg-romantic-heart rounded-romantic-full border-2 border-white shadow-romantic-sm"></div>
+                    <div className="w-6 h-6 bg-romantic-primary rounded-romantic-full border-2 border-white shadow-romantic-sm"></div>
+                    <div className="w-6 h-6 bg-romantic-secondary rounded-romantic-full border-2 border-white shadow-romantic-sm"></div>
+                  </div>
+                  <div className="text-center mt-4">
+                    <div className="flex justify-center space-x-2 text-2xl opacity-60">
+                      <span className="animate-romantic-sparkle">✨</span>
+                      <span className="animate-romantic-heartbeat">💖</span>
+                      <span className="animate-romantic-float">🌸</span>
+                      <span className="animate-romantic-sparkle" style={{animationDelay: '1s'}}>✨</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {theme === 'fresh' && (
+              <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh-lg p-6 fresh-minimal">
+                <h3 className="text-xl font-bold mb-4 text-fresh-text fresh-gradient-text">
+                  主题预览 🌿
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-2xl animate-fresh-breathe">💚</span>
+                    <span className="text-fresh-text font-medium">清新淡雅主题</span>
+                  </div>
+                  <p className="text-fresh-textMuted text-sm leading-relaxed">
+                    追求简约现代的设计理念，采用清新淡雅的绿色系配色。<br/>
+                    特色包括轻盈的阴影、简洁的线条和流畅的动画效果。<br/>
+                    完美适合喜欢极简风格和自然色调的用户！🌱
+                  </p>
+                  <div className="flex space-x-3 mt-4">
+                    <div className="w-6 h-6 bg-fresh-accent rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
+                    <div className="w-6 h-6 bg-fresh-catColor rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
+                    <div className="w-6 h-6 bg-fresh-cowColor rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
+                    <div className="w-6 h-6 bg-fresh-mint rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
+                  </div>
+                  <div className="text-center mt-4">
+                    <div className="flex justify-center space-x-2 text-xl opacity-50">
+                      <span className="animate-fresh-wave">🌿</span>
+                      <span className="animate-fresh-breathe">💚</span>
+                      <span className="animate-fresh-bounce">🌱</span>
+                      <span className="animate-fresh-wave" style={{animationDelay: '1s'}}>🍃</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -150,7 +280,87 @@ const Settings: React.FC = () => {
     );
   }
 
-  // Cute 主题
+  if (theme === 'romantic') {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center space-x-3">
+          <span className="text-3xl animate-romantic-sparkle">⚙️</span>
+          <h2 className="text-3xl font-display font-bold text-romantic-text romantic-gradient-text">
+            设置中心 ✨
+          </h2>
+        </div>
+
+        {/* Section Navigation */}
+        <div className="bg-romantic-card border-2 border-romantic-border rounded-romantic-lg shadow-romantic p-4">
+          <div className="grid grid-cols-2 gap-3">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`p-4 rounded-romantic-lg font-medium transition-all duration-300 flex items-center space-x-3 ${
+                    activeSection === section.id
+                      ? 'bg-romantic-accent text-white shadow-romantic-lg scale-105'
+                      : 'bg-romantic-panel text-romantic-text hover:bg-romantic-primary hover:scale-102 hover:shadow-romantic-sm'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{section.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Content */}
+        {renderSectionContent()}
+      </div>
+    );
+  }
+
+  if (theme === 'fresh') {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center space-x-3">
+          <span className="text-3xl animate-fresh-breathe">⚙️</span>
+          <h2 className="text-3xl font-display font-bold text-fresh-text fresh-gradient-text">
+            设置中心 🌿
+          </h2>
+        </div>
+
+        {/* Section Navigation */}
+        <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-4">
+          <div className="grid grid-cols-2 gap-3">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`p-3 rounded-fresh font-medium transition-all duration-300 flex items-center space-x-3 ${
+                    activeSection === section.id
+                      ? 'bg-fresh-accent text-white shadow-fresh-sm'
+                      : 'bg-fresh-panel text-fresh-text hover:bg-fresh-primary hover:shadow-fresh-sm'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{section.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Content */}
+        {renderSectionContent()}
+      </div>
+    );
+  }
+
+  // 默认主题
   return (
     <div className="space-y-6">
       {/* Header */}

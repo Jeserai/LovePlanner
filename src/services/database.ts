@@ -43,7 +43,7 @@ export const userService = {
     const { data, error } = await supabase
       .from('couples')
       .select('*')
-      .or(`cat_user_id.eq.${userId},cow_user_id.eq.${userId}`)
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
       .eq('is_active', true)
       .single()
 
@@ -55,17 +55,26 @@ export const userService = {
     return data
   },
 
+  // 获取情侣关系详细信息（包含伴侣信息）
+  async getCoupleRelationDetails(userId: string) {
+    const { data, error } = await supabase.rpc('get_couple_relation', {
+      user_id: userId
+    });
+
+    if (error) {
+      console.error('Error fetching couple relation details:', error)
+      return null
+    }
+
+    return data?.[0] || null
+  },
+
   // 创建情侣关系
-  async createCoupleRelation(catUserId: string, cowUserId: string): Promise<Couple | null> {
-    const { data, error } = await supabase
-      .from('couples')
-      .insert({
-        cat_user_id: catUserId,
-        cow_user_id: cowUserId,
-        relationship_started: new Date().toISOString().split('T')[0]
-      })
-      .select()
-      .single()
+  async createCoupleRelation(user1Id: string, user2Id: string): Promise<string | null> {
+    const { data, error } = await supabase.rpc('create_couple_relationship', {
+      user1_id: user1Id,
+      user2_id: user2Id
+    });
 
     if (error) {
       console.error('Error creating couple relation:', error)
@@ -73,6 +82,20 @@ export const userService = {
     }
 
     return data
+  },
+
+  // 获取情侣中的所有用户
+  async getCoupleUsers(coupleId: string) {
+    const { data, error } = await supabase.rpc('get_couple_users', {
+      couple_id: coupleId
+    });
+
+    if (error) {
+      console.error('Error fetching couple users:', error)
+      return []
+    }
+
+    return data || []
   }
 }
 

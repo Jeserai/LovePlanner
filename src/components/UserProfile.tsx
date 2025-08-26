@@ -1,126 +1,168 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { UserIcon, EnvelopeIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { UserIcon, CalendarIcon, EnvelopeIcon, AtSymbolIcon, GiftIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
-import { useAuth } from '../hooks/useAuth';
-import { userService } from '../services/database';
+import { getUserDisplayInfo } from '../services/authService';
+
+// 用户资料接口
+interface UserProfile {
+  id: string;
+  username: string;
+  display_name: string;
+  email: string;
+  birthday: string;
+  points: number;
+  timezone: string;
+}
+
+// 获取当前用户资料的Mock函数
+const getCurrentUserProfile = (): UserProfile | null => {
+  try {
+    // 从localStorage获取用户数据
+    const demoUser = localStorage.getItem('demo_user');
+    if (demoUser) {
+      const user = JSON.parse(demoUser);
+      // 返回模拟的用户资料
+      const userInfo = getUserDisplayInfo(user);
+      return {
+        id: user.id,
+        username: user.user_metadata?.username || 'unknown_user',
+        display_name: user.user_metadata?.displayName || 'Unknown User',
+        email: user.email,
+        birthday: user.user_metadata?.birthday || '1990-01-01',
+        points: userInfo?.uiTheme === 'cat' ? 150 : 300,
+        timezone: userInfo?.uiTheme === 'cat' ? 'Asia/Shanghai' : 'America/New_York'
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('获取用户资料失败:', error);
+    return null;
+  }
+};
 
 const UserProfile: React.FC = () => {
   const { theme } = useTheme();
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [editForm, setEditForm] = useState({
-    username: '',
-    displayName: '',
-    role: 'cat' as 'cat' | 'cow',
-    timezone: 'Asia/Shanghai'
-  });
+  const [editForm, setEditForm] = useState<Partial<UserProfile>>({});
+  const [loading, setLoading] = useState(true);
 
-  // 加载用户档案
+  // 获取当前用户UI主题
+  const currentUserInfo = profile ? getUserDisplayInfo(profile) : null;
+  const currentUserType = currentUserInfo?.uiTheme === 'cow' ? 'cow' : (currentUserInfo?.uiTheme === 'cat' ? 'cat' : null);
+
+  // 加载用户资料
   useEffect(() => {
-    const loadProfile = async () => {
-      if (user) {
-        try {
-          const userProfile = await userService.getProfile(user.id);
-          if (userProfile) {
-            setProfile(userProfile);
-            setEditForm({
-              username: userProfile.username || '',
-              displayName: userProfile.display_name || '',
-              role: userProfile.role || 'cat',
-              timezone: userProfile.timezone || 'Asia/Shanghai'
-            });
-          }
-        } catch (error) {
-          console.error('加载用户档案失败:', error);
-          setError('加载用户档案失败');
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
+    const userProfile = getCurrentUserProfile();
+    if (userProfile) {
+      setProfile(userProfile);
+      setEditForm(userProfile);
+    }
+    setLoading(false);
+  }, []);
 
-    loadProfile();
-  }, [user]);
-
-  // 保存档案
+  // 保存资料
   const handleSave = async () => {
-    if (!user || !profile) return;
-
-    setIsSaving(true);
-    setError('');
+    if (!profile || !editForm) return;
 
     try {
-      const success = await userService.updateProfile(user.id, {
-        username: editForm.username,
-        display_name: editForm.displayName,
-        role: editForm.role,
-        timezone: editForm.timezone
-      });
-
-      if (success) {
-        // 重新加载档案
-        const updatedProfile = await userService.getProfile(user.id);
-        if (updatedProfile) {
-          setProfile(updatedProfile);
-          setIsEditing(false);
-        }
-      } else {
-        setError('保存失败，请重试');
+      // 在实际应用中，这里应该调用API更新数据库
+      // 现在只是更新本地状态
+      const updatedProfile = { ...profile, ...editForm };
+      setProfile(updatedProfile);
+      
+      // 更新localStorage中的用户数据
+      const demoUser = localStorage.getItem('demo_user');
+      if (demoUser) {
+        const user = JSON.parse(demoUser);
+        user.user_metadata = {
+          ...user.user_metadata,
+          username: updatedProfile.username,
+          displayName: updatedProfile.display_name,
+          birthday: updatedProfile.birthday
+        };
+        localStorage.setItem('demo_user', JSON.stringify(user));
       }
-    } catch (error: any) {
-      setError(error.message || '保存失败');
-    } finally {
-      setIsSaving(false);
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('保存用户资料失败:', error);
     }
   };
 
-  // 取消编辑
-  const handleCancel = () => {
-    if (profile) {
-      setEditForm({
-        username: profile.username || '',
-        displayName: profile.display_name || '',
-        role: profile.role || 'cat',
-        timezone: profile.timezone || 'Asia/Shanghai'
-      });
+  // 计算年龄
+  const calculateAge = (birthday: string): number => {
+    const today = new Date();
+    const birthDate = new Date(birthday);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
     }
-    setIsEditing(false);
-    setError('');
+    return age;
   };
 
-  // 获取角色图标
-  const getRoleIcon = (role: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
+  // 获取用户类型图标
+  const getUserTypeIcon = (userType: 'cat' | 'cow' | null, size: 'sm' | 'md' | 'lg' = 'md') => {
+    if (!userType) return null;
     if (theme === 'pixel') {
       return (
         <PixelIcon 
           name="user" 
-          className={role === 'cat' ? 'text-pixel-warning' : 'text-pixel-info'}
+          className={userType === 'cat' ? 'text-pixel-warning' : 'text-pixel-info'}
           size={size}
         />
+      );
+    } else if (theme === 'fresh') {
+      const emoji = userType === 'cat' ? '🐱' : '🐮';
+      const color = userType === 'cat' ? '#06b6d4' : '#8b5cf6';
+      const sizeMap = { sm: '1.5rem', md: '2rem', lg: '2.5rem' };
+      return (
+        <div 
+          className="inline-flex items-center justify-center rounded-fresh-full"
+          style={{ 
+            width: sizeMap[size],
+            height: sizeMap[size],
+            backgroundColor: `${color}20`,
+            border: `2px solid ${color}`,
+            color: color,
+            fontSize: '1rem'
+          }}
+        >
+          {emoji}
+        </div>
+      );
+    } else if (theme === 'romantic') {
+      const emoji = userType === 'cat' ? '🐱' : '🐮';
+      const sizeMap = { sm: '1.5rem', md: '2rem', lg: '2.5rem' };
+      return (
+        <span 
+          style={{ 
+            fontSize: sizeMap[size],
+            filter: 'drop-shadow(0 2px 4px rgba(233, 30, 99, 0.4))'
+          }}
+          className="inline-block animate-romantic-float"
+        >
+          {emoji}
+        </span>
       );
     } else {
       return (
         <UserIcon className={`${
           size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
-        } ${role === 'cat' ? 'text-primary-500' : 'text-blue-500'}`} />
+        } ${userType === 'cat' ? 'text-primary-500' : 'text-blue-500'}`} />
       );
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className={theme === 'pixel' ? 'pixel-spinner' : 'spinner'}>
-          {theme === 'pixel' ? (
-            <PixelIcon name="loading" className="animate-spin text-pixel-accent" size="lg" />
-          ) : (
-            <div className="w-8 h-8 border-2 border-primary-200 border-t-primary-500 rounded-full animate-spin"></div>
-          )}
+      <div className={`flex items-center justify-center p-8 ${
+        theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : theme === 'romantic' ? 'text-romantic-text' : 'text-gray-600'
+      }`}>
+        <div className="text-center">
+          <div className="text-lg">加载中...</div>
         </div>
       </div>
     );
@@ -128,197 +170,161 @@ const UserProfile: React.FC = () => {
 
   if (!profile) {
     return (
-      <div className="text-center py-8">
-        <p className={theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-sage-600'}>
-          未找到用户档案
-        </p>
+      <div className={`flex items-center justify-center p-8 ${
+        theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : theme === 'romantic' ? 'text-romantic-text' : 'text-gray-600'
+      }`}>
+        <div className="text-center">
+          <div className="text-lg mb-2">未找到用户资料</div>
+          <div className="text-sm opacity-75">请重新登录</div>
+        </div>
       </div>
     );
   }
 
+  // 像素风主题渲染
   if (theme === 'pixel') {
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg p-8 relative overflow-hidden neon-border pixel-matrix">
-          {/* 顶部装饰条 */}
-          <div className="absolute top-0 left-0 w-full h-4 bg-gradient-to-r from-pixel-accent via-pixel-cyan to-pixel-lime border-b-4 border-black"></div>
-          
-          {/* 标题 */}
-          <div className="text-center mb-8 mt-4">
-            <h2 className="text-2xl font-retro font-bold text-pixel-text mb-2 tracking-wider uppercase neon-text cyber-glitch" data-text="USER_PROFILE.EXE">
-              USER_PROFILE.EXE
-            </h2>
-            <div className="bg-pixel-card border-2 border-pixel-cyan rounded-pixel p-2 neon-border">
-              <p className="text-pixel-cyan text-sm font-mono neon-text">
-                {isEditing ? 'EDIT MODE ACTIVATED' : 'VIEW MODE'}
+      <div className="space-y-6">
+        {/* 头部信息 */}
+        <div className="bg-pixel-panel border-4 border-pixel-border rounded-pixel shadow-pixel-lg p-6 neon-border">
+          <div className="flex items-center space-x-4 mb-6">
+            {getUserTypeIcon(currentUserType, 'lg')}
+            <div>
+              <h2 className="text-xl font-retro text-pixel-text uppercase tracking-wider">
+                {profile.display_name}
+              </h2>
+              <p className="text-pixel-textMuted font-mono text-sm">
+                @{profile.username}
               </p>
             </div>
           </div>
 
-          {/* 档案信息 */}
-          <div className="space-y-6">
-            {/* 邮箱（只读） */}
-            <div>
-              <label className="block text-sm font-mono text-pixel-text mb-2 uppercase tracking-wide flex items-center space-x-2">
-                <PixelIcon name="mail" className="text-pixel-cyan" />
-                <span>&gt; EMAIL:</span>
-              </label>
-              <div className="w-full bg-pixel-card border-4 border-pixel-border rounded-pixel px-4 py-3 font-mono text-pixel-textMuted">
-                {user?.email}
+          {/* 编辑按钮 */}
+          <div className="flex justify-end">
+            {isEditing ? (
+              <div className="space-x-2">
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 bg-pixel-success text-black border-2 border-black rounded-pixel font-mono uppercase hover:shadow-pixel-neon transition-all"
+                >
+                  SAVE
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditForm(profile);
+                  }}
+                  className="px-4 py-2 bg-pixel-textMuted text-white border-2 border-black rounded-pixel font-mono uppercase hover:shadow-pixel transition-all"
+                >
+                  CANCEL
+                </button>
               </div>
-            </div>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 bg-pixel-accent text-black border-2 border-black rounded-pixel font-mono uppercase hover:shadow-pixel-neon transition-all"
+              >
+                EDIT
+              </button>
+            )}
+          </div>
+        </div>
 
-            {/* 用户名 */}
-            <div>
-              <label className="block text-sm font-mono text-pixel-text mb-2 uppercase tracking-wide flex items-center space-x-2">
-                <PixelIcon name="user" className="text-pixel-cyan" />
-                <span>&gt; USERNAME:</span>
-              </label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editForm.username}
-                  onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                  className="w-full pixel-input-glow rounded-pixel px-4 py-3 font-mono text-pixel-text"
-                  disabled={isSaving}
-                />
-              ) : (
-                <div className="w-full bg-pixel-card border-4 border-pixel-border rounded-pixel px-4 py-3 font-mono text-pixel-text">
-                  {profile.username}
-                </div>
-              )}
-            </div>
+        {/* 详细信息 */}
+        <div className="bg-pixel-panel border-4 border-pixel-border rounded-pixel shadow-pixel-lg p-6">
+          <h3 className="text-lg font-retro text-pixel-text uppercase tracking-wider mb-4 border-b-2 border-pixel-border pb-2">
+            PROFILE_DATA
+          </h3>
 
+          <div className="space-y-4">
             {/* 显示名称 */}
             <div>
-              <label className="block text-sm font-mono text-pixel-text mb-2 uppercase tracking-wide flex items-center space-x-2">
-                <PixelIcon name="pixel-star" className="text-pixel-cyan" />
-                <span>&gt; DISPLAY_NAME:</span>
-              </label>
+              <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Display Name</label>
               {isEditing ? (
                 <input
                   type="text"
-                  value={editForm.displayName}
-                  onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
-                  className="w-full pixel-input-glow rounded-pixel px-4 py-3 font-mono text-pixel-text"
-                  disabled={isSaving}
+                  value={editForm.display_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                  className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono focus:border-pixel-accent focus:outline-none"
                 />
               ) : (
-                <div className="w-full bg-pixel-card border-4 border-pixel-border rounded-pixel px-4 py-3 font-mono text-pixel-text">
+                <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
                   {profile.display_name}
                 </div>
               )}
             </div>
 
-            {/* 角色 */}
+            {/* 用户名 */}
             <div>
-              <label className="block text-sm font-mono text-pixel-text mb-2 uppercase tracking-wide">
-                &gt; ROLE:
-              </label>
+              <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Username</label>
               {isEditing ? (
-                <div className="flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditForm({ ...editForm, role: 'cat' })}
-                    className={`flex-1 p-3 border-4 rounded-pixel flex items-center justify-center space-x-2 transition-all ${
-                      editForm.role === 'cat'
-                        ? 'border-pixel-warning bg-pixel-warning text-black neon-border'
-                        : 'border-pixel-border bg-pixel-card text-pixel-cyan hover:border-pixel-warning'
-                    }`}
-                    disabled={isSaving}
-                  >
-                    {getRoleIcon('cat', 'sm')}
-                    <span className="font-mono font-bold">CAT</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm({ ...editForm, role: 'cow' })}
-                    className={`flex-1 p-3 border-4 rounded-pixel flex items-center justify-center space-x-2 transition-all ${
-                      editForm.role === 'cow'
-                        ? 'border-pixel-info bg-pixel-info text-black neon-border'
-                        : 'border-pixel-border bg-pixel-card text-pixel-cyan hover:border-pixel-info'
-                    }`}
-                    disabled={isSaving}
-                  >
-                    {getRoleIcon('cow', 'sm')}
-                    <span className="font-mono font-bold">COW</span>
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  value={editForm.username || ''}
+                  onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                  className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono focus:border-pixel-accent focus:outline-none"
+                />
               ) : (
-                <div className={`w-full border-4 rounded-pixel px-4 py-3 flex items-center space-x-3 ${
-                  profile.role === 'cat'
-                    ? 'border-pixel-warning bg-pixel-warning text-black'
-                    : 'border-pixel-info bg-pixel-info text-black'
-                }`}>
-                  {getRoleIcon(profile.role, 'md')}
-                  <span className="font-mono font-bold uppercase">{profile.role}</span>
+                <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
+                  @{profile.username}
                 </div>
               )}
+            </div>
+
+            {/* 邮箱 */}
+            <div>
+              <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Email</label>
+              <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-textMuted rounded-pixel px-4 py-3 font-mono">
+                {profile.email}
+              </div>
+            </div>
+
+            {/* 生日 */}
+            <div>
+              <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Birthday</label>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={editForm.birthday || ''}
+                  onChange={(e) => setEditForm({ ...editForm, birthday: e.target.value })}
+                  className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono focus:border-pixel-accent focus:outline-none"
+                />
+              ) : (
+                <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
+                  {profile.birthday} (年龄: {calculateAge(profile.birthday)})
+                </div>
+              )}
+            </div>
+
+            {/* 用户类型 */}
+            <div>
+              <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Type</label>
+              <div className={`w-full border-4 rounded-pixel px-4 py-3 flex items-center space-x-3 ${
+                currentUserType === 'cat'
+                  ? 'border-pixel-warning bg-pixel-warning text-black'
+                  : 'border-pixel-info bg-pixel-info text-black'
+              }`}>
+                {getUserTypeIcon(currentUserType, 'md')}
+                <span className="font-mono uppercase font-bold">
+                  {currentUserType} {currentUserType === 'cat' ? '🐱' : '🐄'}
+                </span>
+              </div>
             </div>
 
             {/* 积分 */}
             <div>
-              <label className="block text-sm font-mono text-pixel-text mb-2 uppercase tracking-wide flex items-center space-x-2">
-                <PixelIcon name="star" className="text-pixel-cyan" />
-                <span>&gt; POINTS:</span>
-              </label>
-              <div className="w-full bg-pixel-card border-4 border-pixel-border rounded-pixel px-4 py-3 font-mono text-pixel-accent text-xl font-bold">
-                {profile.points || 0}
+              <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Points</label>
+              <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
+                {profile.points} PTS
               </div>
             </div>
 
-            {/* 错误提示 */}
-            {error && (
-              <div className="p-3 bg-pixel-accent border-4 border-white rounded-pixel neon-border animate-neon-flicker">
-                <p className="text-sm text-white font-mono font-bold text-center uppercase">
-                  {error}
-                </p>
+            {/* 时区 */}
+            <div>
+              <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Timezone</label>
+              <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
+                {profile.timezone}
               </div>
-            )}
-
-            {/* 操作按钮 */}
-            <div className="flex space-x-3 pt-4">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving || !editForm.username || !editForm.displayName}
-                    className={`flex-1 py-3 px-6 rounded-pixel font-mono font-bold transition-all duration-200 flex items-center justify-center space-x-2 uppercase tracking-wider border-4 ${
-                      isSaving || !editForm.username || !editForm.displayName
-                        ? 'bg-pixel-border text-pixel-textMuted cursor-not-allowed border-pixel-border'
-                        : 'pixel-btn-neon text-white shadow-pixel-neon hover:shadow-pixel-neon-strong border-pixel-success bg-pixel-success'
-                    }`}
-                  >
-                    {isSaving ? (
-                      <>
-                        <PixelIcon name="loading" className="animate-spin text-current" />
-                        <span>[SAVING...]</span>
-                      </>
-                    ) : (
-                      <>
-                        <PixelIcon name="check" className="text-current" glow />
-                        <span>SAVE</span>
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    disabled={isSaving}
-                    className="flex-1 py-3 px-6 rounded-pixel font-mono font-bold transition-all duration-200 flex items-center justify-center space-x-2 uppercase tracking-wider border-4 border-pixel-accent bg-pixel-accent text-white hover:shadow-pixel-neon"
-                  >
-                    <PixelIcon name="x" className="text-current" glow />
-                    <span>CANCEL</span>
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="w-full py-3 px-6 rounded-pixel font-mono font-bold transition-all duration-200 flex items-center justify-center space-x-2 uppercase tracking-wider border-4 pixel-btn-neon text-white shadow-pixel-neon hover:shadow-pixel-neon-strong"
-                >
-                  <PixelIcon name="edit" className="text-current" glow />
-                  <span>EDIT_PROFILE</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -326,178 +332,451 @@ const UserProfile: React.FC = () => {
     );
   }
 
-  // Cute 主题
-  return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="card-cutesy p-8 backdrop-blur-md bg-white/60 shadow-dream">
-        {/* 标题 */}
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-display font-bold bg-water-lily bg-clip-text text-transparent mb-2">
-            个人档案
-          </h2>
-          <p className="text-sage-600 text-sm">
-            {isEditing ? '编辑你的个人信息' : '查看你的个人信息'}
-          </p>
-        </div>
-
-        {/* 档案信息 */}
-        <div className="space-y-6">
-          {/* 邮箱（只读） */}
-          <div>
-            <label className="block text-sm font-medium text-sage-700 mb-2 flex items-center space-x-2">
-              <EnvelopeIcon className="w-4 h-4" />
-              <span>邮箱地址</span>
-            </label>
-            <div className="w-full input-cutesy bg-gray-50 text-gray-500 cursor-not-allowed">
-              {user?.email}
+  // 清新主题渲染
+  if (theme === 'fresh') {
+    return (
+      <div className="space-y-6">
+        {/* 头部信息 */}
+        <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-6">
+          <div className="flex items-center space-x-4 mb-6">
+            {getUserTypeIcon(currentUserType, 'lg')}
+            <div>
+              <h2 className="text-2xl font-bold text-fresh-text fresh-gradient-text">
+                {profile.display_name}
+              </h2>
+              <p className="text-fresh-textMuted">
+                @{profile.username}
+              </p>
             </div>
           </div>
 
-          {/* 用户名 */}
-          <div>
-            <label className="block text-sm font-medium text-sage-700 mb-2 flex items-center space-x-2">
-              <UserIcon className="w-4 h-4" />
-              <span>用户名</span>
-            </label>
+          {/* 编辑按钮 */}
+          <div className="flex justify-end">
             {isEditing ? (
-              <input
-                type="text"
-                value={editForm.username}
-                onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                className="input-cutesy w-full"
-                disabled={isSaving}
-              />
-            ) : (
-              <div className="w-full input-cutesy bg-gray-50 text-gray-700">
-                {profile.username}
+              <div className="space-x-3">
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 bg-fresh-accent text-white rounded-fresh font-medium hover:shadow-fresh-sm transition-all"
+                >
+                  保存
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditForm(profile);
+                  }}
+                  className="px-4 py-2 bg-fresh-textMuted text-white rounded-fresh font-medium hover:shadow-fresh-sm transition-all"
+                >
+                  取消
+                </button>
               </div>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 bg-fresh-accent text-white rounded-fresh font-medium hover:shadow-fresh-sm transition-all"
+              >
+                编辑资料
+              </button>
             )}
           </div>
+        </div>
 
+        {/* 详细信息 */}
+        <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-6">
+          <h3 className="text-xl font-bold text-fresh-text mb-6 pb-3 border-b border-fresh-border">
+            个人信息 🌿
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 显示名称 */}
+            <div>
+              <label className="block text-fresh-text font-medium mb-2">显示名称</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.display_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                  className="w-full border border-fresh-border bg-white text-fresh-text rounded-fresh px-4 py-3 focus:border-fresh-accent focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
+                />
+              ) : (
+                <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
+                  {profile.display_name}
+                </div>
+              )}
+            </div>
+
+            {/* 用户名 */}
+            <div>
+              <label className="block text-fresh-text font-medium mb-2">用户名</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.username || ''}
+                  onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                  className="w-full border border-fresh-border bg-white text-fresh-text rounded-fresh px-4 py-3 focus:border-fresh-accent focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
+                />
+              ) : (
+                <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
+                  @{profile.username}
+                </div>
+              )}
+            </div>
+
+            {/* 邮箱 */}
+            <div>
+              <label className="block text-fresh-text font-medium mb-2">邮箱地址</label>
+              <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-textMuted rounded-fresh px-4 py-3">
+                {profile.email}
+              </div>
+            </div>
+
+            {/* 生日 */}
+            <div>
+              <label className="block text-fresh-text font-medium mb-2">生日</label>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={editForm.birthday || ''}
+                  onChange={(e) => setEditForm({ ...editForm, birthday: e.target.value })}
+                  className="w-full border border-fresh-border bg-white text-fresh-text rounded-fresh px-4 py-3 focus:border-fresh-accent focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
+                />
+              ) : (
+                <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
+                  {profile.birthday} <span className="text-fresh-textMuted">(年龄: {calculateAge(profile.birthday)})</span>
+                </div>
+              )}
+            </div>
+
+            {/* 用户类型 */}
+            <div>
+              <label className="block text-fresh-text font-medium mb-2">用户类型</label>
+              <div 
+                className="w-full border rounded-fresh-lg px-4 py-3 flex items-center space-x-3"
+                style={{
+                  borderColor: currentUserType === 'cat' ? '#06b6d4' : '#8b5cf6',
+                  backgroundColor: currentUserType === 'cat' ? '#06b6d410' : '#8b5cf610'
+                }}
+              >
+                {getUserTypeIcon(currentUserType, 'md')}
+                <span className="font-medium" style={{
+                  color: currentUserType === 'cat' ? '#06b6d4' : '#8b5cf6'
+                }}>
+                  {currentUserType === 'cat' ? '清新小猫 🐱' : '简约小牛 🐮'}
+                </span>
+              </div>
+            </div>
+
+            {/* 积分 */}
+            <div>
+              <label className="block text-fresh-text font-medium mb-2">积分</label>
+              <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
+                <span className="font-bold text-fresh-accent">{profile.points}</span> 分
+              </div>
+            </div>
+          </div>
+
+          {/* 时区 */}
+          <div className="mt-6">
+            <label className="block text-fresh-text font-medium mb-2">时区</label>
+            <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
+              {profile.timezone}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 浪漫主题渲染
+  if (theme === 'romantic') {
+    return (
+      <div className="space-y-6">
+        {/* 头部信息 */}
+        <div className="bg-romantic-card border-2 border-romantic-border rounded-romantic-lg shadow-romantic p-6 romantic-sparkle">
+          <div className="flex items-center space-x-4 mb-6">
+            {getUserTypeIcon(currentUserType, 'lg')}
+            <div>
+              <h2 className="text-2xl font-bold text-romantic-text romantic-gradient-text">
+                {profile.display_name} ✨
+              </h2>
+              <p className="text-romantic-textMuted">
+                @{profile.username}
+              </p>
+            </div>
+          </div>
+
+          {/* 编辑按钮 */}
+          <div className="flex justify-end">
+            {isEditing ? (
+              <div className="space-x-3">
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 bg-romantic-accent text-white rounded-romantic font-medium hover:shadow-romantic-sm transition-all hover:scale-105"
+                >
+                  保存 💕
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditForm(profile);
+                  }}
+                  className="px-4 py-2 bg-romantic-textMuted text-white rounded-romantic font-medium hover:shadow-romantic-sm transition-all"
+                >
+                  取消
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 bg-romantic-accent text-white rounded-romantic font-medium hover:shadow-romantic-sm transition-all hover:scale-105"
+              >
+                编辑资料 ✨
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 详细信息 */}
+        <div className="bg-romantic-card border-2 border-romantic-border rounded-romantic-lg shadow-romantic p-6">
+          <h3 className="text-xl font-bold text-romantic-text mb-6 pb-3 border-b-2 border-romantic-border">
+            个人信息 💖
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 显示名称 */}
+            <div>
+              <label className="block text-romantic-text font-medium mb-2">显示名称</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.display_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                  className="w-full border-2 border-romantic-border bg-white text-romantic-text rounded-romantic px-4 py-3 focus:border-romantic-accent focus:outline-none"
+                />
+              ) : (
+                <div className="w-full border-2 border-romantic-border bg-romantic-panel text-romantic-text rounded-romantic px-4 py-3">
+                  {profile.display_name}
+                </div>
+              )}
+            </div>
+
+            {/* 用户名 */}
+            <div>
+              <label className="block text-romantic-text font-medium mb-2">用户名</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.username || ''}
+                  onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                  className="w-full border-2 border-romantic-border bg-white text-romantic-text rounded-romantic px-4 py-3 focus:border-romantic-accent focus:outline-none"
+                />
+              ) : (
+                <div className="w-full border-2 border-romantic-border bg-romantic-panel text-romantic-text rounded-romantic px-4 py-3">
+                  @{profile.username}
+                </div>
+              )}
+            </div>
+
+            {/* 邮箱 */}
+            <div>
+              <label className="block text-romantic-text font-medium mb-2">邮箱地址</label>
+              <div className="w-full border-2 border-romantic-border bg-romantic-panel text-romantic-textMuted rounded-romantic px-4 py-3">
+                {profile.email}
+              </div>
+            </div>
+
+            {/* 生日 */}
+            <div>
+              <label className="block text-romantic-text font-medium mb-2">生日 🎂</label>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={editForm.birthday || ''}
+                  onChange={(e) => setEditForm({ ...editForm, birthday: e.target.value })}
+                  className="w-full border-2 border-romantic-border bg-white text-romantic-text rounded-romantic px-4 py-3 focus:border-romantic-accent focus:outline-none"
+                />
+              ) : (
+                <div className="w-full border-2 border-romantic-border bg-romantic-panel text-romantic-text rounded-romantic px-4 py-3">
+                  {profile.birthday} <span className="text-romantic-textMuted">(年龄: {calculateAge(profile.birthday)})</span>
+                </div>
+              )}
+            </div>
+
+            {/* 用户类型 */}
+            <div>
+              <label className="block text-romantic-text font-medium mb-2">用户类型</label>
+              <div className="w-full border-2 border-romantic-border bg-romantic-primary text-romantic-text rounded-romantic px-4 py-3 flex items-center space-x-3">
+                {getUserTypeIcon(currentUserType, 'md')}
+                <span className="font-medium">
+                  {currentUserType === 'cat' ? '可爱猫咪 🐱' : '温柔奶牛 🐮'}
+                </span>
+              </div>
+            </div>
+
+            {/* 积分 */}
+            <div>
+              <label className="block text-romantic-text font-medium mb-2">积分</label>
+              <div className="w-full border-2 border-romantic-border bg-romantic-panel text-romantic-text rounded-romantic px-4 py-3">
+                <span className="font-bold text-romantic-accent">{profile.points}</span> 分 ✨
+              </div>
+            </div>
+          </div>
+
+          {/* 时区 */}
+          <div className="mt-6">
+            <label className="block text-romantic-text font-medium mb-2">时区</label>
+            <div className="w-full border-2 border-romantic-border bg-romantic-panel text-romantic-text rounded-romantic px-4 py-3">
+              {profile.timezone}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 默认主题渲染
+  return (
+    <div className="space-y-6">
+              {/* 头部信息 */}
+        <div className="bg-white rounded-2xl shadow-soft p-6 border border-gray-200">
+          <div className="flex items-center space-x-4 mb-6">
+            {getUserTypeIcon(currentUserType, 'lg')}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">
+              {profile.display_name}
+            </h2>
+            <p className="text-gray-600">
+              @{profile.username}
+            </p>
+          </div>
+        </div>
+
+        {/* 编辑按钮 */}
+        <div className="flex justify-end">
+          {isEditing ? (
+            <div className="space-x-3">
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+              >
+                保存
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditForm(profile);
+                }}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors"
+              >
+                取消
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+            >
+              编辑资料
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 详细信息 */}
+      <div className="bg-white rounded-2xl shadow-soft p-6 border border-gray-200">
+        <h3 className="text-xl font-bold text-gray-800 mb-6 pb-3 border-b border-gray-200">
+          个人信息
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 显示名称 */}
           <div>
-            <label className="block text-sm font-medium text-sage-700 mb-2">
-              显示名称
-            </label>
+            <label className="block text-gray-700 font-medium mb-2">显示名称</label>
             {isEditing ? (
               <input
                 type="text"
-                value={editForm.displayName}
-                onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
-                className="input-cutesy w-full"
-                disabled={isSaving}
+                value={editForm.display_name || ''}
+                onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                className="w-full border border-gray-300 bg-white text-gray-800 rounded-lg px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             ) : (
-              <div className="w-full input-cutesy bg-gray-50 text-gray-700">
+              <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
                 {profile.display_name}
               </div>
             )}
           </div>
 
-          {/* 角色 */}
+          {/* 用户名 */}
           <div>
-            <label className="block text-sm font-medium text-sage-700 mb-2">角色</label>
+            <label className="block text-gray-700 font-medium mb-2">用户名</label>
             {isEditing ? (
-              <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setEditForm({ ...editForm, role: 'cat' })}
-                  className={`flex-1 p-4 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center space-x-2 ${
-                    editForm.role === 'cat'
-                      ? 'border-primary-300 bg-primary-100/50 text-primary-700'
-                      : 'border-sage-200/40 bg-white/30 text-sage-600 hover:border-primary-200'
-                  }`}
-                  disabled={isSaving}
-                >
-                  {getRoleIcon('cat', 'sm')}
-                  <span className="font-medium">Cat 🐱</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditForm({ ...editForm, role: 'cow' })}
-                  className={`flex-1 p-4 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center space-x-2 ${
-                    editForm.role === 'cow'
-                      ? 'border-blue-300 bg-blue-100/50 text-blue-700'
-                      : 'border-sage-200/40 bg-white/30 text-sage-600 hover:border-blue-200'
-                  }`}
-                  disabled={isSaving}
-                >
-                  {getRoleIcon('cow', 'sm')}
-                  <span className="font-medium">Cow 🐄</span>
-                </button>
-              </div>
+              <input
+                type="text"
+                value={editForm.username || ''}
+                onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                className="w-full border border-gray-300 bg-white text-gray-800 rounded-lg px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
             ) : (
-              <div className={`w-full p-4 rounded-2xl border-2 flex items-center space-x-3 ${
-                profile.role === 'cat'
-                  ? 'border-primary-200 bg-primary-100/30 text-primary-700'
-                  : 'border-blue-200 bg-blue-100/30 text-blue-700'
-              }`}>
-                {getRoleIcon(profile.role, 'md')}
-                <span className="font-medium capitalize">{profile.role} {profile.role === 'cat' ? '🐱' : '🐄'}</span>
+              <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
+                @{profile.username}
               </div>
             )}
+          </div>
+
+          {/* 邮箱 */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">邮箱地址</label>
+            <div className="w-full border border-gray-300 bg-gray-50 text-gray-600 rounded-lg px-4 py-3">
+              {profile.email}
+            </div>
+          </div>
+
+          {/* 生日 */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">生日</label>
+            {isEditing ? (
+              <input
+                type="date"
+                value={editForm.birthday || ''}
+                onChange={(e) => setEditForm({ ...editForm, birthday: e.target.value })}
+                className="w-full border border-gray-300 bg-white text-gray-800 rounded-lg px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            ) : (
+              <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
+                {profile.birthday} <span className="text-gray-600">(年龄: {calculateAge(profile.birthday)})</span>
+              </div>
+            )}
+          </div>
+
+          {/* 用户类型 */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">用户类型</label>
+            <div className={`w-full border rounded-lg px-4 py-3 flex items-center space-x-3 ${
+              currentUserType === 'cat'
+                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                : 'border-purple-300 bg-purple-50 text-purple-700'
+            }`}>
+              {getUserTypeIcon(currentUserType, 'md')}
+              <span className="font-medium">
+                {currentUserType === 'cat' ? 'Cat 🐱' : 'Cow 🐮'}
+              </span>
+            </div>
           </div>
 
           {/* 积分 */}
           <div>
-            <label className="block text-sm font-medium text-sage-700 mb-2">
-              当前积分
-            </label>
-            <div className="w-full input-cutesy bg-gradient-to-r from-primary-50 to-secondary-50 text-primary-600 font-bold text-xl">
-              {profile.points || 0} 分
+            <label className="block text-gray-700 font-medium mb-2">积分</label>
+            <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
+              <span className="font-bold text-blue-600">{profile.points}</span> 分
             </div>
           </div>
+        </div>
 
-          {/* 错误提示 */}
-          {error && (
-            <div className="p-3 bg-orange-50/50 border border-orange-200/40 rounded-xl backdrop-blur-sm">
-              <p className="text-sm text-orange-600 text-center">{error}</p>
-            </div>
-          )}
-
-          {/* 操作按钮 */}
-          <div className="flex space-x-3 pt-4">
-            {isEditing ? (
-              <>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving || !editForm.username || !editForm.displayName}
-                  className={`flex-1 py-3 px-6 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${
-                    isSaving || !editForm.username || !editForm.displayName
-                      ? 'bg-sage-200 text-sage-500 cursor-not-allowed'
-                      : 'bg-green-500 text-white hover:scale-[1.02] shadow-dream hover:shadow-monet'
-                  }`}
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>保存中...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckIcon className="w-5 h-5" />
-                      <span>保存</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleCancel}
-                  disabled={isSaving}
-                  className="flex-1 py-3 px-6 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 bg-gray-500 text-white hover:scale-[1.02] shadow-dream"
-                >
-                  <XMarkIcon className="w-5 h-5" />
-                  <span>取消</span>
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="w-full py-3 px-6 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 bg-water-lily text-white hover:scale-[1.02] shadow-dream hover:shadow-monet"
-              >
-                <PencilIcon className="w-5 h-5" />
-                <span>编辑档案</span>
-              </button>
-            )}
+        {/* 时区 */}
+        <div className="mt-6">
+          <label className="block text-gray-700 font-medium mb-2">时区</label>
+          <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
+            {profile.timezone}
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 // 导入主题初始化工具
 import '../utils/themeInit.js';
 
-export type ThemeType = 'pixel';
+export type ThemeType = 'pixel' | 'romantic' | 'fresh';
 
 interface ThemeContextType {
   theme: ThemeType;
@@ -30,10 +30,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
-    if (savedTheme && savedTheme === 'pixel') {
+    if (savedTheme && (savedTheme === 'pixel' || savedTheme === 'romantic' || savedTheme === 'fresh')) {
       setThemeState(savedTheme);
     } else {
-      // 只支持像素风主题
+      // 默认使用像素风主题
       setThemeState('pixel');
       localStorage.setItem('theme', 'pixel');
     }
@@ -52,8 +52,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const toggleTheme = () => {
-    // 只有一个主题，保持不变
-    setThemeState('pixel');
+    // 在三个主题之间循环切换
+    if (theme === 'pixel') {
+      setThemeState('romantic');
+    } else if (theme === 'romantic') {
+      setThemeState('fresh');
+    } else {
+      setThemeState('pixel');
+    }
   };
 
   const value = {

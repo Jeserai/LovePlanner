@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { EyeIcon, EyeSlashIcon, UserIcon, HeartIcon, SparklesIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
-import { authService, PRESET_USERS } from '../services/authService';
+import { authService, PRESET_USERS, getUserDisplayInfo } from '../services/authService';
 
 // 检查是否为演示模式（Supabase未配置）
 const isDemoMode = process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://demo.supabase.co' ||
@@ -35,10 +35,16 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
     }
   ];
 
-  // 获取用户图标（统一像素风图标，颜色根据角色区分）
-  const getUserIcon = (role: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
-    // 统一使用像素风图标，颜色根据角色区分（主题无关）
-    const colorClass = role === 'cat' ? 'text-pixel-warning' : 'text-pixel-info';
+  // 获取预设用户的UI主题
+  const getPresetUserUITheme = (presetUser: any): 'cat' | 'cow' => {
+    const userInfo = getUserDisplayInfo(presetUser);
+    return userInfo?.uiTheme === 'cow' ? 'cow' : 'cat';
+  };
+
+  // 获取用户图标（统一像素风图标，颜色根据用户类型区分）
+  const getUserIcon = (userType: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
+    // 统一使用像素风图标，颜色根据用户类型区分（主题无关）
+    const colorClass = userType === 'cat' ? 'text-pixel-warning' : 'text-pixel-info';
     
     return (
       <PixelIcon
@@ -77,7 +83,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 600)); // 模拟网络延迟
 
-      const userType = user.role as 'cat' | 'cow';
+      const userInfo = getUserDisplayInfo(user);
+      const userType = userInfo?.uiTheme === 'cow' ? 'cow' : 'cat';
       const { user: authUser, profile } = await authService.quickLogin(userType);
       onAuthSuccess(authUser, profile);
 
@@ -159,15 +166,15 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                   onClick={() => handleQuickLogin(user)}
                   disabled={isLoading}
                   className={`w-full p-4 mb-2 border-4 transition-all duration-200 flex items-center space-x-4 rounded-pixel ${
-                    user.role === 'cat'
+                    getPresetUserUITheme(user) === 'cat'
                       ? 'bg-pixel-warning text-black border-black'
                       : 'bg-pixel-info text-white border-black'
                   } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:translate-y-[-2px] hover:shadow-pixel-lg'}`}
                 >
                   <div className={`w-12 h-12 border-2 border-black rounded-pixel flex items-center justify-center text-2xl ${
-                    user.role === 'cat' ? 'bg-pixel-warning' : 'bg-pixel-info'
+                    getPresetUserUITheme(user) === 'cat' ? 'bg-pixel-warning' : 'bg-pixel-info'
                   }`}>
-                    {getUserIcon(user.role, 'sm')}
+                    {getUserIcon(getPresetUserUITheme(user), 'sm')}
                   </div>
                   <div className="flex-1 text-left">
                     <div className="font-mono text-current uppercase tracking-wide font-bold">

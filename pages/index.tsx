@@ -8,6 +8,7 @@ import TaskBoard from '../src/components/TaskBoard';
 import Shop from '../src/components/Shop';
 import Settings from '../src/components/Settings';
 import AuthForm from '../src/components/AuthForm';
+import { getUserDisplayInfo } from '../src/services/authService';
 // 导入路由测试工具（开发环境）
 import '../src/utils/testRouting.js';
 
@@ -126,7 +127,8 @@ const AppContent: React.FC = () => {
 
           if (profile) {
             setUserProfile(profile);
-            console.log(`✅ 用户档案加载成功: ${profile.display_name} (${profile.role})`);
+            const userInfo = getUserDisplayInfo(profile);
+            console.log(`✅ 用户档案加载成功: ${profile.display_name} (${userInfo?.uiTheme})`);
           } else {
             console.warn('⚠️ 未找到用户档案，可能需要完善信息');
             // 可以在这里引导用户完善档案

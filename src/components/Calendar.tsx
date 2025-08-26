@@ -437,6 +437,18 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return 'bg-pixel-textMuted';
     }
     
+    if (theme === 'romantic') {
+      if (participants.includes('cat') && participants.includes('cow')) {
+        return 'bg-romantic-accent'; // 双方参与：浪漫主题粉色
+      } else if (participants.includes('cat')) {
+        return 'bg-romantic-heart'; // 只有猫咪：爱心粉
+      } else if (participants.includes('cow')) {
+        return 'bg-romantic-cherry'; // 只有奶牛：樱桃粉
+      }
+      return 'bg-romantic-textMuted';
+    }
+    
+    // 默认主题颜色（包括fresh主题，fresh主题使用内联样式）
     if (participants.includes('cat') && participants.includes('cow')) {
       return 'bg-purple-500'; // 双方参与：深紫色，确保白色文字清晰
     } else if (participants.includes('cat')) {
@@ -445,6 +457,20 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return 'bg-blue-400'; // 只有奶牛：蓝色
     }
     return 'bg-sage-500';
+  };
+
+  // 为清新主题获取内联样式背景色
+  const getEventBackgroundStyle = (participants: ('cat' | 'cow')[]): React.CSSProperties | undefined => {
+    if (theme !== 'fresh') return undefined;
+    
+    if (participants.includes('cat') && participants.includes('cow')) {
+      return { backgroundColor: '#10b981' }; // 清新绿色
+    } else if (participants.includes('cat')) {
+      return { backgroundColor: '#06b6d4' }; // Cat专属青色
+    } else if (participants.includes('cow')) {
+      return { backgroundColor: '#8b5cf6' }; // Cow专属紫色
+    }
+    return { backgroundColor: '#64748b' }; // 默认灰色
   };
 
   // 获取参与者显示文本
@@ -678,15 +704,19 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           <h2 className={`text-3xl font-bold ${
             theme === 'pixel' 
               ? 'font-retro text-pixel-text uppercase tracking-wider' 
+              : theme === 'fresh'
+              ? 'font-display text-fresh-text fresh-gradient-text'
               : 'font-display text-gray-700'
           }`}>
-            {theme === 'pixel' ? 'CALENDAR.EXE' : '日程安排'}
+            {theme === 'pixel' ? 'CALENDAR.EXE' : theme === 'fresh' ? '日程安排 🌿' : '日程安排'}
           </h2>
           
           {/* View Switcher */}
           <div className={`flex ${
             theme === 'pixel' 
               ? 'border-4 border-pixel-border bg-pixel-card shadow-pixel' 
+              : theme === 'fresh'
+              ? 'border border-fresh-border bg-fresh-card shadow-fresh rounded-fresh-lg'
               : 'border border-gray-200'
           }`}>
             <button
@@ -700,12 +730,19 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         ? 'bg-pixel-accent text-black shadow-pixel-inner'
                         : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                     }`
+                  : theme === 'fresh'
+                  ? `border-r border-fresh-border ${
+                      currentView === 'cat'
+                        ? 'text-white shadow-fresh-sm'
+                        : 'text-fresh-text hover:bg-fresh-primary'
+                    }`
                   : `${
                       currentView === 'cat'
                         ? 'bg-primary-400 text-white'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
+              style={theme === 'fresh' && currentView === 'cat' ? { backgroundColor: '#06b6d4' } : undefined}
             >
               {getUserIcon('cat', 'sm')}
               <span className="font-medium">
@@ -723,12 +760,19 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         ? 'bg-pixel-accent text-black shadow-pixel-inner'
                         : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                     }`
+                  : theme === 'fresh'
+                  ? `border-r border-fresh-border ${
+                      currentView === 'cow'
+                        ? 'text-white shadow-fresh-sm'
+                        : 'text-fresh-text hover:bg-fresh-primary'
+                    }`
                   : `${
                       currentView === 'cow'
                         ? 'bg-blue-400 text-white'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
+              style={theme === 'fresh' && currentView === 'cow' ? { backgroundColor: '#8b5cf6' } : undefined}
             >
               {getUserIcon('cow', 'sm')}
               <span className="font-medium">
@@ -745,6 +789,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       currentView === 'shared'
                         ? 'bg-pixel-accent text-black shadow-pixel-inner'
                         : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
+                    }`
+                  : theme === 'fresh'
+                  ? `${
+                      currentView === 'shared'
+                        ? 'bg-fresh-accent text-white shadow-fresh-sm'
+                        : 'text-fresh-text hover:bg-fresh-primary'
                     }`
                   : `${
                       currentView === 'shared'
@@ -963,12 +1013,19 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                       ? 'hover:opacity-80 hover:shadow-pixel-neon' 
                                       : 'opacity-75 hover:opacity-90'
                                   } ${getEventColor(event.participants)} neon-border`
+                                : theme === 'fresh'
+                                ? `rounded-fresh text-white font-medium ${
+                                    hasEditPermission 
+                                      ? 'hover:opacity-80 hover:shadow-fresh-sm' 
+                                      : 'opacity-75 hover:opacity-90'
+                                  }`
                                 : `rounded-lg text-white ${
                                     hasEditPermission 
                                       ? 'hover:opacity-80' 
                                       : 'opacity-75 hover:opacity-90'
                                   } ${getEventColor(event.participants)}`
                             }`}
+                            style={getEventBackgroundStyle(event.participants)}
                             title={`${event.time ? event.time + ' - ' : ''}${event.title}${event.isRecurring ? ` (${getRecurrenceText(event.recurrenceType!)})` : ''}\n参与者: ${getParticipantsText(event.participants)}\n${hasEditPermission ? '点击查看/编辑详情' : '点击查看详情（只读）'}`}
                           >
                             {event.isRecurring && (
@@ -1144,11 +1201,16 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             {getParticipantsText(event.participants)}
                           </span>
                         </div>
-                        <div className={`w-3 h-3 ${
-                          theme === 'pixel' 
-                            ? `${getEventColor(event.participants).replace('bg-', 'bg-')} rounded-pixel border border-white`
-                            : `${getEventColor(event.participants).replace('bg-', 'bg-')} rounded-full`
-                        }`}></div>
+                        <div 
+                          className={`w-3 h-3 ${
+                            theme === 'pixel' 
+                              ? `${getEventColor(event.participants).replace('bg-', 'bg-')} rounded-pixel border border-white`
+                              : theme === 'fresh'
+                              ? 'rounded-fresh-full border border-white'
+                              : `${getEventColor(event.participants).replace('bg-', 'bg-')} rounded-full`
+                          }`}
+                          style={getEventBackgroundStyle(event.participants)}
+                        ></div>
                       </div>
 
                       <div className={`mt-2 text-xs ${
