@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 // 导入主题初始化工具
 import '../utils/themeInit.js';
 
-export type ThemeType = 'pixel' | 'romantic' | 'fresh';
+export type ThemeType = 'pixel' | 'fresh';
 
 interface ThemeContextType {
   theme: ThemeType;
@@ -25,17 +25,17 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeType>('pixel');
+  const [theme, setThemeState] = useState<ThemeType>('fresh');
 
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
-    if (savedTheme && (savedTheme === 'pixel' || savedTheme === 'romantic' || savedTheme === 'fresh')) {
+    if (savedTheme && (savedTheme === 'pixel' || savedTheme === 'fresh')) {
       setThemeState(savedTheme);
     } else {
-      // 默认使用像素风主题
-      setThemeState('pixel');
-      localStorage.setItem('theme', 'pixel');
+      // 默认使用清新主题
+      setThemeState('fresh');
+      localStorage.setItem('theme', 'fresh');
     }
   }, []);
 
@@ -52,10 +52,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const toggleTheme = () => {
-    // 在三个主题之间循环切换
+    // 在两个主题之间切换
     if (theme === 'pixel') {
-      setThemeState('romantic');
-    } else if (theme === 'romantic') {
       setThemeState('fresh');
     } else {
       setThemeState('pixel');

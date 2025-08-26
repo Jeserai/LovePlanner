@@ -4,7 +4,11 @@ import { PlusIcon, UserIcon, ArrowPathIcon, PencilIcon, TrashIcon, XMarkIcon, Cl
 import PixelIcon from './PixelIcon';
 import ConfirmDialog from './ConfirmDialog';
 import { format, subMonths, addMonths, isSameDay, isSameMonth } from 'date-fns';
+import { eventService, userService } from '../services/database';
+import { useAuth } from '../hooks/useAuth';
+import type { Database } from '../lib/supabase';
 
+// 前端展示用的Event接口（兼容原有代码）
 interface Event {
   id: string;
   title: string;
@@ -18,12 +22,22 @@ interface Event {
   originalDate?: string; // 原始日期（用于重复事件）
 }
 
+// 数据库事件类型
+type DatabaseEvent = Database['public']['Tables']['events']['Row'];
+
+// 数据模式类型
+type DataMode = 'database' | 'mock';
+
 interface CalendarProps {
   currentUser?: string | null;
 }
 
 const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const { theme } = useTheme();
+  const { user } = useAuth(); // 获取认证用户信息
+  
+  // 数据模式状态 - 强制使用数据库，只有在未登录时才使用mock数据
+  const [dataMode, setDataMode] = useState<DataMode>(user ? 'database' : 'mock');
   
   // 添加日历导航状态
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -31,6 +45,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   
   // 添加选中日期状态
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  
+  // 数据库相关状态
+  const [coupleId, setCoupleId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   
   // 获取当前用户类型的辅助函数
   const getCurrentUserType = (): 'cat' | 'cow' | null => {
@@ -58,7 +76,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     setCurrentView(newDefaultView);
   }, [currentUser]);
   
-  const [events, setEvents] = useState<Event[]>([
+  // Mock数据（保留供将来使用）
+  const mockEvents: Event[] = [
     // 共同活动
     {
       id: '1',
@@ -136,7 +155,117 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       color: 'bg-primary-400',
       isRecurring: false
     }
-  ]);
+  ];
+
+  // 真实事件状态（根据数据模式使用不同数据源）
+  const [events, setEvents] = useState<Event[]>([]);
+
+  // 数据库事件转换为前端Event格式
+  const convertDatabaseEventToEvent = (dbEvent: DatabaseEvent): Event => {
+    return {
+      id: dbEvent.id,
+      title: dbEvent.title,
+      date: dbEvent.event_date,
+      time: dbEvent.start_time || undefined,
+      participants: dbEvent.participants.filter(p => p === 'cat' || p === 'cow') as ('cat' | 'cow')[],
+      color: dbEvent.color,
+      isRecurring: dbEvent.is_recurring,
+      recurrenceType: dbEvent.recurrence_type || undefined,
+      recurrenceEnd: dbEvent.recurrence_end || undefined,
+      originalDate: dbEvent.original_date || undefined
+    };
+  };
+
+  // 前端Event转换为数据库格式
+  const convertEventToDatabaseEvent = (event: Event, coupleId: string, createdBy: string): Omit<DatabaseEvent, 'id' | 'created_at' | 'updated_at'> => {
+    return {
+      title: event.title,
+      description: null,
+      event_date: event.date,
+      start_time: event.time || null,
+      end_time: null,
+      participants: event.participants,
+      couple_id: coupleId,
+      color: event.color,
+      is_all_day: !event.time,
+      is_recurring: event.isRecurring,
+      recurrence_type: event.recurrenceType || null,
+      recurrence_end: event.recurrenceEnd || null,
+      original_date: event.originalDate || null,
+      parent_event_id: null,
+      created_by: createdBy
+    };
+  };
+
+  // 初始化数据模式
+  useEffect(() => {
+    setDataMode(user ? 'database' : 'mock');
+  }, [user]);
+
+  // 加载情侣关系ID
+  useEffect(() => {
+    const loadCoupleId = async () => {
+      if (!user || dataMode !== 'database') {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const coupleData = await userService.getCoupleRelation(user.id);
+        if (coupleData) {
+          setCoupleId(coupleData.id);
+        }
+      } catch (error) {
+        console.error('加载情侣关系失败:', error);
+      }
+      setLoading(false);
+    };
+
+    loadCoupleId();
+  }, [user, dataMode]);
+
+  // 加载事件数据
+  useEffect(() => {
+    const loadEvents = async () => {
+      if (dataMode === 'mock') {
+        // 使用mock数据
+        setEvents(mockEvents);
+        return;
+      }
+
+      if (!coupleId) {
+        setEvents([]);
+        return;
+      }
+
+      try {
+        const dbEvents = await eventService.getCoupleEvents(coupleId);
+        const convertedEvents = dbEvents.map(convertDatabaseEventToEvent);
+        setEvents(convertedEvents);
+        console.log(`✅ 从数据库加载了 ${convertedEvents.length} 个事件`);
+      } catch (error) {
+        console.error('❌ 加载事件失败:', error);
+        
+        // 检查是否是数据库结构问题
+        if (error instanceof Error && error.message.includes('couple_id does not exist')) {
+          console.warn('⚠️ 数据库表结构不完整，请运行数据库初始化脚本');
+          alert('数据库表结构需要更新，请联系管理员运行数据库初始化脚本。现在将使用演示数据。');
+        } else if (error instanceof Error && error.message.includes('does not exist')) {
+          console.warn('⚠️ events表不存在，请运行数据库初始化脚本');
+          alert('数据库表未创建，请联系管理员运行数据库初始化脚本。现在将使用演示数据。');
+        }
+        
+        // 如果数据库加载失败，显示错误但不回退到mock数据
+        console.log('❌ 数据库连接失败，请检查数据库配置');
+        alert('无法连接到数据库，请确保数据库配置正确且表结构完整。');
+        setEvents([]); // 显示空数据而不是mock数据
+      }
+    };
+
+    if (!loading) {
+      loadEvents();
+    }
+  }, [coupleId, dataMode, loading]);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -243,7 +372,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     }
   };
 
-  // 获取所有事件（包括重复事件的实例）+ 合并任务事件，并对任务事件也做重复展开
+  // 获取所有事件（包括重复事件的实例）
   const getAllEvents = (): Event[] => {
     const baseEvents: Event[] = [];
     
@@ -255,6 +384,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }
     });
 
+    // 数据库模式：只使用数据库事件，不再从localStorage读取任务事件
+    if (dataMode === 'database') {
+      return baseEvents;
+    }
+
+    // 演示模式：保持原有逻辑，合并任务事件
     const taskEvents = readTaskEvents();
     const expandedTaskEvents: Event[] = [];
     taskEvents.forEach(event => {
@@ -299,20 +434,22 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return filteredEvents.filter(event => event.date === dayStr);
   };
 
-  // 监听任务事件更新，触发日历刷新
+  // 监听任务事件更新，触发日历刷新（仅在演示模式下）
   useEffect(() => {
-    const handler = () => {
-      setEvents(prev => [...prev]);
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('calendarTaskEventsUpdated', handler);
-    }
-    return () => {
+    if (dataMode === 'mock') {
+      const handler = () => {
+        setEvents(prev => [...prev]);
+      };
       if (typeof window !== 'undefined') {
-        window.removeEventListener('calendarTaskEventsUpdated', handler);
+        window.addEventListener('calendarTaskEventsUpdated', handler);
       }
-    };
-  }, []);
+      return () => {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('calendarTaskEventsUpdated', handler);
+        }
+      };
+    }
+  }, [dataMode]);
 
   // 处理事件点击
   const handleEventClick = (event: Event) => {
@@ -331,16 +468,36 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     setShowDetailModal(true);
   };
 
-  const handleAddEvent = () => {
-    if (newEvent.title && newEvent.date && newEvent.participants.length > 0) {
-      const event: Event = {
-        id: Date.now().toString(),
-        ...newEvent,
-        color: getEventColor(newEvent.participants),
-        originalDate: newEvent.isRecurring ? newEvent.date : undefined,
-        time: newEvent.time || undefined
-      };
-      setEvents([...events, event]);
+  const handleAddEvent = async () => {
+    if (!newEvent.title || !newEvent.date || newEvent.participants.length === 0) {
+      return;
+    }
+
+    const event: Event = {
+      id: Date.now().toString(),
+      ...newEvent,
+      color: getEventColor(newEvent.participants),
+      originalDate: newEvent.isRecurring ? newEvent.date : undefined,
+      time: newEvent.time || undefined
+    };
+
+    try {
+      if (dataMode === 'database' && user && coupleId) {
+        // 数据库模式：保存到数据库
+        const dbEventData = convertEventToDatabaseEvent(event, coupleId, user.id);
+        const savedEvent = await eventService.createEvent(dbEventData);
+        
+        if (savedEvent) {
+          // 使用数据库返回的事件数据（包含真实的ID）
+          const convertedEvent = convertDatabaseEventToEvent(savedEvent);
+          setEvents([...events, convertedEvent]);
+        }
+      } else {
+        // Mock模式：保存到本地状态
+        setEvents([...events, event]);
+      }
+
+      // 重置表单
       setNewEvent({ 
         title: '',
         isRecurring: false,
@@ -351,6 +508,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         participants: []
       });
       setShowAddForm(false);
+    } catch (error) {
+      console.error('添加事件失败:', error);
+      alert('添加事件失败，请重试');
     }
   };
 
@@ -385,13 +545,45 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       color: getEventColor(editEvent.participants)
     };
 
-    setEvents(events.map(event => 
-      event.id === selectedEvent.id ? updatedEvent : event
-    ));
-    
-    setShowDetailModal(false);
-    setIsEditing(false);
-    setSelectedEvent(null);
+    const updateEvent = async () => {
+      try {
+        if (dataMode === 'database' && user && coupleId) {
+          // 数据库模式：更新数据库
+          const success = await eventService.updateEvent(selectedEvent.id, {
+            title: updatedEvent.title,
+            event_date: updatedEvent.date,
+            start_time: updatedEvent.time || null,
+            participants: updatedEvent.participants,
+            is_recurring: updatedEvent.isRecurring,
+            recurrence_type: updatedEvent.recurrenceType || null,
+            recurrence_end: updatedEvent.recurrenceEnd || null,
+            color: updatedEvent.color
+          });
+          
+          if (success) {
+            setEvents(events.map(event => 
+              event.id === selectedEvent.id ? updatedEvent : event
+            ));
+          } else {
+            throw new Error('更新失败');
+          }
+        } else {
+          // Mock模式：更新本地状态
+          setEvents(events.map(event => 
+            event.id === selectedEvent.id ? updatedEvent : event
+          ));
+        }
+        
+        setShowDetailModal(false);
+        setIsEditing(false);
+        setSelectedEvent(null);
+      } catch (error) {
+        console.error('更新事件失败:', error);
+        alert('更新事件失败，请重试');
+      }
+    };
+
+    updateEvent();
   };
 
   // 删除事件
@@ -415,11 +607,30 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       title: theme === 'pixel' ? 'DELETE_EVENT' : '删除事件',
       message: theme === 'pixel' ? 'ARE_YOU_SURE_TO_DELETE_THIS_EVENT' : '确定要删除这个事件吗？',
       type: 'danger',
-      onConfirm: () => {
-        setEvents(events.filter(event => event.id !== selectedEvent.id));
-        setShowDetailModal(false);
-        setSelectedEvent(null);
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      onConfirm: async () => {
+        try {
+          if (dataMode === 'database' && user && coupleId) {
+            // 数据库模式：从数据库删除
+            const success = await eventService.deleteEvent(selectedEvent.id);
+            
+            if (success) {
+              setEvents(events.filter(event => event.id !== selectedEvent.id));
+            } else {
+              throw new Error('删除失败');
+            }
+          } else {
+            // Mock模式：从本地状态删除
+            setEvents(events.filter(event => event.id !== selectedEvent.id));
+          }
+          
+          setShowDetailModal(false);
+          setSelectedEvent(null);
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error('删除事件失败:', error);
+          alert('删除事件失败，请重试');
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        }
       }
     });
   };
@@ -437,16 +648,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return 'bg-pixel-textMuted';
     }
     
-    if (theme === 'romantic') {
-      if (participants.includes('cat') && participants.includes('cow')) {
-        return 'bg-romantic-accent'; // 双方参与：浪漫主题粉色
-      } else if (participants.includes('cat')) {
-        return 'bg-romantic-heart'; // 只有猫咪：爱心粉
-      } else if (participants.includes('cow')) {
-        return 'bg-romantic-cherry'; // 只有奶牛：樱桃粉
-      }
-      return 'bg-romantic-textMuted';
-    }
+
     
     // 默认主题颜色（包括fresh主题，fresh主题使用内联样式）
     if (participants.includes('cat') && participants.includes('cow')) {
@@ -683,6 +885,27 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   return (
     <div className="space-y-6">
+      {/* 数据模式指示器 */}
+      <div className={`text-xs p-2 rounded ${
+        dataMode === 'database' 
+          ? 'bg-green-100 text-green-800 border border-green-200' 
+          : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+      }`}>
+        {dataMode === 'database' 
+          ? '🗄️ 数据库模式 - 使用真实Supabase数据' 
+          : '📝 演示模式 - 使用本地Mock数据'
+        }
+        {loading && ' (加载中...)'}
+        <div className="mt-1 text-xs opacity-75">
+          用户状态: {user ? `已登录(${user.email})` : '未登录'} | 
+          Couple ID: {coupleId || '未设置'} | 
+          数据库事件: {events.length} | 
+          显示事件: {getAllEvents().length}
+          {dataMode === 'database' && (
+            <span className="text-green-600 font-medium"> (已禁用localStorage任务事件)</span>
+          )}
+        </div>
+      </div>
       {/* Debug Info - 暂时隐藏 */}
       {/* 
       <div className="bg-yellow-100 p-4 rounded-lg mb-4">
@@ -697,6 +920,66 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         </pre>
       </div>
       */}
+
+      {/* 颜色示例图 */}
+      <div className={`p-3 rounded-lg mb-4 ${
+        theme === 'pixel' 
+          ? 'bg-pixel-card border-2 border-pixel-border' 
+          : 'bg-fresh-card border border-fresh-border'
+      }`}>
+        <div className={`text-sm font-medium mb-2 ${
+          theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-fresh-text'
+        }`}>
+          {theme === 'pixel' ? 'COLOR_GUIDE:' : '颜色指南：'}
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <div 
+              className={`w-4 h-4 rounded-full ${
+                theme === 'pixel' ? 'border-2 border-white' : ''
+              }`} 
+              style={{ 
+                backgroundColor: theme === 'fresh' ? '#06b6d4' : '#fbbf24' 
+              }}
+            ></div>
+            <span className={`text-sm ${
+              theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-fresh-text'
+            }`}>
+              {theme === 'pixel' ? 'CAT_EVENTS' : 'Cat 的日程'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div 
+              className={`w-4 h-4 rounded-full ${
+                theme === 'pixel' ? 'border-2 border-white' : ''
+              }`} 
+              style={{ 
+                backgroundColor: theme === 'fresh' ? '#8b5cf6' : '#3b82f6' 
+              }}
+            ></div>
+            <span className={`text-sm ${
+              theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-fresh-text'
+            }`}>
+              {theme === 'pixel' ? 'COW_EVENTS' : 'Cow 的日程'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div 
+              className={`w-4 h-4 rounded-full ${
+                theme === 'pixel' ? 'border-2 border-white' : ''
+              }`} 
+              style={{ 
+                backgroundColor: theme === 'fresh' ? '#10b981' : '#10b981' 
+              }}
+            ></div>
+            <span className={`text-sm ${
+              theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-fresh-text'
+            }`}>
+              {theme === 'pixel' ? 'SHARED_EVENTS' : '共同日程'}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Header with View Switcher */}
       <div className="flex items-center justify-between">

@@ -25,28 +25,20 @@ const Settings: React.FC = () => {
 
   const themes = [
     {
+      id: 'fresh' as const,
+      name: '清新淡雅（默认）',
+      description: '简约现代的设计风格，清新淡雅的绿色系配色',
+      icon: PaintBrushIcon,
+      preview: 'bg-gradient-to-br from-fresh-accent to-fresh-mint',
+      color: 'text-fresh-accent'
+    },
+    {
       id: 'pixel' as const,
       name: '深色像素风',
       description: '经典8位游戏风格，深色背景配霓虹色彩',
       icon: CommandLineIcon,
       preview: 'bg-gradient-to-br from-pixel-accent to-pixel-purple',
       color: 'text-pixel-accent'
-    },
-    {
-      id: 'romantic' as const,
-      name: '浪漫粉色系',
-      description: '温柔梦幻的粉色主题，清新可爱的设计风格',
-      icon: HeartIcon,
-      preview: 'bg-gradient-to-br from-romantic-accent to-romantic-heart',
-      color: 'text-romantic-accent'
-    },
-    {
-      id: 'fresh' as const,
-      name: '清新淡雅',
-      description: '简约现代的设计风格，清新淡雅的绿色系配色',
-      icon: PaintBrushIcon,
-      preview: 'bg-gradient-to-br from-fresh-accent to-fresh-mint',
-      color: 'text-fresh-accent'
     }
   ];
 

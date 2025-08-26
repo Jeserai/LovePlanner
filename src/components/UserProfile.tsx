@@ -3,6 +3,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { UserIcon, CalendarIcon, EnvelopeIcon, AtSymbolIcon, GiftIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 import { getUserDisplayInfo } from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 
 // 用户资料接口
 interface UserProfile {
@@ -15,10 +17,27 @@ interface UserProfile {
   timezone: string;
 }
 
-// 获取当前用户资料的Mock函数
+// 获取当前用户资料的函数
 const getCurrentUserProfile = (): UserProfile | null => {
   try {
-    // 从localStorage获取用户数据
+    // 首先尝试从真实模式获取用户数据 (preset_user)
+    const presetUser = localStorage.getItem('preset_user');
+    if (presetUser) {
+      const user = JSON.parse(presetUser);
+      // 返回真实的用户资料
+      const userInfo = getUserDisplayInfo(user);
+      return {
+        id: user.id,
+        username: user.user_metadata?.username || 'unknown_user',
+        display_name: user.user_metadata?.display_name || 'Unknown User',
+        email: user.email,
+        birthday: user.user_metadata?.birthday || '1990-01-01',
+        points: userInfo?.uiTheme === 'cat' ? 150 : 300,
+        timezone: userInfo?.uiTheme === 'cat' ? 'Asia/Shanghai' : 'America/New_York'
+      };
+    }
+    
+    // 后备：尝试从演示模式获取用户数据 (demo_user)
     const demoUser = localStorage.getItem('demo_user');
     if (demoUser) {
       const user = JSON.parse(demoUser);
@@ -34,6 +53,7 @@ const getCurrentUserProfile = (): UserProfile | null => {
         timezone: userInfo?.uiTheme === 'cat' ? 'Asia/Shanghai' : 'America/New_York'
       };
     }
+    
     return null;
   } catch (error) {
     console.error('获取用户资料失败:', error);
@@ -43,65 +63,116 @@ const getCurrentUserProfile = (): UserProfile | null => {
 
 const UserProfile: React.FC = () => {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<UserProfile>>({});
   const [loading, setLoading] = useState(true);
 
-  // 获取当前用户UI主题
+  // 获取当前用户UI主题（仅用于头部图标显示）
   const currentUserInfo = profile ? getUserDisplayInfo(profile) : null;
   const currentUserType = currentUserInfo?.uiTheme === 'cow' ? 'cow' : (currentUserInfo?.uiTheme === 'cat' ? 'cat' : null);
 
-  // 加载用户资料
+  // 从数据库加载用户资料
   useEffect(() => {
-    const userProfile = getCurrentUserProfile();
-    if (userProfile) {
-      setProfile(userProfile);
-      setEditForm(userProfile);
-    }
-    setLoading(false);
-  }, []);
+    const loadUserProfile = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // 从数据库获取完整的用户资料
+        const { data: userProfile, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('获取用户资料失败:', error);
+          // 尝试从 localStorage 获取作为后备
+          const fallbackProfile = getCurrentUserProfile();
+          if (fallbackProfile) {
+            setProfile(fallbackProfile);
+            setEditForm(fallbackProfile);
+          }
+        } else if (userProfile) {
+          // 使用数据库中的真实资料
+          const formattedProfile: UserProfile = {
+            id: userProfile.id,
+            username: userProfile.username,
+            display_name: userProfile.display_name,
+            email: userProfile.email,
+            birthday: userProfile.birthday || '1990-01-01',
+            points: userProfile.points || 0,
+            timezone: userProfile.timezone || 'UTC'
+          };
+          setProfile(formattedProfile);
+          setEditForm(formattedProfile);
+        }
+      } catch (error) {
+        console.error('加载用户资料时出错:', error);
+        // 尝试从 localStorage 获取作为后备
+        const fallbackProfile = getCurrentUserProfile();
+        if (fallbackProfile) {
+          setProfile(fallbackProfile);
+          setEditForm(fallbackProfile);
+        }
+      }
+
+      setLoading(false);
+    };
+
+    loadUserProfile();
+  }, [user]);
 
   // 保存资料
   const handleSave = async () => {
-    if (!profile || !editForm) return;
+    if (!profile || !editForm || !user) return;
 
     try {
-      // 在实际应用中，这里应该调用API更新数据库
-      // 现在只是更新本地状态
+      // 更新数据库中的用户资料
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          username: editForm.username,
+          display_name: editForm.display_name,
+          birthday: editForm.birthday
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('更新数据库失败:', error);
+        throw new Error('保存失败，请重试');
+      }
+
+      // 更新本地状态
       const updatedProfile = { ...profile, ...editForm };
       setProfile(updatedProfile);
       
-      // 更新localStorage中的用户数据
-      const demoUser = localStorage.getItem('demo_user');
-      if (demoUser) {
-        const user = JSON.parse(demoUser);
-        user.user_metadata = {
-          ...user.user_metadata,
+      // 同时更新localStorage中的用户数据（保持一致性）
+      const presetUser = localStorage.getItem('preset_user');
+      if (presetUser) {
+        const localUser = JSON.parse(presetUser);
+        localUser.user_metadata = {
+          ...localUser.user_metadata,
           username: updatedProfile.username,
-          displayName: updatedProfile.display_name,
+          display_name: updatedProfile.display_name,
           birthday: updatedProfile.birthday
         };
-        localStorage.setItem('demo_user', JSON.stringify(user));
+        localStorage.setItem('preset_user', JSON.stringify(localUser));
       }
       
       setIsEditing(false);
+      console.log('✅ 用户资料更新成功');
     } catch (error) {
       console.error('保存用户资料失败:', error);
+      alert('保存失败，请重试');
     }
   };
 
-  // 计算年龄
-  const calculateAge = (birthday: string): number => {
-    const today = new Date();
-    const birthDate = new Date(birthday);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
+  // 移除了年龄计算函数，因为不再需要显示年龄
 
   // 获取用户类型图标
   const getUserTypeIcon = (userType: 'cat' | 'cow' | null, size: 'sm' | 'md' | 'lg' = 'md') => {
@@ -159,7 +230,7 @@ const UserProfile: React.FC = () => {
   if (loading) {
     return (
       <div className={`flex items-center justify-center p-8 ${
-        theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : theme === 'romantic' ? 'text-romantic-text' : 'text-gray-600'
+        theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : 'text-gray-600'
       }`}>
         <div className="text-center">
           <div className="text-lg">加载中...</div>
@@ -171,7 +242,7 @@ const UserProfile: React.FC = () => {
   if (!profile) {
     return (
       <div className={`flex items-center justify-center p-8 ${
-        theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : theme === 'romantic' ? 'text-romantic-text' : 'text-gray-600'
+        theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : 'text-gray-600'
       }`}>
         <div className="text-center">
           <div className="text-lg mb-2">未找到用户资料</div>
@@ -291,24 +362,9 @@ const UserProfile: React.FC = () => {
                 />
               ) : (
                 <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
-                  {profile.birthday} (年龄: {calculateAge(profile.birthday)})
+                  {profile.birthday}
                 </div>
               )}
-            </div>
-
-            {/* 用户类型 */}
-            <div>
-              <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Type</label>
-              <div className={`w-full border-4 rounded-pixel px-4 py-3 flex items-center space-x-3 ${
-                currentUserType === 'cat'
-                  ? 'border-pixel-warning bg-pixel-warning text-black'
-                  : 'border-pixel-info bg-pixel-info text-black'
-              }`}>
-                {getUserTypeIcon(currentUserType, 'md')}
-                <span className="font-mono uppercase font-bold">
-                  {currentUserType} {currentUserType === 'cat' ? '🐱' : '🐄'}
-                </span>
-              </div>
             </div>
 
             {/* 积分 */}
@@ -442,28 +498,9 @@ const UserProfile: React.FC = () => {
                 />
               ) : (
                 <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
-                  {profile.birthday} <span className="text-fresh-textMuted">(年龄: {calculateAge(profile.birthday)})</span>
+                  {profile.birthday}
                 </div>
               )}
-            </div>
-
-            {/* 用户类型 */}
-            <div>
-              <label className="block text-fresh-text font-medium mb-2">用户类型</label>
-              <div 
-                className="w-full border rounded-fresh-lg px-4 py-3 flex items-center space-x-3"
-                style={{
-                  borderColor: currentUserType === 'cat' ? '#06b6d4' : '#8b5cf6',
-                  backgroundColor: currentUserType === 'cat' ? '#06b6d410' : '#8b5cf610'
-                }}
-              >
-                {getUserTypeIcon(currentUserType, 'md')}
-                <span className="font-medium" style={{
-                  color: currentUserType === 'cat' ? '#06b6d4' : '#8b5cf6'
-                }}>
-                  {currentUserType === 'cat' ? '清新小猫 🐱' : '简约小牛 🐮'}
-                </span>
-              </div>
             </div>
 
             {/* 积分 */}
@@ -597,20 +634,9 @@ const UserProfile: React.FC = () => {
                 />
               ) : (
                 <div className="w-full border-2 border-romantic-border bg-romantic-panel text-romantic-text rounded-romantic px-4 py-3">
-                  {profile.birthday} <span className="text-romantic-textMuted">(年龄: {calculateAge(profile.birthday)})</span>
+                  {profile.birthday}
                 </div>
               )}
-            </div>
-
-            {/* 用户类型 */}
-            <div>
-              <label className="block text-romantic-text font-medium mb-2">用户类型</label>
-              <div className="w-full border-2 border-romantic-border bg-romantic-primary text-romantic-text rounded-romantic px-4 py-3 flex items-center space-x-3">
-                {getUserTypeIcon(currentUserType, 'md')}
-                <span className="font-medium">
-                  {currentUserType === 'cat' ? '可爱猫咪 🐱' : '温柔奶牛 🐮'}
-                </span>
-              </div>
             </div>
 
             {/* 积分 */}
@@ -743,24 +769,9 @@ const UserProfile: React.FC = () => {
               />
             ) : (
               <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
-                {profile.birthday} <span className="text-gray-600">(年龄: {calculateAge(profile.birthday)})</span>
+                {profile.birthday}
               </div>
             )}
-          </div>
-
-          {/* 用户类型 */}
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">用户类型</label>
-            <div className={`w-full border rounded-lg px-4 py-3 flex items-center space-x-3 ${
-              currentUserType === 'cat'
-                ? 'border-blue-300 bg-blue-50 text-blue-700'
-                : 'border-purple-300 bg-purple-50 text-purple-700'
-            }`}>
-              {getUserTypeIcon(currentUserType, 'md')}
-              <span className="font-medium">
-                {currentUserType === 'cat' ? 'Cat 🐱' : 'Cow 🐮'}
-              </span>
-            </div>
           </div>
 
           {/* 积分 */}

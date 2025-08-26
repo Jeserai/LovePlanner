@@ -26,14 +26,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
     if (username.toLowerCase().includes('cat')) {
       return { 
         icon: 'user',
-        name: theme === 'pixel' ? 'PLAYER_CAT' : theme === 'romantic' ? '可爱猫咪 🐱' : theme === 'fresh' ? '清新小猫 🐱' : 'Whimsical Cat', 
+        name: theme === 'pixel' ? 'PLAYER_CAT' : theme === 'fresh' ? '清新小猫 🐱' : 'Whimsical Cat', 
         color: theme === 'fresh' ? 'cat' : 'primary',
         emoji: '🐱'
       };
     } else if (username.toLowerCase().includes('cow')) {
       return { 
         icon: 'user',
-        name: theme === 'pixel' ? 'PLAYER_COW' : theme === 'romantic' ? '温柔奶牛 🐮' : theme === 'fresh' ? '简约小牛 🐮' : 'Whimsical Cow', 
+        name: theme === 'pixel' ? 'PLAYER_COW' : theme === 'fresh' ? '简约小牛 🐮' : 'Whimsical Cow', 
         color: theme === 'fresh' ? 'cow' : 'blue',
         emoji: '🐮'
       };
@@ -52,16 +52,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
   return (
     <div className={`min-h-screen ${
       theme === 'pixel' ? 'bg-pixel-bg' : 
-      theme === 'romantic' ? 'bg-romantic-bg' : 
       theme === 'fresh' ? 'bg-fresh-bg' :
-      'bg-pixel-bg'
+      'bg-fresh-bg'
     }`}>
       {/* Header */}
       <header className={`sticky top-0 z-50 ${
         theme === 'pixel' 
           ? 'bg-pixel-panel border-b-2 border-pixel-border' 
-          : theme === 'romantic'
-          ? 'bg-romantic-panel border-b-2 border-romantic-border shadow-romantic-sm'
           : theme === 'fresh'
           ? 'bg-fresh-panel border-b border-fresh-border shadow-fresh-sm backdrop-blur-sm'
           : 'bg-pixel-panel border-b-2 border-pixel-border'
@@ -71,8 +68,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
             <div className="flex items-center space-x-3">
               {theme === 'pixel' ? (
                 <PixelIcon name="heart" className="text-pixel-accent" size="lg" glow />
-              ) : theme === 'romantic' ? (
-                <span className="text-3xl animate-romantic-heartbeat">💖</span>
               ) : theme === 'fresh' ? (
                 <span className="text-3xl animate-fresh-breathe">💚</span>
               ) : (
@@ -81,13 +76,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
               <h1 className={`text-2xl font-bold ${
                 theme === 'pixel' 
                   ? 'font-retro text-pixel-text tracking-wider' 
-                  : theme === 'romantic'
-                  ? 'font-display text-romantic-text romantic-gradient-text'
                   : theme === 'fresh'
                   ? 'font-display text-fresh-text fresh-gradient-text'
                   : 'font-display bg-water-lily bg-clip-text text-transparent'
               }`}>
-                {theme === 'pixel' ? 'LOVE_PLANNER.EXE' : theme === 'romantic' ? 'Love Planner' : theme === 'fresh' ? 'Love Planner' : '爱情规划师'}
+                {theme === 'pixel' ? 'LOVE_PLANNER.EXE' : theme === 'fresh' ? 'Love Planner' : '爱情规划师'}
               </h1>
             </div>
             
@@ -95,8 +88,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
             <nav className={`flex space-x-1 p-1 ${
               theme === 'pixel' 
                 ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel' 
-                : theme === 'romantic'
-                ? 'bg-romantic-card border-2 border-romantic-border rounded-romantic-lg shadow-romantic'
                 : theme === 'fresh'
                 ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh backdrop-blur-sm'
                 : 'bg-white/40 backdrop-blur-md rounded-2xl shadow-dream'
@@ -113,12 +104,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                             activeTab === tab.id
                               ? 'bg-pixel-accent text-black font-bold shadow-pixel border border-black'
                               : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
-                          }`
-                        : theme === 'romantic'
-                        ? `rounded-romantic font-medium text-sm ${
-                            activeTab === tab.id
-                              ? 'bg-romantic-accent text-white shadow-romantic-sm scale-105'
-                              : 'text-romantic-text hover:bg-romantic-primary hover:text-romantic-accent hover:scale-102'
                           }`
                         : theme === 'fresh'
                         ? `rounded-fresh font-medium text-sm ${
@@ -153,8 +138,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                           ? 'border-pixel-warning bg-pixel-panel'
                           : 'border-pixel-border bg-pixel-panel'
                       }`
-                    : theme === 'romantic'
-                    ? 'rounded-romantic-lg border-2 border-romantic-border bg-romantic-card shadow-romantic-sm'
                     : theme === 'fresh'
                     ? `rounded-fresh-lg border ${
                         userInfo.color === 'cat'
@@ -181,8 +164,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                       }`}
                       size="sm"
                     />
-                  ) : theme === 'romantic' ? (
-                    <span className="text-lg">{userInfo.emoji}</span>
                   ) : theme === 'fresh' ? (
                     <div 
                       className="w-6 h-6 rounded-fresh-full flex items-center justify-center text-sm"
@@ -204,8 +185,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                   <span className={`text-sm font-medium ${
                     theme === 'pixel' 
                       ? 'text-pixel-text font-mono'
-                      : theme === 'romantic'
-                      ? 'text-romantic-text'
                       : theme === 'fresh'
                       ? 'text-fresh-text'
                       : userInfo.color === 'blue' 
@@ -225,8 +204,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                     className={`flex items-center space-x-1 px-3 py-2 transition-all duration-300 ${
                       theme === 'pixel' 
                         ? 'text-pixel-textMuted hover:text-pixel-warning hover:bg-pixel-panel rounded-pixel border border-pixel-border font-mono text-sm'
-                        : theme === 'romantic'
-                        ? 'text-romantic-textMuted hover:text-romantic-error hover:bg-romantic-primary rounded-romantic-lg border-2 border-romantic-border'
                         : theme === 'fresh'
                         ? 'text-fresh-textMuted hover:text-fresh-error hover:bg-fresh-primary rounded-fresh-lg border border-fresh-border'
                         : 'text-sage-500 hover:text-orange-500 hover:bg-orange-50/50 rounded-xl backdrop-blur-md'
@@ -235,7 +212,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                   >
                     <ArrowRightOnRectangleIcon className="w-5 h-5" />
                     <span className="text-sm font-medium">
-                      {theme === 'pixel' ? 'EXIT' : theme === 'romantic' ? '退出' : '退出'}
+                      {theme === 'pixel' ? 'EXIT' : '退出'}
                     </span>
                   </button>
                 )}
