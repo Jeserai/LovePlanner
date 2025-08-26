@@ -1199,35 +1199,66 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     loadCoupleId();
   }, [user, dataMode]);
 
+  // 数据库任务操作辅助函数
+  const updateTaskInDatabase = async (taskId: string, updates: Partial<Task>) => {
+    if (dataMode === 'mock') {
+      // Mock模式：直接更新本地状态
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId ? { ...task, ...updates } : task
+        )
+      );
+      return;
+    }
+
+    try {
+      // 数据库模式：更新数据库然后重新加载
+      const dbUpdates: any = {};
+      if (updates.status) dbUpdates.status = updates.status;
+      if (updates.assignee) dbUpdates.assignee_id = updates.assignee;
+      if (updates.proof) dbUpdates.proof_url = updates.proof;
+      if (updates.reviewComment) dbUpdates.review_comment = updates.reviewComment;
+      if (updates.submittedAt) dbUpdates.submitted_at = updates.submittedAt;
+
+      await taskService.updateTask(taskId, dbUpdates);
+      await reloadTasks(); // 重新加载数据
+      console.log(`✅ 任务 ${taskId} 更新成功`);
+    } catch (error) {
+      console.error('❌ 更新任务失败:', error);
+      alert('更新任务失败，请重试');
+    }
+  };
+
+  // 重新加载任务数据的函数
+  const reloadTasks = async () => {
+    if (dataMode === 'mock') {
+      // 使用mock数据
+      const allMockTasks = [...mockCatTasks, ...mockCowTasks];
+      setTasks(allMockTasks);
+      return;
+    }
+
+    if (!coupleId) {
+      setTasks([]);
+      return;
+    }
+
+    try {
+      const dbTasks = await taskService.getCoupleTasksOld(coupleId);
+      const convertedTasks = dbTasks.map(convertDatabaseTaskToTask);
+      setTasks(convertedTasks);
+      console.log(`✅ 从数据库加载了 ${convertedTasks.length} 个任务`);
+    } catch (error) {
+      console.error('❌ 加载任务失败:', error);
+      alert('无法连接到数据库，请确保数据库配置正确。');
+      setTasks([]); // 显示空数据而不是mock数据
+    }
+  };
+
   // 加载任务数据
   useEffect(() => {
-    const loadTasks = async () => {
-      if (dataMode === 'mock') {
-        // 使用mock数据
-        const allMockTasks = [...mockCatTasks, ...mockCowTasks];
-        setTasks(allMockTasks);
-        return;
-      }
-
-      if (!coupleId) {
-        setTasks([]);
-        return;
-      }
-
-      try {
-        const dbTasks = await taskService.getCoupleTasksOld(coupleId);
-        const convertedTasks = dbTasks.map(convertDatabaseTaskToTask);
-        setTasks(convertedTasks);
-        console.log(`✅ 从数据库加载了 ${convertedTasks.length} 个任务`);
-      } catch (error) {
-        console.error('❌ 加载任务失败:', error);
-        alert('无法连接到数据库，请确保数据库配置正确。');
-        setTasks([]); // 显示空数据而不是mock数据
-      }
-    };
-
     if (!loading) {
-      loadTasks();
+      reloadTasks();
     }
   }, [coupleId, dataMode, loading]);
 
@@ -2017,11 +2048,35 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         submittedAt: new Date().toISOString() // 添加提交日期
       };
       
-      // 将新任务添加到对应的任务数组中
-      if (currentUserName === 'Whimsical Cat') {
-        setCatTasks([...catTasks, task]);
+      // 添加新任务到数据库或本地状态
+      if (dataMode === 'database' && user && coupleId) {
+        try {
+          // 数据库模式：保存到数据库
+          const dbTaskData = {
+            title: task.title,
+            description: task.description,
+            deadline: task.deadline,
+            points: task.points,
+            status: task.status,
+            couple_id: coupleId,
+            creator_id: user.id,
+            requires_proof: task.requiresProof,
+            task_type: task.taskType,
+            repeat_type: task.repeatType,
+            created_at: new Date().toISOString()
+          };
+
+          await taskService.createTask(dbTaskData);
+          await reloadTasks(); // 重新加载数据
+          console.log('✅ 任务创建成功');
+        } catch (error) {
+          console.error('❌ 创建任务失败:', error);
+          alert('创建任务失败，请重试');
+          return;
+        }
       } else {
-        setCowTasks([...cowTasks, task]);
+        // Mock模式：添加到本地状态
+        setTasks(prevTasks => [...prevTasks, task]);
       }
       
       setNewTask({
@@ -2229,120 +2284,83 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     );
   };
 
-  // 处理接受任务
-  const handleAcceptTask = (taskId: string) => {
-    // 在catTasks和cowTasks中查找并更新任务
-    setCatTasks(catTasks.map(task => {
-      if (task.id === taskId && task.status === 'recruiting') {
-        const updatedTask: Task = { 
-          ...task, 
-          assignee: currentUserName, // 使用当前用户名称
-          status: 'assigned' as const
-        };
-        
-        return updatedTask;
-      }
-      return task;
-    }));
-
-    setCowTasks(cowTasks.map(task => {
-      if (task.id === taskId && task.status === 'recruiting') {
-        const updatedTask: Task = { 
-          ...task, 
-          assignee: currentUserName, // 使用当前用户名称
-          status: 'assigned' as const
-        };
-        
-        return updatedTask;
-      }
-      return task;
-    }));
+    // 处理接受任务
+  const handleAcceptTask = async (taskId: string) => {
+    await updateTaskInDatabase(taskId, {
+      assignee: currentUserName,
+      status: 'assigned'
+    });
   };
 
-  const handleStartTask = (taskId: string) => {
-    setCatTasks(catTasks.map(task => {
-      if (task.id === taskId && task.status === 'assigned') {
-        return { ...task, status: 'in-progress' };
-      }
-      return task;
-    }));
-
-    setCowTasks(cowTasks.map(task => {
-      if (task.id === taskId && task.status === 'assigned') {
-        return { ...task, status: 'in-progress' };
-    }
-      return task;
-    }));
+    const handleStartTask = async (taskId: string) => {
+    await updateTaskInDatabase(taskId, {
+      status: 'in-progress'
+    });
   };
 
-  const handleCompleteTask = (taskId: string) => {
-    setCatTasks(catTasks.map(task => {
-      if (task.id === taskId) {
-        // 检查任务是否过期，如果过期则移动到abandoned状态
-        if (isTaskOverdue(task)) {
-          return { ...task, status: 'abandoned' };
+  const handleCompleteTask = async (taskId: string) => {
+    // 找到任务以检查是否需要凭证
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // 检查任务是否过期，如果过期则移动到abandoned状态
+    if (isTaskOverdue(task)) {
+      await updateTaskInDatabase(taskId, { status: 'abandoned' });
+      return;
     }
 
-        if (task.requiresProof) {
-          // 如果需要凭证，任务进入待审核状态
-          return { 
-            ...task, 
-            status: 'pending_review',
-            submittedAt: new Date().toISOString() // 添加提交日期
-          };
-        } else {
-          // 不需要凭证的任务直接完成
-          if (task.assignee) {
+    if (task.requiresProof) {
+      // 如果需要凭证，任务进入待审核状态
+      await updateTaskInDatabase(taskId, { 
+        status: 'pending_review',
+        submittedAt: new Date().toISOString()
+      });
+    } else {
+      // 不需要凭证的任务直接完成
+      if (task.assignee) {
         setUserPoints(prev => ({
           ...prev,
-              me: prev.me + task.points // 奖励给当前用户
+          me: prev.me + task.points // 奖励给当前用户
         }));
-          }
-          return { 
-            ...task, 
-            status: 'completed',
-            submittedAt: new Date().toISOString() // 添加提交日期
-          };
-        }
       }
-      return task;
-    }));
-
-    setCowTasks(cowTasks.map(task => {
-      if (task.id === taskId) {
-        // 检查任务是否过期，如果过期则移动到abandoned状态
-        if (isTaskOverdue(task)) {
-          return { ...task, status: 'abandoned' };
-        }
-        
-        if (task.requiresProof) {
-          // 如果需要凭证，任务进入待审核状态
-          return { 
-            ...task, 
-            status: 'pending_review',
-            submittedAt: new Date().toISOString() // 添加提交日期
-          };
-        } else {
-          // 不需要凭证的任务直接完成
-          if (task.assignee) {
-        setUserPoints(prev => ({
-          ...prev,
-              me: prev.me + task.points // 奖励给当前用户
-        }));
-          }
-          return { 
-            ...task, 
-            status: 'completed',
-            submittedAt: new Date().toISOString() // 添加提交日期
-          };
-        }
-      }
-      return task;
-    }));
+      await updateTaskInDatabase(taskId, { 
+        status: 'completed',
+        submittedAt: new Date().toISOString()
+      });
+    }
   };
 
-  const handleReviewTask = (taskId: string, approved: boolean, comment?: string) => {
-    setCatTasks(catTasks.map(task => {
+  const handleReviewTask = async (taskId: string, approved: boolean, comment?: string) => {
+    // 简化版本：暂时禁用复杂逻辑
+    if (approved) {
+      await updateTaskInDatabase(taskId, { 
+        status: 'completed',
+        reviewComment: comment 
+      });
+    } else {
+      await updateTaskInDatabase(taskId, { 
+        status: 'assigned',
+        reviewComment: comment 
+      });
+    }
+  };
+
+  // 简化的任务操作函数
+  const handleAbandonTask = async (taskId: string) => {
+    await updateTaskInDatabase(taskId, { status: 'abandoned' });
+  };
+
+  const handleSubmitProof = async (taskId: string, proof: string) => {
+    await updateTaskInDatabase(taskId, { 
+      proof,
+      status: 'pending_review',
+      submittedAt: new Date().toISOString()
+    });
+  };
+
+  // 旧的复杂函数（暂时禁用）
+  const handleAbandonTask_OLD = (taskId: string, approved: boolean, comment?: string) => {
+    // TEMP_DISABLED: setCatTasks(// TEMP_DISABLED: catTasks.map(task => {
       if (task.id === taskId) {
         if (approved) {
           // 检查任务是否过期，如果过期则移动到abandoned状态
@@ -2371,7 +2389,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return task;
     }));
 
-    setCowTasks(cowTasks.map(task => {
+    // TEMP_DISABLED: setCowTasks(// TEMP_DISABLED: cowTasks.map(task => {
       if (task.id === taskId) {
         if (approved) {
           // 检查任务是否过期，如果过期则移动到abandoned状态
@@ -2402,14 +2420,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   };
 
   const handleUploadProof = (taskId: string, proof: string) => {
-    setCatTasks(catTasks.map(task => {
+    // TEMP_DISABLED: setCatTasks(// TEMP_DISABLED: catTasks.map(task => {
       if (task.id === taskId) {
         return { ...task, proof };
       }
       return task;
     }));
 
-    setCowTasks(cowTasks.map(task => {
+    // TEMP_DISABLED: setCowTasks(// TEMP_DISABLED: cowTasks.map(task => {
       if (task.id === taskId) {
         return { ...task, proof };
       }
@@ -2418,7 +2436,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   };
 
   const handleAbandonTask = (taskId: string) => {
-    setCatTasks(catTasks.map(task => {
+    // TEMP_DISABLED: setCatTasks(// TEMP_DISABLED: catTasks.map(task => {
       if (task.id === taskId && task.status === 'assigned') {
         // 只有assigned状态的任务才能手动放弃
         setUserPoints(prev => ({
@@ -2430,7 +2448,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return task;
     }));
 
-    setCowTasks(cowTasks.map(task => {
+    // TEMP_DISABLED: setCowTasks(// TEMP_DISABLED: cowTasks.map(task => {
       if (task.id === taskId && task.status === 'assigned') {
         // 只有assigned状态的任务才能手动放弃
         setUserPoints(prev => ({
@@ -2445,7 +2463,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 重新发布任务
   const handleRepublishTask = (taskId: string) => {
-    setCatTasks(catTasks.map(task => {
+    // TEMP_DISABLED: setCatTasks(// TEMP_DISABLED: catTasks.map(task => {
       if (task.id === taskId && task.status === 'abandoned') {
         return { 
           ...task, 
@@ -2458,7 +2476,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return task;
     }));
 
-    setCowTasks(cowTasks.map(task => {
+    // TEMP_DISABLED: setCowTasks(// TEMP_DISABLED: cowTasks.map(task => {
       if (task.id === taskId && task.status === 'abandoned') {
         return { 
           ...task, 
@@ -2705,7 +2723,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 自动将过期任务移动到abandoned状态
   const moveOverdueTasksToAbandoned = () => {
-    setCatTasks(catTasks.map(task => {
+    // TEMP_DISABLED: setCatTasks(// TEMP_DISABLED: catTasks.map(task => {
       // in-progress状态且过期的任务自动变为abandoned
       if (task.status === 'in-progress' && isTaskOverdue(task)) {
         return { ...task, status: 'abandoned' };
@@ -2721,7 +2739,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return task;
     }));
 
-    setCowTasks(cowTasks.map(task => {
+    // TEMP_DISABLED: setCowTasks(// TEMP_DISABLED: cowTasks.map(task => {
       // in-progress状态且过期的任务自动变为abandoned
       if (task.status === 'in-progress' && isTaskOverdue(task)) {
         return { ...task, status: 'abandoned' };

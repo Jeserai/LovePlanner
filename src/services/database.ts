@@ -193,6 +193,21 @@ export const taskService = {
     }
 
     return true
+  },
+
+  // 通用任务更新方法
+  async updateTask(taskId: string, updates: any): Promise<boolean> {
+    const { error } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', taskId)
+
+    if (error) {
+      console.error('Error updating task:', error)
+      return false
+    }
+
+    return true
   }
 }
 
