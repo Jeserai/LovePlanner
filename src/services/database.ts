@@ -91,8 +91,6 @@ export const userService = {
   // 获取情侣中的所有用户
   async getCoupleUsers(coupleId: string) {
     try {
-      console.log('🔍 查询couples表，coupleId:', coupleId);
-      
       // 首先获取couple关系
       const { data: coupleData, error: coupleError } = await supabase
         .from('couples')
@@ -107,14 +105,8 @@ export const userService = {
       }
 
       if (!coupleData) {
-        console.log('⚠️ 没有找到couples数据');
         return [];
       }
-
-      console.log('📋 Couples数据:', {
-        user1_id: coupleData.user1_id,
-        user2_id: coupleData.user2_id
-      });
 
       // 然后分别查询两个用户的信息，保持couples表中的顺序
       const users = [];
@@ -123,7 +115,6 @@ export const userService = {
       
       // 查询 user1 (couples表中的user1_id)
       if (coupleData.user1_id) {
-        console.log('🔍 查询user1，ID:', coupleData.user1_id);
         const { data: user1Data, error: user1Error } = await supabase
           .from('user_profiles')
           .select('id, email, display_name, birthday')
@@ -131,16 +122,14 @@ export const userService = {
           .single();
           
         if (user1Error) {
-          console.error('❌ 获取用户1失败:', user1Error);
+          console.error('获取用户1失败:', user1Error);
         } else if (user1Data) {
-          console.log('✅ 找到user1:', user1Data.display_name);
           user1 = user1Data;
         }
       }
 
       // 查询 user2 (couples表中的user2_id)
       if (coupleData.user2_id) {
-        console.log('🔍 查询user2，ID:', coupleData.user2_id);
         const { data: user2Data, error: user2Error } = await supabase
           .from('user_profiles')
           .select('id, email, display_name, birthday')
@@ -148,9 +137,8 @@ export const userService = {
           .single();
           
         if (user2Error) {
-          console.error('❌ 获取用户2失败:', user2Error);
+          console.error('获取用户2失败:', user2Error);
         } else if (user2Data) {
-          console.log('✅ 找到user2:', user2Data.display_name);
           user2 = user2Data;
         }
       }
@@ -159,7 +147,6 @@ export const userService = {
       if (user1) users.push(user1);
       if (user2) users.push(user2);
 
-      console.log(`📊 最终返回 ${users.length} 个用户:`, users.map(u => u.display_name));
       return users;
     } catch (error) {
       console.error('getCoupleUsers错误:', error);
