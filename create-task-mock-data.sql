@@ -30,13 +30,13 @@ BEGIN
             couple_id, '收拾客厅', 
             '整理客厅的书籍和杂物，让空间更整洁', 50, 
             (NOW() + INTERVAL '7 days'), 
-            'recruiting', cat_user_id, NULL, 'special', 'once'
+            'recruiting', cat_user_id, NULL, 'one_time', 'no_repeat'
         ),
         (
             couple_id, '购买生日礼物', 
             '为即将到来的生日准备一份特别的礼物', 80, 
             (NOW() + INTERVAL '14 days'), 
-            'recruiting', cat_user_id, NULL, 'special', 'once'
+            'recruiting', cat_user_id, NULL, 'one_time', 'no_repeat'
         );
         
         -- 2. assigned状态的任务 (Cow接受了Cat的任务)
@@ -48,13 +48,13 @@ BEGIN
             couple_id, '准备周末晚餐', 
             '计划并准备一顿浪漫的周末晚餐', 100, 
             (NOW() + INTERVAL '5 days'), 
-            'assigned', cat_user_id, cow_user_id, 'special', 'once'
+            'assigned', cat_user_id, cow_user_id, 'one_time', 'no_repeat'
         ),
         (
             couple_id, '修理台灯', 
             '客厅的台灯开关坏了，需要修理或更换', 30, 
             (NOW() + INTERVAL '10 days'), 
-            'assigned', cow_user_id, cat_user_id, 'special', 'once'
+            'assigned', cow_user_id, cat_user_id, 'one_time', 'no_repeat'
         );
         
         -- 3. in_progress状态的任务 (正在进行中)
@@ -66,13 +66,13 @@ BEGIN
             couple_id, '学习新菜谱', 
             '学会做一道新的中式菜肴，下次约会时展示', 60, 
             (NOW() + INTERVAL '12 days'), 
-            'in-progress', cat_user_id, cow_user_id, 'special', 'once'
+            'in_progress', cat_user_id, cow_user_id, 'one_time', 'no_repeat'
         ),
         (
             couple_id, '整理照片', 
             '把手机里的照片整理到相册，制作回忆集', 40, 
             (NOW() + INTERVAL '8 days'), 
-            'in-progress', cow_user_id, cat_user_id, 'special', 'once'
+            'in_progress', cow_user_id, cat_user_id, 'one_time', 'no_repeat'
         );
         
         -- 4. pending_review状态的任务 (已提交等待审核)
@@ -85,14 +85,14 @@ BEGIN
             couple_id, '清洁浴室', 
             '深度清洁浴室，包括瓷砖和镜子', 70, 
             (NOW() + INTERVAL '3 days'), 
-            'pending_review', cat_user_id, cow_user_id, 'special', 'once',
+            'pending_review', cat_user_id, cow_user_id, 'one_time', 'no_repeat',
             NOW() - INTERVAL '1 hour', '浴室已经彻底清洁完毕，瓷砖和镜子都擦得很亮！'
         ),
         (
             couple_id, '制作惊喜视频', 
             '为纪念日制作一个短视频回顾我们的美好时光', 120, 
             (NOW() + INTERVAL '6 days'), 
-            'pending_review', cow_user_id, cat_user_id, 'special', 'once',
+            'pending_review', cow_user_id, cat_user_id, 'one_time', 'no_repeat',
             NOW() - INTERVAL '30 minutes', '视频制作完成了！包含了我们这一年的精彩瞬间，希望你喜欢 💕'
         );
         
@@ -106,7 +106,7 @@ BEGIN
             couple_id, '订购鲜花', 
             '为这周的约会订购一束美丽的鲜花', 45, 
             (NOW() - INTERVAL '1 day'), 
-            'completed', cat_user_id, cow_user_id, 'special', 'once',
+            'completed', cat_user_id, cow_user_id, 'one_time', 'no_repeat',
             NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 day',
             '花非常漂亮！约会的氛围太棒了，谢谢！❤️'
         ),
@@ -114,7 +114,7 @@ BEGIN
             couple_id, '购买电影票', 
             '购买周末电影院的票，选择一部我们都想看的电影', 25, 
             (NOW() - INTERVAL '3 days'), 
-            'completed', cow_user_id, cat_user_id, 'special', 'once',
+            'completed', cow_user_id, cat_user_id, 'one_time', 'no_repeat',
             NOW() - INTERVAL '4 days', NOW() - INTERVAL '3 days',
             '电影超级好看！完美的周末夜晚 🎬'
         );
@@ -128,13 +128,13 @@ BEGIN
             couple_id, '学习吉他', 
             '学会弹奏一首简单的歌曲', 150, 
             (NOW() - INTERVAL '5 days'), 
-            'abandoned', cat_user_id, NULL, 'special', 'once'
+            'abandoned', cat_user_id, NULL, 'one_time', 'no_repeat'
         ),
         (
             couple_id, '组织聚会', 
             '组织一次朋友聚会，邀请大家来家里', 90, 
             (NOW() - INTERVAL '2 days'), 
-            'abandoned', cow_user_id, cat_user_id, 'special', 'once'
+            'abandoned', cow_user_id, cat_user_id, 'one_time', 'no_repeat'
         );
         
         -- 7. 一些即将过期的任务 (用于测试过期处理)
@@ -146,13 +146,13 @@ BEGIN
             couple_id, '紧急修理水龙头', 
             '厨房水龙头滴水，需要尽快修理', 40, 
             (NOW() + INTERVAL '1 day'), 
-            'assigned', cat_user_id, cow_user_id, 'special', 'once'
+            'assigned', cat_user_id, cow_user_id, 'one_time', 'no_repeat'
         ),
         (
             couple_id, '准备重要文件', 
             '整理和准备下周需要的重要文件', 35,
             (NOW() + INTERVAL '2 days'), 
-            'in-progress', cow_user_id, cat_user_id, 'special', 'once'
+            'in_progress', cow_user_id, cat_user_id, 'one_time', 'no_repeat'
         );
         
         RAISE NOTICE '✅ 成功创建了14个测试任务，涵盖所有状态';
@@ -187,7 +187,7 @@ ORDER BY
     CASE status 
         WHEN 'recruiting' THEN 1
         WHEN 'assigned' THEN 2
-        WHEN 'in-progress' THEN 3
+        WHEN 'in_progress' THEN 3
         WHEN 'pending_review' THEN 4
         WHEN 'completed' THEN 5
         WHEN 'abandoned' THEN 6

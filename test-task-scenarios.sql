@@ -25,7 +25,7 @@ ORDER BY
     CASE t.status 
         WHEN 'recruiting' THEN 1
         WHEN 'assigned' THEN 2
-        WHEN 'in-progress' THEN 3
+        WHEN 'in_progress' THEN 3
         WHEN 'pending_review' THEN 4
         WHEN 'completed' THEN 5
         WHEN 'abandoned' THEN 6
@@ -47,7 +47,7 @@ ORDER BY
     CASE status 
         WHEN 'recruiting' THEN 1
         WHEN 'assigned' THEN 2
-        WHEN 'in-progress' THEN 3
+        WHEN 'in_progress' THEN 3
         WHEN 'pending_review' THEN 4
         WHEN 'completed' THEN 5
         WHEN 'abandoned' THEN 6
@@ -92,7 +92,7 @@ SELECT
     up_creator.display_name as 发布者,
     up_assignee.display_name as 执行者,
     CASE 
-        WHEN t.status IN ('recruiting', 'assigned', 'in-progress') THEN '⚠️ 需要标记为已放弃'
+        WHEN t.status IN ('recruiting', 'assigned', 'in_progress') THEN '⚠️ 需要标记为已放弃'
         ELSE '✅ 状态正确'
     END as 处理建议
 FROM tasks t
@@ -137,7 +137,7 @@ SELECT
     t.completed_at::date as 完成日期,
     CASE 
         WHEN t.status = 'assigned' AND t.accepted_at IS NULL THEN '⚠️ 缺少接受时间'
-        WHEN t.status = 'in-progress' AND t.started_at IS NULL THEN '⚠️ 缺少开始时间'
+        WHEN t.status = 'in_progress' AND t.started_at IS NULL THEN '⚠️ 缺少开始时间'
         WHEN t.status = 'pending_review' AND t.submitted_at IS NULL THEN '⚠️ 缺少提交时间'
         WHEN t.status = 'completed' AND t.completed_at IS NULL THEN '⚠️ 缺少完成时间'
         ELSE '✅ 时间轴完整'

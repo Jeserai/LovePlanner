@@ -9,8 +9,7 @@ import Shop from '../src/components/Shop';
 import Settings from '../src/components/Settings';
 import AuthForm from '../src/components/AuthForm';
 import { getUserDisplayInfo } from '../src/services/authService';
-// 导入路由测试工具（开发环境）
-import '../src/utils/testRouting.js';
+// 路由测试工具已移除（清理调试信息）
 
 // 加载组件
 const LoadingScreen: React.FC = () => {

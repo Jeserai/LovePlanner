@@ -143,7 +143,7 @@ LovePlanner/
 │   ├── contexts/           # React Context
 │   │   └── ThemeContext.tsx # Theme management context
 │   └── utils/              # Utility functions
-│       ├── testRouting.js  # Routing test utilities
+│       # testRouting.js已移除（清理调试信息）
 │       └── themeInit.js    # Theme initialization
 ├── pages/
 │   ├── _app.tsx           # Next.js app entry point

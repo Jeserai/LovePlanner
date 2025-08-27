@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { PlusIcon, UserIcon, ArrowPathIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, CalendarDaysIcon, HeartIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
+import Button from './ui/Button';
+import NavigationButton from './ui/NavigationButton';
 import ConfirmDialog from './ConfirmDialog';
 import { format, subMonths, addMonths, isSameDay, isSameMonth } from 'date-fns';
 import { userService } from '../services/database';
@@ -640,9 +642,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           });
           
           if (success) {
-            setEvents(events.map(event => 
-              event.id === selectedEvent.id ? updatedEvent : event
-            ));
+    setEvents(events.map(event => 
+      event.id === selectedEvent.id ? updatedEvent : event
+    ));
           } else {
             throw new Error('更新失败');
           }
@@ -690,7 +692,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             const success = await simplifiedEventService.deleteEvent(selectedEvent.id);
             
             if (success) {
-              setEvents(events.filter(event => event.id !== selectedEvent.id));
+        setEvents(events.filter(event => event.id !== selectedEvent.id));
             } else {
               throw new Error('删除失败');
             }
@@ -1209,23 +1211,15 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           </div>
         </div>
         
-        <button
-          onClick={() => {
-            setShowAddForm(true);
-          }}
-          className={`flex items-center space-x-2 px-6 py-3 font-bold transition-all duration-300 ${
-            theme === 'pixel'
-              ? 'pixel-btn-neon text-white rounded-pixel pixel-border-primary hover:shadow-pixel-neon-strong hover:translate-y-[-2px] font-mono uppercase tracking-wider'
-            : 'btn-primary'
-          }`}
+        <Button
+          onClick={() => setShowAddForm(true)}
+          variant="primary"
+          size="lg"
+          icon="plus"
+          iconComponent={<PlusIcon className="w-5 h-5" />}
         >
-          {theme === 'pixel' ? (
-            <PixelIcon name="plus" className="text-current" glow />
-          ) : (
-            <PlusIcon className="w-5 h-5" />
-          )}
-          <span>{theme === 'pixel' ? 'NEW_EVENT' : '新增日程'}</span>
-        </button>
+          {theme === 'pixel' ? 'NEW_EVENT' : '新增日程'}
+        </Button>
       </div>
 
       {/* Calendar Navigation */}
@@ -1236,22 +1230,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => {
-                handlePrevMonth();
-              }}
-              className={`p-2 rounded-full transition-colors ${
-                theme === 'pixel'
-                  ? 'hover:text-pixel-accent text-pixel-textMuted'
-                  : 'hover:text-primary-500 text-gray-400'
-              }`}
-            >
-              {theme === 'pixel' ? (
-                <PixelIcon name="arrow-left" size="sm" />
-              ) : (
-                <ChevronLeftIcon className="w-5 h-5" />
-              )}
-            </button>
+            <NavigationButton
+              direction="left"
+              onClick={handlePrevMonth}
+              aria-label="上一个月"
+            />
             <h2 className={`text-lg font-bold ${
               theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
             }`}>
@@ -1260,22 +1243,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 : `${monthNames[currentMonth]} ${currentYear}`
               }
             </h2>
-            <button
-              onClick={() => {
-                handleNextMonth();
-              }}
-              className={`p-2 rounded-full transition-colors ${
-                theme === 'pixel'
-                  ? 'hover:text-pixel-accent text-pixel-textMuted'
-                  : 'hover:text-primary-500 text-gray-400'
-              }`}
-            >
-              {theme === 'pixel' ? (
-                <PixelIcon name="arrow-right" size="sm" />
-              ) : (
-                <ChevronRightIcon className="w-5 h-5" />
-              )}
-            </button>
+            <NavigationButton
+              direction="right"
+              onClick={handleNextMonth}
+              aria-label="下一个月"
+            />
           </div>
           <button
             onClick={() => {
@@ -1990,7 +1962,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           {getUserIcon(coupleUsers.user1.id, 'sm')}
                           <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
                             {theme === 'pixel' ? 'USER_1' : coupleUsers.user1.display_name || '用户1'}
-                          </span>
+                      </span>
                         </button>
                         <button
                           type="button"
@@ -2008,12 +1980,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           {getUserIcon(coupleUsers.user2.id, 'sm')}
                           <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
                             {theme === 'pixel' ? 'USER_2' : coupleUsers.user2.display_name || '用户2'}
-                          </span>
+                      </span>
                         </button>
                       </>
-                    )}
-                    </div>
-                  </div>
+                  )}
+                </div>
+              </div>
 
                 {/* 操作按钮 */}
                 <div className="flex justify-end space-x-4 pt-4">
@@ -2230,7 +2202,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           {getUserIcon(coupleUsers.user1.id, 'sm')}
                           <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
                             {theme === 'pixel' ? 'USER_1' : coupleUsers.user1.display_name || '用户1'}
-                          </span>
+                    </span>
                         </button>
                         <button
                           type="button"
@@ -2248,46 +2220,38 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           {getUserIcon(coupleUsers.user2.id, 'sm')}
                           <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
                             {theme === 'pixel' ? 'USER_2' : coupleUsers.user2.display_name || '用户2'}
-                          </span>
+                    </span>
                         </button>
                       </>
-                    )}
+                )}
               </div>
             </div>
 
               {/* 操作按钮 */}
               <div className="flex justify-end space-x-4 pt-4">
-              <button
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewEvent({
-                      title: '',
-                      isRecurring: false,
-                      recurrenceType: 'weekly',
-                      date: '',
-                      recurrenceEnd: '',
-                      time: '',
-                      participants: []
-                    });
-                  }}
-                  className={`px-4 py-2 transition-colors ${
-                  theme === 'pixel'
-                      ? 'text-pixel-textMuted hover:text-pixel-text border-2 border-pixel-border rounded-pixel hover:border-pixel-textMuted font-mono uppercase'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewEvent({
+                    title: '',
+                    isRecurring: false,
+                    recurrenceType: 'weekly',
+                    date: '',
+                    recurrenceEnd: '',
+                    time: '',
+                    participants: []
+                  });
+                }}
               >
                 {theme === 'pixel' ? 'CANCEL' : '取消'}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleAddEvent}
-                  className={`px-6 py-2 font-bold transition-all duration-300 ${
-                  theme === 'pixel'
-                      ? 'pixel-btn-neon text-white rounded-pixel pixel-border-primary hover:shadow-pixel-neon-strong hover:translate-y-[-2px] font-mono uppercase tracking-wider'
-                      : 'btn-primary'
-                  }`}
-                >
-                  {theme === 'pixel' ? 'CREATE_EVENT' : '创建日程'}
-              </button>
+              >
+                {theme === 'pixel' ? 'CREATE_EVENT' : '创建日程'}
+              </Button>
               </div>
             </div>
           </div>

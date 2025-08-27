@@ -38,7 +38,7 @@ BEGIN
     IF test_task_id IS NOT NULL THEN
         UPDATE tasks 
         SET 
-            status = 'in-progress',
+            status = 'in_progress',
             started_at = NOW()
         WHERE id = test_task_id;
         
@@ -48,7 +48,7 @@ BEGIN
     -- 测试3: 模拟提交in_progress任务
     SELECT id INTO test_task_id 
     FROM tasks 
-    WHERE status = 'in-progress' AND assignee_id = cat_user_id 
+    WHERE status = 'in_progress' AND assignee_id = cat_user_id 
     LIMIT 1;
     
     IF test_task_id IS NOT NULL THEN
@@ -111,7 +111,7 @@ ORDER BY
     CASE status 
         WHEN 'recruiting' THEN 1
         WHEN 'assigned' THEN 2
-        WHEN 'in-progress' THEN 3
+        WHEN 'in_progress' THEN 3
         WHEN 'pending_review' THEN 4
         WHEN 'completed' THEN 5
         WHEN 'abandoned' THEN 6
