@@ -4,10 +4,7 @@ import PixelIcon from './PixelIcon';
 import { authService, PRESET_USERS, getUserDisplayInfo } from '../services/authService';
 import { useTheme } from '../contexts/ThemeContext';
 
-// 检查是否为演示模式（Supabase未配置）
-const isDemoMode = process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://demo.supabase.co' ||
-                   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-                   process.env.NEXT_PUBLIC_SUPABASE_URL === 'your_supabase_project_url';
+
 
 interface AuthFormProps {
   onAuthSuccess: (user: any, profile: any) => void;
@@ -25,21 +22,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
 
   // 根据主题获取颜色配置
   const getThemeColors = () => {
-    if (theme === 'romantic') {
-      return {
-        bg: '#fdf2f8',
-        panel: '#ffffff',
-        text: '#2d1b2e',
-        textMuted: '#6b5b73',
-        border: '#fce7f3',
-        accent: '#e91e63',
-        success: '#10b981',
-        warning: '#f59e0b',
-        info: '#3b82f6',
-        heart: '#ff69b4',
-        cherry: '#ff1493',
-      };
-    } else if (theme === 'fresh') {
+    if (theme === 'fresh') {
       return {
         bg: '#f8fafc',
         panel: '#ffffff',
@@ -99,22 +82,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
 
   // 获取用户图标，根据主题和用户类型区分
   const getUserIcon = (userType: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
-    if (theme === 'romantic') {
-      // 浪漫主题使用emoji风格
-      const emoji = userType === 'cat' ? '🐱' : '🐮';
-      const sizeMap = { sm: '1.5rem', md: '2rem', lg: '2.5rem' };
-      return (
-        <span 
-          style={{ 
-            fontSize: sizeMap[size],
-            filter: `drop-shadow(0 2px 4px ${colors.accent}40)`
-          }}
-          className="inline-block animate-romantic-float"
-        >
-          {emoji}
-        </span>
-      );
-    } else if (theme === 'fresh') {
+    if (theme === 'fresh') {
       // 清新主题使用简约图标和用户专属颜色
       const emoji = userType === 'cat' ? '🐱' : '🐮';
       const color = userType === 'cat' ? (colors as any).catColor : (colors as any).cowColor;
@@ -189,179 +157,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
   };
 
   // 根据主题渲染不同风格
-  if (theme === 'romantic') {
-    return (
-      <div 
-        className="min-h-screen flex items-center justify-center p-4 font-sans"
-        style={{ background: colors.bg }}
-      >
-        {/* 浪漫背景装饰 */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-20 text-4xl animate-romantic-float opacity-60">🌸</div>
-          <div className="absolute top-32 right-32 text-3xl animate-romantic-sparkle opacity-50">✨</div>
-          <div className="absolute bottom-40 left-40 text-5xl animate-romantic-heartbeat opacity-40">💖</div>
-          <div className="absolute bottom-20 right-20 text-3xl animate-romantic-float opacity-50" style={{animationDelay: '1s'}}>🦋</div>
-          <div className="absolute top-1/2 right-16 text-2xl animate-romantic-sparkle opacity-30" style={{animationDelay: '2s'}}>🌟</div>
-        </div>
-
-        <div className="relative w-full max-w-md z-10">
-          <div 
-            className="rounded-romantic-lg p-8 relative overflow-hidden romantic-sparkle"
-            style={{ 
-              background: colors.panel,
-              border: `2px solid ${colors.border}`,
-              boxShadow: '0 8px 32px rgba(233, 30, 99, 0.08), 0 4px 16px rgba(248, 187, 217, 0.12)'
-            }}
-          >
-            {/* Logo和标题 */}
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center space-x-3 mb-4">
-                <span className="text-4xl animate-romantic-heartbeat">💕</span>
-                <span className="text-3xl animate-romantic-float">🌹</span>
-                <span className="text-4xl animate-romantic-heartbeat" style={{animationDelay: '0.5s'}}>💕</span>
-              </div>
-              
-              <h1 className="text-3xl font-bold mb-2 romantic-gradient-text">
-                Love Planner
-              </h1>
-              <p className="font-medium" style={{color: colors.textMuted}}>
-                情侣任务管理系统
-              </p>
-            </div>
-
-            {/* 错误提示 */}
-            {error && (
-              <div 
-                className="p-4 rounded-romantic mb-6 border-l-4 text-sm"
-                style={{
-                  background: '#fef2f2',
-                  borderLeftColor: colors.accent,
-                  color: '#dc2626'
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            {/* 快速登录按钮 */}
-            <div className="space-y-4 mb-6">
-              <h2 className="text-lg font-semibold text-center" style={{color: colors.text}}>
-                选择你的身份
-              </h2>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {quickLogins.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => handleQuickLogin(user)}
-                    disabled={isLoading}
-                    className="p-4 rounded-romantic-lg border-2 transition-all duration-300 hover:scale-105 disabled:opacity-50 romantic-glow-effect"
-                    style={{
-                      background: `linear-gradient(135deg, ${colors.accent}10, ${(colors as any).heart || colors.accent}10)`,
-                      borderColor: colors.border,
-                      color: colors.text
-                    }}
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      {getUserIcon(getPresetUserUITheme(user), 'lg')}
-                      <span className="font-semibold">{user.displayName}</span>
-                      <span className="text-sm" style={{color: colors.textMuted}}>
-                        {getPresetUserUITheme(user) === 'cat' ? '可爱猫咪' : '温柔奶牛'}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 表单分割线 */}
-            <div className="flex items-center my-6">
-              <div className="flex-1 h-px" style={{background: colors.border}}></div>
-              <span className="px-4 text-sm" style={{color: colors.textMuted}}>或者</span>
-              <div className="flex-1 h-px" style={{background: colors.border}}></div>
-            </div>
-
-            {/* 登录表单 */}
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{color: colors.text}}>
-                  邮箱地址
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 rounded-romantic border-2 transition-all duration-300 focus:scale-[1.02] focus:shadow-romantic"
-                  style={{
-                    background: colors.panel,
-                    borderColor: colors.border,
-                    color: colors.text
-                  }}
-                  placeholder="输入邮箱地址"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{color: colors.text}}>
-                  密码
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 pr-12 rounded-romantic border-2 transition-all duration-300 focus:scale-[1.02] focus:shadow-romantic"
-                    style={{
-                      background: colors.panel,
-                      borderColor: colors.border,
-                      color: colors.text
-                    }}
-                    placeholder="输入密码"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-romantic-sm transition-colors"
-                    style={{color: colors.textMuted}}
-                  >
-                    {showPassword ? (
-                      <EyeSlashIcon className="w-5 h-5" />
-                    ) : (
-                      <EyeIcon className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 px-6 rounded-romantic-lg font-semibold transition-all duration-300 hover:scale-105 disabled:opacity-50 shadow-romantic-lg hover:shadow-romantic-glow"
-                style={{
-                  background: `linear-gradient(135deg, ${colors.accent}, ${(colors as any).heart || colors.accent})`,
-                  color: 'white'
-                }}
-              >
-                {isLoading ? '登录中...' : '登录'}
-              </button>
-            </form>
-
-            {/* 底部装饰 */}
-            <div className="text-center mt-8">
-              <div className="flex justify-center space-x-2 text-2xl opacity-60">
-                <span className="animate-romantic-sparkle">✨</span>
-                <span className="animate-romantic-heartbeat">💖</span>
-                <span className="animate-romantic-sparkle" style={{animationDelay: '1s'}}>✨</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (theme === 'fresh') {
     return (
       <div 
@@ -587,7 +382,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
             </div>
             <div className="border-2 border-black rounded-pixel p-2 mb-2" style={{ background: colors.accent }}>
               <p className="text-white text-xs font-mono font-bold text-center uppercase">
-                {isDemoMode ? 'DEMO MODE - ONLY CAT & COW USERS' : 'PRESET USERS: CAT 🐱 & COW 🐄'}
+                PRESET USERS: CAT 🐱 & COW 🐄
               </p>
             </div>
           </div>

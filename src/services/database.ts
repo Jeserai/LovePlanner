@@ -47,9 +47,13 @@ export const userService = {
       .eq('is_active', true)
       .single()
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error fetching couple relation:', error)
-      return null
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      } else {
+        console.error('查询情侣关系失败:', error);
+        return null;
+      }
     }
 
     return data
@@ -86,16 +90,81 @@ export const userService = {
 
   // 获取情侣中的所有用户
   async getCoupleUsers(coupleId: string) {
-    const { data, error } = await supabase.rpc('get_couple_users', {
-      couple_id: coupleId
-    });
+    try {
+      console.log('🔍 查询couples表，coupleId:', coupleId);
+      
+      // 首先获取couple关系
+      const { data: coupleData, error: coupleError } = await supabase
+        .from('couples')
+        .select('user1_id, user2_id')
+        .eq('id', coupleId)
+        .eq('is_active', true)
+        .single();
 
-    if (error) {
-      console.error('Error fetching couple users:', error)
-      return []
+      if (coupleError) {
+        console.error('获取情侣数据失败:', coupleError);
+        return [];
+      }
+
+      if (!coupleData) {
+        console.log('⚠️ 没有找到couples数据');
+        return [];
+      }
+
+      console.log('📋 Couples数据:', {
+        user1_id: coupleData.user1_id,
+        user2_id: coupleData.user2_id
+      });
+
+      // 然后分别查询两个用户的信息，保持couples表中的顺序
+      const users = [];
+      let user1 = null;
+      let user2 = null;
+      
+      // 查询 user1 (couples表中的user1_id)
+      if (coupleData.user1_id) {
+        console.log('🔍 查询user1，ID:', coupleData.user1_id);
+        const { data: user1Data, error: user1Error } = await supabase
+          .from('user_profiles')
+          .select('id, email, display_name, birthday')
+          .eq('id', coupleData.user1_id)
+          .single();
+          
+        if (user1Error) {
+          console.error('❌ 获取用户1失败:', user1Error);
+        } else if (user1Data) {
+          console.log('✅ 找到user1:', user1Data.display_name);
+          user1 = user1Data;
+        }
+      }
+
+      // 查询 user2 (couples表中的user2_id)
+      if (coupleData.user2_id) {
+        console.log('🔍 查询user2，ID:', coupleData.user2_id);
+        const { data: user2Data, error: user2Error } = await supabase
+          .from('user_profiles')
+          .select('id, email, display_name, birthday')
+          .eq('id', coupleData.user2_id)
+          .single();
+          
+        if (user2Error) {
+          console.error('❌ 获取用户2失败:', user2Error);
+        } else if (user2Data) {
+          console.log('✅ 找到user2:', user2Data.display_name);
+          user2 = user2Data;
+        }
+      }
+
+      // 按照couples表的顺序返回：[user1, user2]
+      if (user1) users.push(user1);
+      if (user2) users.push(user2);
+
+      console.log(`📊 最终返回 ${users.length} 个用户:`, users.map(u => u.display_name));
+      return users;
+    } catch (error) {
+      console.error('getCoupleUsers错误:', error);
+      return [];
     }
-
-    return data || []
   }
 }
 
@@ -207,70 +276,8 @@ export const taskService = {
   }
 }
 
-// 事件相关操作
-export const eventService = {
-  // 获取情侣的所有事件
-  async getCoupleEvents(coupleId: string): Promise<Event[]> {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('couple_id', coupleId)
-      .order('event_date', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching events:', error)
-      return []
-    }
-
-    return data || []
-  },
-
-  // 创建新事件
-  async createEvent(event: Database['public']['Tables']['events']['Insert']): Promise<Event | null> {
-    const { data, error } = await supabase
-      .from('events')
-      .insert(event)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error creating event:', error)
-      return null
-    }
-
-    return data
-  },
-
-  // 更新事件
-  async updateEvent(eventId: string, updates: Partial<Event>): Promise<boolean> {
-    const { error } = await supabase
-      .from('events')
-      .update(updates)
-      .eq('id', eventId)
-
-    if (error) {
-      console.error('Error updating event:', error)
-      return false
-    }
-
-    return true
-  },
-
-  // 删除事件
-  async deleteEvent(eventId: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', eventId)
-
-    if (error) {
-      console.error('Error deleting event:', error)
-      return false
-    }
-
-    return true
-  }
-}
+// 导入简化的事件服务
+export { simplifiedEventService } from './simplifiedEventService';
 
 // 积分相关操作
 export const pointService = {

@@ -57,7 +57,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const [coupleId, setCoupleId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userMap, setUserMap] = useState<{[id: string]: string}>({});
-  const dataMode = user ? 'database' : 'mock';
+
 
   // 数据库任务转换为前端Task格式
   const convertDatabaseTaskToTask = (dbTask: DatabaseTask): Task => {
@@ -180,10 +180,6 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 重新加载任务数据的函数
   const reloadTasks = async () => {
-    if (dataMode === 'mock') {
-      // Mock模式：不需要重新加载
-      return;
-    }
 
     if (!coupleId) {
       setTasks([]);
@@ -225,15 +221,6 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 数据库任务操作辅助函数
   const updateTaskInDatabase = async (taskId: string, updates: Partial<Task>) => {
-    if (dataMode === 'mock') {
-      // Mock模式：直接更新本地状态
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === taskId ? { ...task, ...updates } : task
-        )
-      );
-      return;
-    }
 
     try {
       // 数据库模式：更新数据库然后重新加载
@@ -392,9 +379,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       repeatType: 'once'
     };
 
-    if (dataMode === 'database' && user && coupleId) {
+    if (user && coupleId) {
       try {
-        // 数据库模式：保存到数据库
+        // 保存到数据库
         const dbTaskData = {
           title: task.title,
           description: task.description,
@@ -418,8 +405,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         return;
       }
     } else {
-      // Mock模式：添加到本地状态
-      setTasks(prevTasks => [...prevTasks, task]);
+      throw new Error('用户未登录或缺少情侣关系信息');
     }
 
     // 重置表单
@@ -1349,21 +1335,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   };
 
   return (
-          <div className="space-y-6">
-      {/* 数据源指示器 */}
-      <div className={`text-xs p-2 rounded ${
-        dataMode === 'database' 
-          ? 'bg-green-100 text-green-800 border border-green-200' 
-          : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-      }`}>
-        {dataMode === 'database' 
-          ? '🗄️ 数据库模式 - 使用真实Supabase任务数据' 
-          : '📝 演示模式 - 使用本地Mock任务数据'
-                }
-        {loading && ' (加载中...)'}
-          </div>
-
-                  {/* Header */}
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className={`text-3xl font-bold ${
           theme === 'pixel' 

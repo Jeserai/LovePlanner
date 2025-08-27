@@ -37,22 +37,7 @@ const getCurrentUserProfile = (): UserProfile | null => {
       };
     }
     
-    // 后备：尝试从演示模式获取用户数据 (demo_user)
-    const demoUser = localStorage.getItem('demo_user');
-    if (demoUser) {
-      const user = JSON.parse(demoUser);
-      // 返回模拟的用户资料
-      const userInfo = getUserDisplayInfo(user);
-      return {
-        id: user.id,
-        username: user.user_metadata?.username || 'unknown_user',
-        display_name: user.user_metadata?.displayName || 'Unknown User',
-        email: user.email,
-        birthday: user.user_metadata?.birthday || '1990-01-01',
-        points: userInfo?.uiTheme === 'cat' ? 150 : 300,
-        timezone: userInfo?.uiTheme === 'cat' ? 'Asia/Shanghai' : 'America/New_York'
-      };
-    }
+
     
     return null;
   } catch (error) {

@@ -46,14 +46,10 @@ export const PRESET_USERS = {
   }
 };
 
-// 检查是否为演示模式
-const isDemoMode = process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://demo.supabase.co' || 
-                   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-                   process.env.NEXT_PUBLIC_SUPABASE_URL === 'your_supabase_project_url';
+
 
 /**
  * 预设用户登录服务
- * 支持演示模式和真实数据库模式
  */
 export const authService = {
   /**
@@ -71,13 +67,8 @@ export const authService = {
       throw new Error('密码错误');
     }
 
-    if (isDemoMode) {
-      // 演示模式：返回模拟数据
-      return this.createDemoResponse(presetUser);
-    } else {
-      // 真实模式：通过 Supabase Auth 登录
-      return this.loginWithSupabaseAuth(email, password);
-    }
+    // 通过 Supabase Auth 登录
+    return this.loginWithSupabaseAuth(email, password);
   },
 
   /**
@@ -86,12 +77,8 @@ export const authService = {
   async quickLogin(userType: 'cat' | 'cow') {
     const presetUser = PRESET_USERS[userType];
     
-    if (isDemoMode) {
-      return this.createDemoResponse(presetUser);
-    } else {
-      // 真实模式：通过 Supabase Auth 登录
-      return this.loginWithSupabaseAuth(presetUser.email, presetUser.password);
-    }
+    // 通过 Supabase Auth 登录
+    return this.loginWithSupabaseAuth(presetUser.email, presetUser.password);
   },
 
   /**
@@ -146,40 +133,7 @@ export const authService = {
     }
   },
 
-  /**
-   * 创建演示模式响应
-   */
-  createDemoResponse(presetUser: typeof PRESET_USERS.cat | typeof PRESET_USERS.cow) {
-    const mockUser = {
-      id: presetUser.id,
-      email: presetUser.email,
-      user_metadata: presetUser
-    };
 
-    const userInfo = getUserDisplayInfo(presetUser);
-    const mockProfile = {
-      id: presetUser.id,
-      email: presetUser.email,
-      username: presetUser.username,
-      display_name: presetUser.displayName,
-      birthday: presetUser.birthday,
-      points: userInfo?.uiTheme === 'cat' ? 150 : 300,
-      timezone: userInfo?.uiTheme === 'cat' ? 'Asia/Shanghai' : 'America/New_York'
-    };
-
-    // 保存到本地存储
-    localStorage.setItem('demo_user', JSON.stringify(mockUser));
-    
-    // 触发状态更新事件
-    if (typeof window !== 'undefined') {
-      const event = new CustomEvent('demoAuthChange', {
-        detail: { user: mockUser }
-      });
-      window.dispatchEvent(event);
-    }
-
-    return { user: mockUser, profile: mockProfile };
-  },
 
   /**
    * 创建真实模式响应
@@ -232,25 +186,17 @@ export const authService = {
    * 登出服务
    */
   async logout() {
-    if (isDemoMode) {
-      localStorage.removeItem('demo_user');
-      
-      if (typeof window !== 'undefined') {
-        const event = new CustomEvent('demoAuthChange', {
-          detail: { user: null }
-        });
-        window.dispatchEvent(event);
-      }
-    } else {
-      localStorage.removeItem('preset_user');
-      
-      if (typeof window !== 'undefined') {
-        const event = new CustomEvent('presetAuthChange', {
-          detail: { user: null, profile: null }
-        });
-        window.dispatchEvent(event);
-      }
+    // 清理本地存储的用户数据
+    localStorage.removeItem('preset_user');
+    
+    // 调用 Supabase 登出
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Supabase logout error:', error);
+      throw error;
     }
+    
+    return { success: true };
   },
 
   /**
@@ -258,13 +204,8 @@ export const authService = {
    */
   getCurrentUser() {
     try {
-      if (isDemoMode) {
-        const savedUser = localStorage.getItem('demo_user');
-        return savedUser ? JSON.parse(savedUser) : null;
-      } else {
-        const savedUser = localStorage.getItem('preset_user');
-        return savedUser ? JSON.parse(savedUser) : null;
-      }
+      const savedUser = localStorage.getItem('preset_user');
+      return savedUser ? JSON.parse(savedUser) : null;
     } catch (error) {
       console.warn('解析用户数据失败:', error);
       return null;
