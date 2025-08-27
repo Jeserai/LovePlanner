@@ -1,7 +1,7 @@
 // TaskBoard简化版 - 仅显示数据库数据，暂时禁用编辑功能
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { PlusIcon, StarIcon, GiftIcon, CheckIcon, CalendarIcon, ClockIcon, XMarkIcon, UserIcon, DocumentIcon, ListBulletIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, StarIcon, GiftIcon, CheckIcon, CalendarIcon, ClockIcon, XMarkIcon, UserIcon, DocumentIcon, ListBulletIcon, ChevronLeftIcon, ChevronRightIcon, TagIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import PixelIcon from './PixelIcon';
 import PointsDisplay from './PointsDisplay';
@@ -61,6 +61,17 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 数据库任务转换为前端Task格式
   const convertDatabaseTaskToTask = (dbTask: DatabaseTask): Task => {
+    // 调试用户映射
+    console.log(`🔄 转换任务 ${dbTask.id}:`);
+    console.log(`   创建者ID: ${dbTask.creator_id} => 映射名称: ${userMap[dbTask.creator_id] || '未找到映射'}`);
+    if (dbTask.assignee_id) {
+      console.log(`   执行者ID: ${dbTask.assignee_id} => 映射名称: ${userMap[dbTask.assignee_id] || '未找到映射'}`);
+    }
+    
+    // 确保始终使用display_name
+    const creatorName = userMap[dbTask.creator_id] || dbTask.creator_id;
+    const assigneeName = dbTask.assignee_id ? (userMap[dbTask.assignee_id] || dbTask.assignee_id) : undefined;
+    
     return {
       id: dbTask.id,
       title: dbTask.title,
@@ -68,8 +79,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       deadline: dbTask.deadline,
       points: dbTask.points,
       status: dbTask.status as Task['status'],
-      assignee: dbTask.assignee_id ? (userMap[dbTask.assignee_id] || dbTask.assignee_id) : undefined,
-      creator: userMap[dbTask.creator_id] || dbTask.creator_id,
+      assignee: assigneeName,
+      creator: creatorName,
       createdAt: dbTask.created_at,
       requiresProof: dbTask.requires_proof,
       proof: dbTask.proof_url || undefined,
@@ -107,6 +118,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           });
           setUserMap(mapping);
           console.log('✅ 用户映射加载完成:', mapping);
+          console.log('📊 用户映射详情:');
+          for (const [id, name] of Object.entries(mapping)) {
+            console.log(`   ${id} => ${name}`);
+          }
         }
       } catch (error) {
         console.error('加载数据失败:', error);
@@ -125,8 +140,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         return;
       }
 
+      // 检查用户映射是否已加载
+      if (Object.keys(userMap).length === 0) {
+        console.log('⚠️ 用户映射尚未加载，等待用户映射加载完成后再加载任务');
+        return;
+      }
+
       try {
+        console.log('🔍 开始加载任务数据，用户映射状态:', Object.keys(userMap).length > 0 ? '已加载' : '未加载');
         const dbTasks = await taskService.getCoupleTasksOld(coupleId);
+        console.log(`📥 从数据库获取了 ${dbTasks.length} 个任务，开始转换...`);
         const convertedTasks = dbTasks.map(convertDatabaseTaskToTask);
         setTasks(convertedTasks);
         console.log(`✅ 从数据库加载了 ${convertedTasks.length} 个任务`);
@@ -136,8 +159,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       }
     };
 
-    if (!loading && coupleId && Object.keys(userMap).length > 0) {
-      loadTasks();
+    if (!loading && coupleId) {
+      if (Object.keys(userMap).length > 0) {
+        loadTasks();
+      } else {
+        console.log('⚠️ 用户映射为空，等待用户映射加载');
+      }
     }
   }, [coupleId, loading, userMap]);
 
@@ -163,8 +190,31 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return;
     }
 
+    // 确保用户映射已加载
+    if (Object.keys(userMap).length === 0) {
+      console.log('⚠️ 重新加载任务时发现用户映射为空，尝试重新加载用户映射');
+      try {
+        const { data: usersData } = await supabase
+          .from('user_profiles')
+          .select('id, display_name, username');
+        
+        if (usersData) {
+          const mapping: {[id: string]: string} = {};
+          usersData.forEach(userData => {
+            mapping[userData.id] = userData.display_name || userData.username;
+          });
+          setUserMap(mapping);
+          console.log('✅ 用户映射重新加载完成:', mapping);
+        }
+      } catch (error) {
+        console.error('❌ 重新加载用户映射失败:', error);
+        return; // 如果用户映射加载失败，不继续加载任务
+      }
+    }
+
     try {
       const dbTasks = await taskService.getCoupleTasksOld(coupleId);
+      console.log(`📥 重新加载: 从数据库获取了 ${dbTasks.length} 个任务，开始转换...`);
       const convertedTasks = dbTasks.map(convertDatabaseTaskToTask);
       setTasks(convertedTasks);
       console.log(`✅ 重新加载了 ${convertedTasks.length} 个任务`);
@@ -222,14 +272,20 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-        if (task.requiresProof) {
-          // 如果需要凭证，任务进入待审核状态
+    // 检查任务是否过期，如果过期则移动到abandoned状态
+    if (isTaskOverdue(task)) {
+      await updateTaskInDatabase(taskId, { status: 'abandoned' });
+      return;
+    }
+
+    if (task.requiresProof) {
+      // 如果需要凭证，任务进入待审核状态
       await updateTaskInDatabase(taskId, { 
         status: 'pending_review',
         submittedAt: new Date().toISOString()
-                      });
-                    } else {
-          // 不需要凭证的任务直接完成
+      });
+    } else {
+      // 不需要凭证的任务直接完成
       await updateTaskInDatabase(taskId, { 
         status: 'completed',
         submittedAt: new Date().toISOString()
@@ -250,6 +306,70 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       });
     }
   };
+
+  // 放弃任务
+  const handleAbandonTask = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    // 只有assigned状态的任务才能手动放弃
+    if (task.status === 'assigned') {
+      await updateTaskInDatabase(taskId, { 
+        status: 'recruiting',
+        assignee: undefined
+      });
+    }
+  };
+
+  // 重新发布任务
+  const handleRepublishTask = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || task.status !== 'abandoned') return;
+    
+    await updateTaskInDatabase(taskId, { 
+      status: 'recruiting',
+      assignee: undefined,
+      proof: undefined,
+      reviewComment: undefined
+    });
+  };
+
+  // 提交凭证
+  const handleSubmitProof = async (taskId: string, proof: string) => {
+    await updateTaskInDatabase(taskId, { 
+      proof,
+      status: 'pending_review',
+      submittedAt: new Date().toISOString()
+    });
+  };
+
+  // 自动将过期任务移动到abandoned状态
+  const moveOverdueTasksToAbandoned = async () => {
+    const overdueTasksUpdates = tasks.filter(task => {
+      // 检查各种状态的过期任务
+      return (
+        (task.status === 'in-progress' && isTaskOverdue(task)) ||
+        (task.status === 'assigned' && isTaskOverdue(task)) ||
+        (task.status === 'recruiting' && isTaskOverdue(task))
+      );
+    });
+    
+    // 批量更新过期任务
+    for (const task of overdueTasksUpdates) {
+      await updateTaskInDatabase(task.id, { status: 'abandoned' });
+    }
+    
+    if (overdueTasksUpdates.length > 0) {
+      console.log(`✅ 已将 ${overdueTasksUpdates.length} 个过期任务标记为已放弃`);
+    }
+  };
+
+  // 在组件加载时检查并移动过期任务
+  useEffect(() => {
+    if (!loading && tasks.length > 0) {
+      moveOverdueTasksToAbandoned();
+    }
+  }, [loading, tasks]);
 
   // 创建新任务
   const handleCreateTask = async () => {
@@ -438,8 +558,24 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
   };
 
-  // 渲染任务卡片
+  // 判断任务是否即将到期
+  const isTaskExpiringSoon = (deadline: string) => {
+    const deadlineDate = new Date(deadline);
+    const now = new Date();
+    const diffDays = Math.floor((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 3 && diffDays > 0;
+  };
+
+  // 渲染任务卡片 - 遵循设计系统的统一卡片样式
   const renderTaskCard = (task: Task) => {
+    // 判断当前视图和当前用户，决定显示内容
+    const isCurrentUserCreator = task.creator === currentUserName;
+    const isPublishedView = view === 'published';
+    const isAssignedView = view === 'assigned';
+    const isAvailableView = view === 'available';
+    const isExpiringSoon = isTaskExpiringSoon(task.deadline);
+    const isOverdue = isTaskOverdue(task);
+
     return (
       <div
         key={task.id}
@@ -448,7 +584,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           theme === 'pixel' 
             ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel hover:shadow-pixel-lg hover:border-pixel-accent'
             : 'bg-white rounded-xl shadow-soft hover:shadow-lg hover:border-primary-300'
-        } ${getStatusColor(task.status)}`}
+        } ${getStatusColor(task.status)} ${isExpiringSoon ? 'border-yellow-500' : ''} ${isOverdue ? 'border-red-500 opacity-75' : ''}`}
       >
         <div className="flex items-start justify-between mb-2">
           <h4 className={`font-bold ${
@@ -471,6 +607,24 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             }`}>
               {getRepeatTypeName(task)}
             </span>
+            {isOverdue && (
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                theme === 'pixel'
+                  ? 'bg-pixel-accent text-black font-mono uppercase'
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {theme === 'pixel' ? 'OVERDUE' : '已过期'}
+              </span>
+            )}
+            {task.submittedAt && new Date(task.submittedAt) > new Date(task.deadline) && (
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                theme === 'pixel'
+                  ? 'bg-pixel-orange text-black font-mono uppercase'
+                  : 'bg-orange-100 text-orange-800'
+              }`}>
+                {theme === 'pixel' ? 'LATE_SUBMISSION' : '逾期提交'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -482,22 +636,26 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className={`flex items-center space-x-1 ${
-              theme === 'pixel' ? 'text-pixel-accent' : 'text-blue-600'
-            }`}>
-              {theme === 'pixel' ? (
-                <PixelIcon name="user" size="sm" />
-              ) : (
-                <UserIcon className="w-4 h-4" />
-              )}
-              <span className={`text-xs ${
-                theme === 'pixel' ? 'font-mono uppercase' : ''
+            {/* 只在"我的任务"和"可领取"视图中显示创建者 */}
+            {!isPublishedView && (
+              <div className={`flex items-center space-x-1 ${
+                theme === 'pixel' ? 'text-pixel-accent' : 'text-blue-600'
               }`}>
-                {theme === 'pixel' ? 'CREATOR:' : '创建者:'} {task.creator}
-              </span>
-            </div>
+                {theme === 'pixel' ? (
+                  <PixelIcon name="user" size="sm" />
+                ) : (
+                  <UserIcon className="w-4 h-4" />
+                )}
+                <span className={`text-xs ${
+                  theme === 'pixel' ? 'font-mono uppercase' : ''
+                }`}>
+                  {theme === 'pixel' ? 'CREATOR:' : '创建者:'} {task.creator}
+                </span>
+              </div>
+            )}
             
-            {task.assignee && (
+            {/* 只在"已发布"和"可领取"视图中显示执行者 */}
+            {task.assignee && (isPublishedView || isAvailableView) && (
               <div className={`flex items-center space-x-1 ${
                 theme === 'pixel' ? 'text-pixel-info' : 'text-green-600'
               }`}>
@@ -562,6 +720,324 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 </span>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 判断任务是否已过期
+  const isTaskOverdue = (task: Task) => {
+    const deadline = new Date(task.deadline);
+    const now = new Date();
+    return deadline < now;
+  };
+
+  // 判断任务是否在时间范围内
+  const isTaskInTimeRange = (task: Task) => {
+    // 所有任务都按日期判断，不考虑具体时间
+    const deadline = new Date(task.deadline);
+    deadline.setHours(23, 59, 59, 999); // 设置为当天最后一刻
+    const now = new Date();
+    return deadline >= now;
+  };
+
+  // 渲染任务详情弹窗
+  const renderTaskDetailModal = () => {
+    if (!selectedTask) return null;
+
+    const isTaskOwner = selectedTask.creator === currentUserName;
+    const isAssignee = selectedTask.assignee === currentUserName;
+    const isRecruiting = selectedTask.status === 'recruiting';
+    const isAssigned = selectedTask.status === 'assigned';
+    const isInProgress = selectedTask.status === 'in-progress';
+    const isPendingReview = selectedTask.status === 'pending_review';
+    const isCompleted = selectedTask.status === 'completed';
+    const isAbandoned = selectedTask.status === 'abandoned';
+    const hasProof = selectedTask.proof !== undefined;
+    const canComplete = !selectedTask.requiresProof || hasProof;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className={`p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto ${
+          theme === 'pixel' 
+            ? 'bg-pixel-panel border-4 border-pixel-border rounded-pixel shadow-pixel-lg' 
+            : 'bg-white rounded-xl shadow-xl'
+        }`}>
+          {/* 关闭按钮 */}
+          <div className="flex justify-end">
+            <button 
+              onClick={() => setSelectedTask(null)}
+              className={`p-2 rounded-full transition-colors ${
+                theme === 'pixel'
+                  ? 'hover:text-pixel-accent text-pixel-textMuted'
+                  : 'hover:text-primary-500 text-gray-400'
+              }`}
+              aria-label="关闭"
+            >
+              {theme === 'pixel' ? (
+                <PixelIcon name="close" size="sm" />
+              ) : (
+                <XMarkIcon className="w-6 h-6" />
+              )}
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {/* 任务标题 */}
+            <div>
+              <h4 className={`text-lg font-bold mb-2 ${
+                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+              }`}>
+                {selectedTask.title}
+              </h4>
+              <p className={`text-sm ${
+                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
+              }`}>
+                {selectedTask.description}
+              </p>
+            </div>
+
+            {/* 任务信息 */}
+            <div className={`grid grid-cols-2 gap-4 ${
+              theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
+            }`}>
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="clock" size="sm" />
+                ) : (
+                  <ClockIcon className="w-5 h-5" />
+                )}
+                <span>截止日期：{formatDate(selectedTask.deadline)}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="star" size="sm" className="text-pixel-accent" />
+                ) : (
+                  <StarIcon className="w-5 h-5 text-yellow-500" />
+                )}
+                <span>积分奖励：{selectedTask.points}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="user" size="sm" />
+                ) : (
+                  <UserIcon className="w-5 h-5" />
+                )}
+                <span>发布者：{selectedTask.creator}</span>
+              </div>
+              {selectedTask.assignee && (
+                <div className="flex items-center space-x-2">
+                  {theme === 'pixel' ? (
+                    <PixelIcon name="user" size="sm" />
+                  ) : (
+                    <UserIcon className="w-5 h-5" />
+                  )}
+                  <span>执行者：{selectedTask.assignee}</span>
+                </div>
+              )}
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="tag" size="sm" />
+                ) : (
+                  <TagIcon className="w-5 h-5" />
+                )}
+                <span>类型：{getCategoryName(selectedTask.taskType)}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="refresh" size="sm" />
+                ) : (
+                  <ArrowPathIcon className="w-5 h-5" />
+                )}
+                <span>重复：{getRepeatTypeName(selectedTask)}</span>
+              </div>
+              <div className="col-span-2 flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="status" size="sm" />
+                ) : (
+                  <DocumentIcon className="w-5 h-5" />
+                )}
+                <span>状态：{getStatusDisplay(selectedTask.status)}</span>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  theme === 'pixel'
+                    ? `font-mono uppercase ${getStatusColor(selectedTask.status)}`
+                    : getStatusColor(selectedTask.status)
+                }`}>
+                  {getStatusDisplay(selectedTask.status)}
+                </span>
+              </div>
+            </div>
+
+            {/* 任务凭证 */}
+            {selectedTask.proof && (
+              <div className={`p-4 rounded ${
+                theme === 'pixel' 
+                  ? 'bg-pixel-card border-2 border-pixel-border' 
+                  : 'bg-gray-50 border border-gray-200'
+              }`}>
+                <h5 className={`font-bold mb-2 ${
+                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+                }`}>
+                  {theme === 'pixel' ? 'PROOF' : '完成凭证'}
+                </h5>
+                <p className={`text-sm ${
+                  theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
+                }`}>
+                  {selectedTask.proof}
+                </p>
+              </div>
+            )}
+
+            {/* 审核评价 */}
+            {selectedTask.reviewComment && (
+              <div className={`p-4 rounded ${
+                theme === 'pixel' 
+                  ? 'bg-pixel-card border-2 border-pixel-border' 
+                  : 'bg-gray-50 border border-gray-200'
+              }`}>
+                <h5 className={`font-bold mb-2 ${
+                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+                }`}>
+                  {theme === 'pixel' ? 'REVIEW' : '审核评价'}
+                </h5>
+                <p className={`text-sm ${
+                  theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
+                }`}>
+                  {selectedTask.reviewComment}
+                </p>
+              </div>
+            )}
+
+            {/* 操作按钮 */}
+            <div className="flex space-x-3">
+              {/* 领取任务按钮 - 可领取视图 */}
+              {view === 'available' && isRecruiting && !selectedTask.assignee && !isTaskOverdue(selectedTask) && (
+                <button
+                  onClick={() => {
+                    handleAcceptTask(selectedTask.id);
+                    setSelectedTask(null);
+                  }}
+                  className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                    theme === 'pixel'
+                      ? 'bg-pixel-info text-black font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-accent'
+                      : 'bg-blue-500 text-white rounded-lg hover:bg-blue-600'
+                  }`}
+                >
+                  {theme === 'pixel' ? 'ACCEPT_TASK' : '领取任务'}
+                </button>
+              )}
+
+              {/* 开始任务按钮 - 已领取但未开始 */}
+              {isAssignee && isAssigned && !isTaskOverdue(selectedTask) && (
+                <div className="flex space-x-2 flex-1">
+                  <button
+                    onClick={() => {
+                      handleStartTask(selectedTask.id);
+                      setSelectedTask(null);
+                    }}
+                    className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                      theme === 'pixel'
+                        ? 'bg-pixel-warning text-black font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-accent'
+                        : 'bg-yellow-500 text-white rounded-lg hover:bg-yellow-600'
+                    }`}
+                  >
+                    {theme === 'pixel' ? 'START_TASK' : '开始任务'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleAbandonTask(selectedTask.id);
+                      setSelectedTask(null);
+                    }}
+                    className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                      theme === 'pixel'
+                        ? 'bg-pixel-accent text-black font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-purple'
+                        : 'bg-red-500 text-white rounded-lg hover:bg-red-600'
+                    }`}
+                  >
+                    {theme === 'pixel' ? 'ABANDON' : '放弃'}
+                  </button>
+                </div>
+              )}
+
+              {/* 提交任务按钮 - 进行中 */}
+              {isAssignee && isInProgress && !isTaskOverdue(selectedTask) && (
+                <button
+                  onClick={() => {
+                    handleCompleteTask(selectedTask.id);
+                    setSelectedTask(null);
+                  }}
+                  className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                    theme === 'pixel'
+                      ? 'bg-pixel-success text-black font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-accent'
+                      : 'bg-green-500 text-white rounded-lg hover:bg-green-600'
+                  }`}
+                >
+                  {theme === 'pixel' ? 'COMPLETE_TASK' : '完成任务'}
+                </button>
+              )}
+
+              {/* 审核任务按钮 - 待审核 */}
+              {isTaskOwner && isPendingReview && (
+                <div className="flex space-x-2 flex-1">
+                  <button
+                    onClick={() => {
+                      handleReviewTask(selectedTask.id, true);
+                      setSelectedTask(null);
+                    }}
+                    className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                      theme === 'pixel'
+                        ? 'bg-pixel-success text-black font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-accent'
+                        : 'bg-green-500 text-white rounded-lg hover:bg-green-600'
+                    }`}
+                  >
+                    {theme === 'pixel' ? 'APPROVE' : '通过'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleReviewTask(selectedTask.id, false);
+                      setSelectedTask(null);
+                    }}
+                    className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                      theme === 'pixel'
+                        ? 'bg-pixel-accent text-black font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-purple'
+                        : 'bg-red-500 text-white rounded-lg hover:bg-red-600'
+                    }`}
+                  >
+                    {theme === 'pixel' ? 'REJECT' : '拒绝'}
+                  </button>
+                </div>
+              )}
+
+              {/* 重新发布按钮 - 已放弃 */}
+              {isTaskOwner && isAbandoned && (
+                <button
+                  onClick={() => {
+                    handleRepublishTask(selectedTask.id);
+                    setSelectedTask(null);
+                  }}
+                  className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
+                    theme === 'pixel'
+                      ? 'bg-pixel-success text-black font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-accent'
+                      : 'bg-green-500 text-white rounded-lg hover:bg-green-600'
+                  }`}
+                >
+                  {theme === 'pixel' ? 'REPUBLISH' : '重新发布'}
+                </button>
+              )}
+
+              {/* 关闭按钮 */}
+              <button
+                onClick={() => setSelectedTask(null)}
+                className={`py-3 px-6 font-medium transition-all duration-300 ${
+                  theme === 'pixel'
+                    ? 'bg-pixel-panel text-pixel-text font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-card'
+                    : 'bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300'
+                }`}
+              >
+                {theme === 'pixel' ? 'CLOSE' : '关闭'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -761,11 +1237,112 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </div>
         );
       }
-    } else {
-      // assigned 和 available 视图的简单列表
+    } else if (type === 'assigned') {
+      // "我的任务"视图 - 按状态分类为四列
+      const notStartedTasks = taskList.filter(task => task.status === 'assigned');
+      const inProgressTasks = taskList.filter(task => task.status === 'in-progress');
+      const completedTasks = taskList.filter(task => task.status === 'completed');
+      const abandonedTasks = taskList.filter(task => task.status === 'abandoned');
+
       return (
-        <div className="space-y-4">
-          {taskList.map(task => renderTaskCard(task))}
+        <div className="space-y-6">
+          {/* 状态分类标题 */}
+          <div className="grid grid-cols-4 gap-4 px-8">
+            <div className={`text-center ${
+              theme === 'pixel' ? 'font-mono uppercase' : ''
+            }`}>
+              <h3 className={`font-bold text-lg mb-1 ${
+                theme === 'pixel' ? 'text-pixel-info' : 'text-blue-600'
+              }`}>
+                {theme === 'pixel' ? 'NOT_STARTED' : '未开始'}
+              </h3>
+              <span className={`text-sm ${
+                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+              }`}>
+                {notStartedTasks.length} 个任务
+              </span>
+            </div>
+            <div className={`text-center ${
+              theme === 'pixel' ? 'font-mono uppercase' : ''
+            }`}>
+              <h3 className={`font-bold text-lg mb-1 ${
+                theme === 'pixel' ? 'text-pixel-warning' : 'text-orange-600'
+              }`}>
+                {theme === 'pixel' ? 'IN_PROGRESS' : '进行中'}
+              </h3>
+              <span className={`text-sm ${
+                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+              }`}>
+                {inProgressTasks.length} 个任务
+              </span>
+            </div>
+            <div className={`text-center ${
+              theme === 'pixel' ? 'font-mono uppercase' : ''
+            }`}>
+              <h3 className={`font-bold text-lg mb-1 ${
+                theme === 'pixel' ? 'text-pixel-success' : 'text-green-600'
+              }`}>
+                {theme === 'pixel' ? 'COMPLETED' : '已完成'}
+              </h3>
+              <span className={`text-sm ${
+                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+              }`}>
+                {completedTasks.length} 个任务
+              </span>
+            </div>
+            <div className={`text-center ${
+              theme === 'pixel' ? 'font-mono uppercase' : ''
+            }`}>
+              <h3 className={`font-bold text-lg mb-1 ${
+                theme === 'pixel' ? 'text-pixel-accent' : 'text-red-600'
+              }`}>
+                {theme === 'pixel' ? 'ABANDONED' : '已关闭'}
+              </h3>
+              <span className={`text-sm ${
+                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+              }`}>
+                {abandonedTasks.length} 个任务
+              </span>
+            </div>
+          </div>
+          
+          {/* 任务卡片区域 - 四列布局 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+              {notStartedTasks.map(task => renderTaskCard(task))}
+            </div>
+            <div>
+              {inProgressTasks.map(task => renderTaskCard(task))}
+            </div>
+            <div>
+              {completedTasks.map(task => renderTaskCard(task))}
+            </div>
+            <div>
+              {abandonedTasks.map(task => renderTaskCard(task))}
+            </div>
+          </div>
+        </div>
+      );
+    } else {
+      // available 视图 - 带有"即将过期"标签
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {taskList.map(task => (
+            <div key={task.id} className={`relative ${
+              isTaskExpiringSoon(task.deadline) ? 'animate-pulse' : ''
+            }`}>
+              {isTaskExpiringSoon(task.deadline) && (
+                <div className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold ${
+                  theme === 'pixel' 
+                    ? 'bg-pixel-warning text-black border-2 border-black'
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {theme === 'pixel' ? 'EXPIRING_SOON' : '即将过期'}
+                </div>
+              )}
+              {renderTaskCard(task)}
+            </div>
+          ))}
         </div>
       );
     }
@@ -786,16 +1363,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         {loading && ' (加载中...)'}
           </div>
 
-            {/* Header */}
+                  {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className={`text-3xl font-bold ${
-              theme === 'pixel' 
+          theme === 'pixel' 
             ? 'font-retro text-pixel-text uppercase tracking-wider' 
             : 'font-display text-gray-700'
-            }`}>
-          {theme === 'pixel' ? 'TASK_BOARD.EXE' : '任务板'}
+        }`}>
+          {theme === 'pixel' ? 'TASK_MANAGER.EXE' : '任务看板'}
         </h2>
-          </div>
+      </div>
 
       {/* View Switcher and Add Button */}
       <div className="flex items-center justify-between w-full mb-6">
@@ -894,6 +1471,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </>
         )}
       </div>
+
+      {/* 任务详情弹窗 */}
+      {selectedTask && renderTaskDetailModal()}
 
       {/* 新建任务表单 */}
       {showAddForm && (
