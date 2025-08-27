@@ -14,7 +14,7 @@ interface Event {
   title: string;
   date: string;
   time?: string; // 改为可选
-  participants: ('cat' | 'cow')[]; // 改为参与者数组
+  participants: (string | 'cat' | 'cow')[]; // 改为参与者数组，支持字符串类型的用户ID
   color: string;
   isRecurring: boolean;
   recurrenceType?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
@@ -50,25 +50,21 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const [coupleId, setCoupleId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // 获取当前用户类型的辅助函数
-  const getCurrentUserType = (): 'cat' | 'cow' | null => {
-    if (!currentUser) return null;
-    if (currentUser.toLowerCase().includes('cat')) return 'cat';
-    if (currentUser.toLowerCase().includes('cow')) return 'cow';
-    return null;
-  };
-
-  // 根据当前用户设置默认视图
-  const getDefaultView = (): 'cat' | 'cow' | 'shared' => {
-    const userType = getCurrentUserType();
-    if (userType) {
-      return userType; // 如果是cat用户，默认显示cat日历；如果是cow用户，默认显示cow日历
-    }
-    return 'shared'; // 未登录或无法识别用户类型时显示共同日历
+  // 用户类型定义
+  type UserView = 'user1' | 'user2' | 'shared';
+  
+  // 用户信息状态
+  const [coupleUsers, setCoupleUsers] = useState<{user1: any, user2: any} | null>(null);
+  const [currentUserIsUser1, setCurrentUserIsUser1] = useState<boolean | null>(null);
+  
+  // 获取当前用户视图类型的辅助函数
+  const getDefaultView = (): UserView => {
+    if (!user) return 'shared'; // 未登录时显示共同日历
+    return 'user1'; // 默认显示当前用户的日历
   };
 
   // 添加视图状态 - 使用动态默认值
-  const [currentView, setCurrentView] = useState<'cat' | 'cow' | 'shared'>(getDefaultView());
+  const [currentView, setCurrentView] = useState<UserView>(getDefaultView());
   
   // 监听用户变化，当用户切换时自动更新视图
   useEffect(() => {
@@ -162,12 +158,18 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 数据库事件转换为前端Event格式
   const convertDatabaseEventToEvent = (dbEvent: DatabaseEvent): Event => {
+    // 保留所有参与者ID，不再过滤只保留'cat'和'cow'
+    const participants = dbEvent.participants as (string | 'cat' | 'cow')[];
+    
+    // 添加调试信息
+    console.log(`🔄 转换数据库事件: "${dbEvent.title}" - 参与者:`, participants);
+    
     return {
       id: dbEvent.id,
       title: dbEvent.title,
       date: dbEvent.event_date,
       time: dbEvent.start_time || undefined,
-      participants: dbEvent.participants.filter(p => p === 'cat' || p === 'cow') as ('cat' | 'cow')[],
+      participants: participants,
       color: dbEvent.color,
       isRecurring: dbEvent.is_recurring,
       recurrenceType: dbEvent.recurrence_type || undefined,
@@ -202,26 +204,86 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     setDataMode(user ? 'database' : 'mock');
   }, [user]);
 
-  // 加载情侣关系ID
+  // 加载情侣关系和用户信息
   useEffect(() => {
-    const loadCoupleId = async () => {
-      if (!user || dataMode !== 'database') {
+    const loadCoupleInfo = async () => {
+      console.log('🔄 开始加载情侣关系和用户信息...');
+      console.log('当前用户状态:', user ? `已登录 (${user.email})` : '未登录');
+      console.log('数据模式:', dataMode);
+      
+      if (!user) {
+        console.log('⚠️ 未登录，无法加载用户信息');
+        setLoading(false);
+        return;
+      }
+      
+      if (dataMode !== 'database') {
+        console.log('⚠️ 非数据库模式，使用演示数据');
+        
+        // 在演示模式下，设置模拟的情侣用户信息
+        setCoupleId('mock-couple-id');
+        setCurrentUserIsUser1(true);
+        setCoupleUsers({
+          user1: {
+            id: 'cat-user-id',
+            display_name: 'Whimsical Cat',
+            email: user.email
+          },
+          user2: {
+            id: 'cow-user-id',
+            display_name: 'Whimsical Cow',
+            email: 'cow@example.com'
+          }
+        });
+        console.log('✅ 已设置演示模式的情侣用户信息');
         setLoading(false);
         return;
       }
 
       try {
+        console.log('🔍 正在查询情侣关系...');
+        // 获取情侣关系
         const coupleData = await userService.getCoupleRelation(user.id);
+        console.log('情侣关系查询结果:', coupleData);
+        
         if (coupleData) {
           setCoupleId(coupleData.id);
+          
+          console.log('🔍 正在获取情侣用户信息...');
+          // 获取情侣中的用户信息
+          const users = await userService.getCoupleUsers(coupleData.id);
+          console.log('情侣用户查询结果:', users);
+          
+          if (users && users.length === 2) {
+            // 确定哪个用户是当前登录用户
+            const isUser1 = users[0].id === user.id;
+            setCurrentUserIsUser1(isUser1);
+            
+            // 设置用户信息
+            setCoupleUsers({
+              user1: isUser1 ? users[0] : users[1],
+              user2: isUser1 ? users[1] : users[0]
+            });
+            
+            console.log('✅ 已加载情侣用户信息:', {
+              currentUser: isUser1 ? users[0].display_name : users[1].display_name,
+              partner: isUser1 ? users[1].display_name : users[0].display_name,
+              user1Id: isUser1 ? users[0].id : users[1].id,
+              user2Id: isUser1 ? users[1].id : users[0].id
+            });
+          } else {
+            console.error('⚠️ 情侣用户信息不完整:', users);
+          }
+        } else {
+          console.error('⚠️ 未找到情侣关系');
         }
       } catch (error) {
-        console.error('加载情侣关系失败:', error);
+        console.error('❌ 加载情侣关系失败:', error);
       }
       setLoading(false);
     };
 
-    loadCoupleId();
+    loadCoupleInfo();
   }, [user, dataMode]);
 
   // 加载事件数据
@@ -280,7 +342,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     date: '', // 起始日期
     recurrenceEnd: '', // 结束日期（非必填）
     time: '', // 时间（非必填）
-    participants: [] as ('cat' | 'cow')[]
+    participants: [] as (string | 'cat' | 'cow')[]
   });
 
   // 确认弹窗状态
@@ -294,16 +356,23 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 检查用户是否有编辑权限
   const canEditEvent = (event: Event): boolean => {
-    const userType = getCurrentUserType();
-    if (!userType) return false;
+    // 如果没有加载用户信息或处于演示模式，使用旧的逻辑
+    if (!coupleUsers || !user || dataMode === 'mock') {
+      // 演示模式下，所有事件都可以编辑
+      return true;
+    }
+    
+    // 获取用户ID
+    const currentUserId = user.id;
     
     // 如果是共同事件，两人都可以编辑
-    if (event.participants.includes('cat') && event.participants.includes('cow')) {
+    if (event.participants.includes(coupleUsers.user1.id) && 
+        event.participants.includes(coupleUsers.user2.id)) {
       return true;
     }
     
     // 如果是个人事件，只有参与者本人可以编辑
-    return event.participants.includes(userType);
+    return event.participants.includes(currentUserId);
   };
 
   // 生成重复事件的实例
@@ -403,27 +472,105 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return [...baseEvents, ...expandedTaskEvents];
   };
 
+  // 检查事件是否包含指定用户的辅助函数
+  const eventIncludesUser = (event: Event, userId: string): boolean => {
+    if (!coupleUsers || !user) return false;
+    
+    const user1Id = coupleUsers.user1.id;
+    const user2Id = coupleUsers.user2.id;
+    
+    // 直接检查用户ID是否包含在参与者中
+    if (event.participants.includes(userId)) {
+      return true;
+    }
+    
+    // 对于演示模式，特殊处理cat/cow
+    if (dataMode === 'mock' || userId === 'cat-user-id' || userId === 'cow-user-id') {
+      // 如果是cat-user-id，检查是否包含'cat'
+      if (userId === 'cat-user-id' || userId === user1Id) {
+        if (event.participants.includes('cat')) {
+          return true;
+        }
+      }
+      
+      // 如果是cow-user-id，检查是否包含'cow'
+      if (userId === 'cow-user-id' || userId === user2Id) {
+        if (event.participants.includes('cow')) {
+          return true;
+        }
+      }
+    }
+    
+    // 记录详细的调试信息
+    if (event.participants.length > 0) {
+      console.log(`🔍 检查事件 "${event.title}" 是否包含用户 ${userId}:`, 
+        `参与者=${JSON.stringify(event.participants)}`,
+        `结果=false`
+      );
+    }
+    
+    return false;
+  };
+
   // 根据当前视图筛选事件
   const getFilteredEvents = (allEvents: Event[]): Event[] => {
+    // 如果没有加载用户信息，返回所有事件
+    if (!coupleUsers || !user) {
+      console.log('⚠️ 未加载用户信息，返回所有事件', allEvents.length);
+      return allEvents;
+    }
+    
+    // 获取用户ID
+    const user1Id = coupleUsers.user1.id;
+    const user2Id = coupleUsers.user2.id;
+    const currentUserId = user.id;
+    
+    // 日志用户信息
+    console.log('🔍 当前用户信息:', {
+      currentUserId,
+      isUser1: currentUserIsUser1,
+      user1: { id: user1Id, name: coupleUsers.user1.display_name },
+      user2: { id: user2Id, name: coupleUsers.user2.display_name },
+      currentView
+    });
+    
+    // 调试每个事件的参与者
+    console.log('🧩 事件参与者详情:');
+    allEvents.forEach((event, index) => {
+      if (index < 5) { // 只打印前5个事件，避免日志过多
+        console.log(`事件 ${index+1}: "${event.title}" - 参与者:`, event.participants, 
+          `包含用户1: ${eventIncludesUser(event, user1Id)}`,
+          `包含用户2: ${eventIncludesUser(event, user2Id)}`
+        );
+      }
+    });
+    
+    let filteredEvents: Event[] = [];
+    
     switch (currentView) {
-      case 'cat':
-        // 猫猫日历：显示所有猫猫参与的事件（包括共同参与的）
-        return allEvents.filter(event => 
-          event.participants.includes('cat')
-        );
-      case 'cow':
-        // 奶牛日历：显示所有奶牛参与的事件（包括共同参与的）
-        return allEvents.filter(event => 
-          event.participants.includes('cow')
-        );
+      case 'user1':
+        // 我的日历：显示所有我参与的事件（包括共同参与的）
+        filteredEvents = allEvents.filter(event => eventIncludesUser(event, user1Id));
+        console.log(`📅 我的日历: 筛选出 ${filteredEvents.length}/${allEvents.length} 个事件`);
+        break;
+      case 'user2':
+        // 伴侣日历：显示所有伴侣参与的事件（包括共同参与的）
+        filteredEvents = allEvents.filter(event => eventIncludesUser(event, user2Id));
+        console.log(`📅 伴侣日历: 筛选出 ${filteredEvents.length}/${allEvents.length} 个事件`);
+        break;
       case 'shared':
         // 共同日历：只显示两人都参与的事件
-        return allEvents.filter(event => 
-          event.participants.includes('cat') && event.participants.includes('cow')
+        filteredEvents = allEvents.filter(event => 
+          eventIncludesUser(event, user1Id) && eventIncludesUser(event, user2Id)
         );
+        console.log(`📅 共同日历: 筛选出 ${filteredEvents.length}/${allEvents.length} 个事件`);
+        break;
       default:
-        return allEvents;
+        filteredEvents = allEvents;
+        console.log(`📅 默认视图: 显示所有 ${allEvents.length} 个事件`);
     }
+    
+    return filteredEvents;
   };
 
   // 修改获取某天事件的函数
@@ -636,79 +783,174 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   };
 
   // 根据参与者生成颜色
-  const getEventColor = (participants: ('cat' | 'cow')[]): string => {
+  const getEventColor = (participants: (string | 'cat' | 'cow')[]): string => {
+    // 检查是否有用户信息
+    if (!coupleUsers || !user) {
+      console.log('⚠️ 获取事件颜色：未加载用户信息，使用默认颜色');
+      return theme === 'pixel' ? 'bg-pixel-textMuted' : 'bg-sage-500';
+    }
+    
+    // 获取用户ID
+    const user1Id = coupleUsers.user1.id;
+    const user2Id = coupleUsers.user2.id;
+    
+    // 检查参与者包含哪些用户
+    const hasUser1 = eventIncludesUser({ participants } as Event, user1Id);
+    const hasUser2 = eventIncludesUser({ participants } as Event, user2Id);
+    
+    // 记录颜色选择的调试信息
+    console.log(`🎨 事件颜色选择:`, {
+      参与者: participants,
+      包含用户1: hasUser1,
+      包含用户2: hasUser2,
+      主题: theme
+    });
+    
     if (theme === 'pixel') {
-      if (participants.includes('cat') && participants.includes('cow')) {
-        return 'bg-pixel-purple'; // 双方参与：像素风紫色，深色背景确保白字清晰
-      } else if (participants.includes('cat')) {
-        return 'bg-pixel-accent'; // 只有猫咪：像素风霓虹粉色
-      } else if (participants.includes('cow')) {
-        return 'bg-pixel-info'; // 只有奶牛：像素风蓝色
+      if (hasUser1 && hasUser2) {
+        return 'bg-pixel-purple'; // 双方参与：像素风紫色
+      } else if (hasUser1) {
+        return 'bg-pixel-accent'; // 用户1：像素风霓虹粉色
+      } else if (hasUser2) {
+        return 'bg-pixel-info'; // 用户2：像素风蓝色
       }
       return 'bg-pixel-textMuted';
     }
     
-
-    
-    // 默认主题颜色（包括fresh主题，fresh主题使用内联样式）
-    if (participants.includes('cat') && participants.includes('cow')) {
-      return 'bg-purple-500'; // 双方参与：深紫色，确保白色文字清晰
-    } else if (participants.includes('cat')) {
-      return 'bg-primary-400'; // 只有猫咪：粉色
-    } else if (participants.includes('cow')) {
-      return 'bg-blue-400'; // 只有奶牛：蓝色
+    // 默认主题颜色
+    if (hasUser1 && hasUser2) {
+      return 'bg-purple-500'; // 双方参与：深紫色
+    } else if (hasUser1) {
+      return 'bg-primary-400'; // 用户1：粉色
+    } else if (hasUser2) {
+      return 'bg-blue-400'; // 用户2：蓝色
     }
     return 'bg-sage-500';
   };
 
   // 为清新主题获取内联样式背景色
-  const getEventBackgroundStyle = (participants: ('cat' | 'cow')[]): React.CSSProperties | undefined => {
+  const getEventBackgroundStyle = (participants: (string | 'cat' | 'cow')[]): React.CSSProperties | undefined => {
     if (theme !== 'fresh') return undefined;
     
-    if (participants.includes('cat') && participants.includes('cow')) {
-      return { backgroundColor: '#10b981' }; // 清新绿色
-    } else if (participants.includes('cat')) {
-      return { backgroundColor: '#06b6d4' }; // Cat专属青色
-    } else if (participants.includes('cow')) {
-      return { backgroundColor: '#8b5cf6' }; // Cow专属紫色
+    // 检查是否有用户信息
+    if (!coupleUsers || !user) {
+      return { backgroundColor: '#64748b' }; // 默认灰色
+    }
+    
+    // 获取用户ID
+    const user1Id = coupleUsers.user1.id;
+    const user2Id = coupleUsers.user2.id;
+    
+    // 检查参与者包含哪些用户
+    const hasUser1 = eventIncludesUser({ participants } as Event, user1Id);
+    const hasUser2 = eventIncludesUser({ participants } as Event, user2Id);
+    
+    // 记录颜色选择的调试信息（仅在调试模式下）
+    if (participants.length > 0 && participants.length < 3) {
+      console.log(`🎨 清新主题事件颜色:`, {
+        参与者: participants,
+        包含用户1: hasUser1,
+        包含用户2: hasUser2
+      });
+    }
+    
+    if (hasUser1 && hasUser2) {
+      return { backgroundColor: '#10b981' }; // 清新绿色 - 共同事件
+    } else if (hasUser1) {
+      return { backgroundColor: '#06b6d4' }; // 用户1专属青色
+    } else if (hasUser2) {
+      return { backgroundColor: '#8b5cf6' }; // 用户2专属紫色
     }
     return { backgroundColor: '#64748b' }; // 默认灰色
   };
 
   // 获取参与者显示文本
-  const getParticipantsText = (participants: ('cat' | 'cow')[]): string => {
-    const names = participants.map(p => p === 'cat' ? 'Whimsical Cat' : 'Whimsical Cow');
+  const getParticipantsText = (participants: (string | 'cat' | 'cow')[]): string => {
+    // 如果没有加载用户信息或处于演示模式，使用旧的逻辑
+    if (!coupleUsers || !user || dataMode === 'mock') {
+      const names = participants.map(p => {
+        if (typeof p === 'string') {
+          if (p === 'cat') return 'Whimsical Cat';
+          if (p === 'cow') return 'Whimsical Cow';
+          return p; // 未知参与者，直接显示ID
+        }
+        return p === 'cat' ? 'Whimsical Cat' : 'Whimsical Cow';
+      });
+      return names.join(', ');
+    }
+    
+    // 获取用户ID和名称
+    const user1Id = coupleUsers.user1.id;
+    const user2Id = coupleUsers.user2.id;
+    const user1Name = coupleUsers.user1.display_name || '用户1';
+    const user2Name = coupleUsers.user2.display_name || '用户2';
+    
+    // 映射参与者ID到名称
+    const names = participants.map(p => {
+      if (typeof p === 'string') {
+        if (p === user1Id) return user1Name;
+        if (p === user2Id) return user2Name;
+        if (p === 'cat') return currentUserIsUser1 ? user1Name : user2Name; // 兼容mock数据
+        if (p === 'cow') return currentUserIsUser1 ? user2Name : user1Name; // 兼容mock数据
+        return p; // 未知参与者，直接显示ID
+      }
+      // 兼容mock数据
+      return p === 'cat' 
+        ? (currentUserIsUser1 ? user1Name : user2Name)
+        : (currentUserIsUser1 ? user2Name : user1Name);
+    });
+    
     return names.join(', ');
+  };
+
+  // 获取用户ID（兼容mock数据和真实数据）
+  const getUserIdForParticipant = (participant: 'cat' | 'cow'): string => {
+    if (!coupleUsers || !user || dataMode === 'mock') {
+      return participant; // 在演示模式下，直接返回'cat'或'cow'
+    }
+    
+    // 在数据库模式下，返回真实用户ID
+    if (currentUserIsUser1) {
+      // 当前用户是user1
+      return participant === 'cat' ? coupleUsers.user1.id : coupleUsers.user2.id;
+    } else {
+      // 当前用户是user2
+      return participant === 'cat' ? coupleUsers.user2.id : coupleUsers.user1.id;
+    }
   };
 
   // 切换参与者选择（新建事件）
   const toggleParticipant = (participant: 'cat' | 'cow') => {
+    const userId = getUserIdForParticipant(participant);
     const currentParticipants = newEvent.participants;
-    if (currentParticipants.includes(participant)) {
+    
+    if (currentParticipants.includes(userId)) {
       setNewEvent({
         ...newEvent,
-        participants: currentParticipants.filter(p => p !== participant)
+        participants: currentParticipants.filter(p => p !== userId)
       });
     } else {
       setNewEvent({
         ...newEvent,
-        participants: [...currentParticipants, participant]
+        participants: [...currentParticipants, userId]
       });
     }
   };
 
   // 切换参与者选择（编辑事件）
   const toggleEditParticipant = (participant: 'cat' | 'cow') => {
+    const userId = getUserIdForParticipant(participant);
     const currentParticipants = editEvent.participants || [];
-    if (currentParticipants.includes(participant)) {
+    
+    if (currentParticipants.includes(userId)) {
       setEditEvent({
         ...editEvent,
-        participants: currentParticipants.filter(p => p !== participant)
+        participants: currentParticipants.filter(p => p !== userId)
       });
     } else {
       setEditEvent({
         ...editEvent,
-        participants: [...currentParticipants, participant]
+        participants: [...currentParticipants, userId]
       });
     }
   };
@@ -825,12 +1067,56 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const panelEvents = getEventsForDate(panelDateStr);
   
   // 获取用户图标
-  const getUserIcon = (userType: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
+  const getUserIcon = (userType: string | 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
+    // 如果没有加载用户信息或处于演示模式，使用旧的逻辑
+    if (!coupleUsers || !user || dataMode === 'mock') {
+      // 处理字符串类型的用户ID
+      const isCat = userType === 'cat' || 
+                   (typeof userType === 'string' && userType.toLowerCase().includes('cat'));
+      
+      if (theme === 'pixel') {
+        return (
+          <PixelIcon 
+            name="user" 
+            className={isCat ? 'text-pixel-warning' : 'text-pixel-info'}
+            size={size}
+          />
+        );
+      } else {
+        return (
+          <UserIcon className={`${
+            size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
+          } ${isCat ? 'text-primary-500' : 'text-blue-500'}`} />
+        );
+      }
+    }
+    
+    // 获取用户ID
+    const user1Id = coupleUsers.user1.id;
+    const user2Id = coupleUsers.user2.id;
+    
+    // 确定是哪个用户
+    let isUser1 = false;
+    
+    if (typeof userType === 'string') {
+      if (userType === user1Id) {
+        isUser1 = true;
+      } else if (userType === user2Id) {
+        isUser1 = false;
+      } else if (userType === 'cat') {
+        isUser1 = currentUserIsUser1 === true;
+      } else if (userType === 'cow') {
+        isUser1 = currentUserIsUser1 === false;
+      }
+    } else {
+      isUser1 = userType === 'cat' ? currentUserIsUser1 === true : currentUserIsUser1 === false;
+    }
+    
     if (theme === 'pixel') {
       return (
         <PixelIcon 
           name="user" 
-          className={userType === 'cat' ? 'text-pixel-warning' : 'text-pixel-info'}
+          className={isUser1 ? 'text-pixel-warning' : 'text-pixel-info'}
           size={size}
         />
       );
@@ -838,7 +1124,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return (
         <UserIcon className={`${
           size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
-        } ${userType === 'cat' ? 'text-primary-500' : 'text-blue-500'}`} />
+        } ${isUser1 ? 'text-primary-500' : 'text-blue-500'}`} />
       );
     }
   };
@@ -905,6 +1191,44 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             <span className="text-green-600 font-medium"> (已禁用localStorage任务事件)</span>
           )}
         </div>
+        
+        {/* 调试面板 */}
+        {coupleUsers && user && (
+          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+            <h4 className="font-bold text-blue-800">🔍 日历视图调试信息</h4>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <div>
+                <span className="font-medium">当前视图:</span> {
+                  currentView === 'user1' ? '我的日历' :
+                  currentView === 'user2' ? '伴侣日历' : '共同日历'
+                }
+              </div>
+              <div>
+                <span className="font-medium">当前用户:</span> {
+                  currentUserIsUser1 ? coupleUsers.user1.display_name : coupleUsers.user2.display_name
+                }
+              </div>
+              <div>
+                <span className="font-medium">用户1:</span> {coupleUsers.user1.display_name} ({coupleUsers.user1.id.substring(0, 8)}...)
+              </div>
+              <div>
+                <span className="font-medium">用户2:</span> {coupleUsers.user2.display_name} ({coupleUsers.user2.id.substring(0, 8)}...)
+              </div>
+              <div className="col-span-2">
+                <span className="font-medium">事件过滤:</span> 
+                我的日历 ({getAllEvents().filter(e => 
+                  coupleUsers && eventIncludesUser(e, coupleUsers.user1.id)
+                ).length} 个) | 
+                伴侣日历 ({getAllEvents().filter(e => 
+                  coupleUsers && eventIncludesUser(e, coupleUsers.user2.id)
+                ).length} 个) | 
+                共同日历 ({getAllEvents().filter(e => 
+                  coupleUsers && eventIncludesUser(e, coupleUsers.user1.id) && eventIncludesUser(e, coupleUsers.user2.id)
+                ).length} 个)
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {/* Debug Info - 暂时隐藏 */}
       {/* 
@@ -945,7 +1269,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             <span className={`text-sm ${
               theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-fresh-text'
             }`}>
-              {theme === 'pixel' ? 'CAT_EVENTS' : 'Cat 的日程'}
+              {theme === 'pixel' 
+                ? 'USER1_EVENTS' 
+                : coupleUsers && user 
+                  ? `${coupleUsers.user1.display_name || '用户1'} 的日程`
+                  : '用户1的日程'
+              }
             </span>
           </div>
           <div className="flex items-center space-x-2">
@@ -960,7 +1289,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             <span className={`text-sm ${
               theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-fresh-text'
             }`}>
-              {theme === 'pixel' ? 'COW_EVENTS' : 'Cow 的日程'}
+              {theme === 'pixel' 
+                ? 'USER2_EVENTS' 
+                : coupleUsers && user 
+                  ? `${coupleUsers.user2.display_name || '用户2'} 的日程`
+                  : '用户2的日程'
+              }
             </span>
           </div>
           <div className="flex items-center space-x-2">
@@ -1004,62 +1338,62 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           }`}>
             <button
               onClick={() => {
-                setCurrentView('cat');
+                setCurrentView('user1');
               }}
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel' 
                   ? `font-mono uppercase border-r-4 border-pixel-border ${
-                      currentView === 'cat'
+                      currentView === 'user1'
                         ? 'bg-pixel-accent text-black shadow-pixel-inner'
                         : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                     }`
                   : theme === 'fresh'
                   ? `border-r border-fresh-border ${
-                      currentView === 'cat'
+                      currentView === 'user1'
                         ? 'text-white shadow-fresh-sm'
                         : 'text-fresh-text hover:bg-fresh-primary'
                     }`
                   : `${
-                      currentView === 'cat'
+                      currentView === 'user1'
                         ? 'bg-primary-400 text-white'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
-              style={theme === 'fresh' && currentView === 'cat' ? { backgroundColor: '#06b6d4' } : undefined}
+              style={theme === 'fresh' && currentView === 'user1' ? { backgroundColor: '#06b6d4' } : undefined}
             >
-              {getUserIcon('cat', 'sm')}
+              <UserIcon className="w-4 h-4 mr-1" />
               <span className="font-medium">
-                {theme === 'pixel' ? 'CAT_LOG' : '猫猫日历'}
+                {theme === 'pixel' ? 'MY_CALENDAR' : '我的日历'}
               </span>
             </button>
             <button
               onClick={() => {
-                setCurrentView('cow');
+                setCurrentView('user2');
               }}
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel'
                   ? `font-mono uppercase border-r-4 border-pixel-border ${
-                      currentView === 'cow'
+                      currentView === 'user2'
                         ? 'bg-pixel-accent text-black shadow-pixel-inner'
                         : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                     }`
                   : theme === 'fresh'
                   ? `border-r border-fresh-border ${
-                      currentView === 'cow'
+                      currentView === 'user2'
                         ? 'text-white shadow-fresh-sm'
                         : 'text-fresh-text hover:bg-fresh-primary'
                     }`
                   : `${
-                      currentView === 'cow'
+                      currentView === 'user2'
                         ? 'bg-blue-400 text-white'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
-              style={theme === 'fresh' && currentView === 'cow' ? { backgroundColor: '#8b5cf6' } : undefined}
+              style={theme === 'fresh' && currentView === 'user2' ? { backgroundColor: '#8b5cf6' } : undefined}
             >
-              {getUserIcon('cow', 'sm')}
+              <UserIcon className="w-4 h-4 mr-1" />
               <span className="font-medium">
-                {theme === 'pixel' ? 'COW_LOG' : '奶牛日历'}
+                {theme === 'pixel' ? 'PARTNER_CALENDAR' : '伴侣日历'}
               </span>
             </button>
             <button
@@ -1088,7 +1422,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             >
               {getHeartIcon('sm')}
               <span className="font-medium">
-                {theme === 'pixel' ? 'SHARED_LOG' : '共同日历'}
+                {theme === 'pixel' ? 'SHARED_CALENDAR' : '共同日历'}
               </span>
             </button>
           </div>
@@ -1363,11 +1697,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                   : 'font-display text-gray-800'
               }`}>
                 {theme === 'pixel' 
-                  ? (currentView === 'cat' ? 'CAT_DAY' : 
-                     currentView === 'cow' ? 'COW_DAY' : 
-                     'SHARED_DAY')
-                  : (currentView === 'cat' ? '猫猫日程' : 
-                     currentView === 'cow' ? '奶牛日程' : 
+                  ? (currentView === 'user1' ? 'MY_CALENDAR' : 
+                     currentView === 'user2' ? 'PARTNER_CALENDAR' : 
+                     'SHARED_CALENDAR')
+                  : (currentView === 'user1' ? '我的日程' : 
+                     currentView === 'user2' ? '伴侣日程' : 
                      '共同日程')
                 }
               </h3>
@@ -1395,11 +1729,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 </div>
                  <p className={`${theme === 'pixel' ? 'text-pixel-textMuted font-mono uppercase' : 'text-gray-500'}`}>
                    {theme === 'pixel' 
-                     ? (currentView === 'cat' ? 'NO_CAT_EVENTS' : 
-                        currentView === 'cow' ? 'NO_COW_EVENTS' : 
+                     ? (currentView === 'user1' ? 'NO_USER_EVENTS' : 
+                        currentView === 'user2' ? 'NO_PARTNER_EVENTS' : 
                         'NO_SHARED_EVENTS')
-                     : (currentView === 'cat' ? '猫猫该日没有日程安排' : 
-                        currentView === 'cow' ? '奶牛该日没有日程安排' : 
+                     : (currentView === 'user1' ? '该日没有个人日程安排' : 
+                        currentView === 'user2' ? '该日没有伴侣日程安排' : 
                         '该日没有共同日程')
                    }
                  </p>
@@ -1868,7 +2202,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       type="button"
                       onClick={() => toggleEditParticipant('cat')}
                       className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                        editEvent.participants?.includes('cat')
+                        editEvent.participants?.includes(getUserIdForParticipant('cat'))
                           ? theme === 'pixel'
                             ? 'bg-pixel-accent text-black border-2 border-white'
                             : 'bg-primary-500 text-white'
@@ -1879,14 +2213,14 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     >
                       {getUserIcon('cat', 'sm')}
                       <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
-                        {theme === 'pixel' ? 'CAT' : 'Whimsical Cat'}
+                        {theme === 'pixel' ? 'USER_1' : coupleUsers && user ? coupleUsers.user1.display_name || '用户1' : 'Whimsical Cat'}
                       </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => toggleEditParticipant('cow')}
                       className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                        editEvent.participants?.includes('cow')
+                        editEvent.participants?.includes(getUserIdForParticipant('cow'))
                           ? theme === 'pixel'
                             ? 'bg-pixel-accent text-black border-2 border-white'
                             : 'bg-blue-500 text-white'
@@ -1897,7 +2231,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     >
                       {getUserIcon('cow', 'sm')}
                       <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
-                        {theme === 'pixel' ? 'COW' : 'Whimsical Cow'}
+                        {theme === 'pixel' ? 'USER_2' : coupleUsers && user ? coupleUsers.user2.display_name || '用户2' : 'Whimsical Cow'}
                       </span>
                     </button>
                   </div>
@@ -2099,44 +2433,44 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 }`}>
                   {theme === 'pixel' ? 'PARTICIPANTS *' : '参与者 *'}
                 </label>
-                <div className="flex space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => toggleParticipant('cat')}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                      newEvent.participants.includes('cat')
-                        ? theme === 'pixel'
-                          ? 'bg-pixel-accent text-black border-2 border-white'
-                          : 'bg-primary-500 text-white'
-                        : theme === 'pixel'
-                          ? 'bg-pixel-card text-pixel-text border-2 border-pixel-border hover:border-pixel-accent'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {getUserIcon('cat', 'sm')}
-                    <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
-                      {theme === 'pixel' ? 'CAT' : 'Whimsical Cat'}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleParticipant('cow')}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                      newEvent.participants.includes('cow')
-                        ? theme === 'pixel'
-                          ? 'bg-pixel-accent text-black border-2 border-white'
-                          : 'bg-blue-500 text-white'
-                        : theme === 'pixel'
-                          ? 'bg-pixel-card text-pixel-text border-2 border-pixel-border hover:border-pixel-accent'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {getUserIcon('cow', 'sm')}
-                    <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
-                      {theme === 'pixel' ? 'COW' : 'Whimsical Cow'}
-                    </span>
-                  </button>
-                </div>
+                                  <div className="flex space-x-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleParticipant('cat')}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
+                        newEvent.participants.includes(getUserIdForParticipant('cat'))
+                          ? theme === 'pixel'
+                            ? 'bg-pixel-accent text-black border-2 border-white'
+                            : 'bg-primary-500 text-white'
+                          : theme === 'pixel'
+                            ? 'bg-pixel-card text-pixel-text border-2 border-pixel-border hover:border-pixel-accent'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {getUserIcon('cat', 'sm')}
+                      <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
+                        {theme === 'pixel' ? 'USER_1' : coupleUsers && user ? coupleUsers.user1.display_name || '用户1' : 'Whimsical Cat'}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleParticipant('cow')}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
+                        newEvent.participants.includes(getUserIdForParticipant('cow'))
+                          ? theme === 'pixel'
+                            ? 'bg-pixel-accent text-black border-2 border-white'
+                            : 'bg-blue-500 text-white'
+                          : theme === 'pixel'
+                            ? 'bg-pixel-card text-pixel-text border-2 border-pixel-border hover:border-pixel-accent'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {getUserIcon('cow', 'sm')}
+                      <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
+                        {theme === 'pixel' ? 'USER_2' : coupleUsers && user ? coupleUsers.user2.display_name || '用户2' : 'Whimsical Cow'}
+                      </span>
+                    </button>
+                  </div>
               </div>
 
               {/* 操作按钮 */}
