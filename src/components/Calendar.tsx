@@ -96,7 +96,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const getEventColor = (participants: string[]): string => {
     // 检查是否有用户信息
     if (!coupleUsers || !user) {
-      console.log('⚠️ 获取事件颜色：未加载用户信息，使用默认颜色');
       return theme === 'pixel' ? 'bg-pixel-textMuted' : 'bg-sage-500';
     }
     
@@ -108,13 +107,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const hasUser1 = eventIncludesUser({ participants } as Event, user1Id);
     const hasUser2 = eventIncludesUser({ participants } as Event, user2Id);
     
-    // 记录颜色选择的调试信息
-    console.log(`🎨 事件颜色选择:`, {
-      参与者: participants,
-      包含用户1: hasUser1,
-      包含用户2: hasUser2,
-      主题: theme
-    });
+
     
     // 像素风主题固定颜色分配：
     // - 共同事件: 紫色 (bg-pixel-purple)
@@ -266,7 +259,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 user2 = users[1]; // 当前用户 (在couples表中是user2)
               } else {
                 // 异常情况：当前用户不在用户列表中
-                console.error('当前用户不在couples关系中');
                 return;
               }
             } else {
@@ -484,27 +476,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const currentUserIdForFiltering = isCurrentUserUser1 ? user1Id : user2Id;
     const partnerIdForFiltering = isCurrentUserUser1 ? user2Id : user1Id;
     
-    // 日志用户信息
-    console.log('🔍 当前用户信息:', {
-      currentUserId,
-      isUser1: currentUserIsUser1,
-      user1: { id: user1Id, name: coupleUsers.user1.display_name },
-      user2: { id: user2Id, name: coupleUsers.user2.display_name },
-      currentView,
-      当前登录用户ID: currentUserIdForFiltering,
-      伴侣ID: partnerIdForFiltering
-    });
-    
-    // 调试每个事件的参与者
-    console.log('🧩 事件参与者详情:');
-    allEvents.forEach((event, index) => {
-      if (index < 5) { // 只打印前5个事件，避免日志过多
-        console.log(`事件 ${index+1}: "${event.title}" - 参与者:`, event.participants, 
-          `包含当前用户: ${eventIncludesUser(event, currentUserIdForFiltering)}`,
-          `包含伴侣: ${eventIncludesUser(event, partnerIdForFiltering)}`
-        );
-      }
-    });
     
     let filteredEvents: Event[] = [];
     
@@ -512,23 +483,19 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       case 'user1':
         // 我的日历：显示所有当前登录用户参与的事件（包括共同参与的）
         filteredEvents = allEvents.filter(event => eventIncludesUser(event, currentUserIdForFiltering));
-        console.log(`📅 我的日历: 筛选出 ${filteredEvents.length}/${allEvents.length} 个事件`);
         break;
       case 'user2':
         // 伴侣日历：显示所有伴侣参与的事件（包括共同参与的）
         filteredEvents = allEvents.filter(event => eventIncludesUser(event, partnerIdForFiltering));
-        console.log(`📅 伴侣日历: 筛选出 ${filteredEvents.length}/${allEvents.length} 个事件`);
         break;
       case 'shared':
         // 共同日历：只显示两人都参与的事件
         filteredEvents = allEvents.filter(event => 
           eventIncludesUser(event, currentUserIdForFiltering) && eventIncludesUser(event, partnerIdForFiltering)
         );
-        console.log(`📅 共同日历: 筛选出 ${filteredEvents.length}/${allEvents.length} 个事件`);
         break;
       default:
         filteredEvents = allEvents;
-        console.log(`📅 默认视图: 显示所有 ${allEvents.length} 个事件`);
     }
     
     return filteredEvents;
@@ -790,14 +757,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const hasUser1 = eventIncludesUser({ participants } as Event, user1Id);
     const hasUser2 = eventIncludesUser({ participants } as Event, user2Id);
     
-    // 记录颜色选择的调试信息（仅在调试模式下）
-    if (participants.length > 0 && participants.length < 3) {
-      console.log(`🎨 清新主题事件颜色:`, {
-        参与者: participants,
-        包含用户1: hasUser1,
-        包含用户2: hasUser2
-      });
-    }
+
     
     // 使用简化的颜色配置：
     const eventColor = minimalColorService.getEventColor(

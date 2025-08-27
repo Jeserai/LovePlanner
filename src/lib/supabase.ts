@@ -5,7 +5,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholde
 
 // 检查环境变量是否正确配置
 if (typeof window !== 'undefined' && (supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey === 'placeholder-anon-key')) {
-  console.warn('⚠️ Supabase环境变量未配置，请设置 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  // Supabase环境变量未配置
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

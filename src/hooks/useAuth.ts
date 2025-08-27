@@ -18,7 +18,7 @@ export function useAuth() {
           setUser(currentUser)
         }
       } catch (error) {
-        console.warn('Preset user parse error:', error)
+
       }
       setLoading(false)
     }

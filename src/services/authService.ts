@@ -113,7 +113,7 @@ export const authService = {
         throw new Error('获取用户档案失败');
       }
 
-      console.log('✅ Supabase Auth 登录成功:', user.email);
+
       
       // 保存到本地存储（为了保持状态）
       localStorage.setItem('preset_user', JSON.stringify(user));
@@ -207,7 +207,7 @@ export const authService = {
       const savedUser = localStorage.getItem('preset_user');
       return savedUser ? JSON.parse(savedUser) : null;
     } catch (error) {
-      console.warn('解析用户数据失败:', error);
+
       return null;
     }
   }

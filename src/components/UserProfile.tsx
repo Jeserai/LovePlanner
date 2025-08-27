@@ -150,7 +150,7 @@ const UserProfile: React.FC = () => {
       }
       
       setIsEditing(false);
-      console.log('✅ 用户资料更新成功');
+
     } catch (error) {
       console.error('保存用户资料失败:', error);
       alert('保存失败，请重试');
