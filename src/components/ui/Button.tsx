@@ -57,7 +57,7 @@ const Button: React.FC<ButtonProps> = ({
     } else if (theme === 'fresh') {
       switch (variant) {
         case 'primary':
-          return 'bg-gradient-to-r from-fresh-primary to-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:from-fresh-accent hover:to-fresh-primary focus:ring-fresh-primary';
+          return 'bg-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:bg-fresh-primary focus:ring-fresh-primary';
         case 'secondary':
           return 'bg-fresh-card text-fresh-text border border-fresh-border rounded-fresh-lg hover:bg-fresh-primary hover:text-white focus:ring-fresh-primary';
         case 'danger':
@@ -65,13 +65,13 @@ const Button: React.FC<ButtonProps> = ({
         case 'navigation':
           return 'text-fresh-text hover:text-fresh-primary transition-colors rounded-fresh-lg border border-fresh-border hover:border-fresh-primary';
         default:
-          return 'bg-gradient-to-r from-fresh-primary to-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:from-fresh-accent hover:to-fresh-primary focus:ring-fresh-primary';
+          return 'bg-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:bg-fresh-primary focus:ring-fresh-primary';
       }
     } else {
       // Default theme
       switch (variant) {
         case 'primary':
-          return 'bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:from-primary-600 hover:to-primary-700 focus:ring-primary-500';
+          return 'bg-primary-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:bg-primary-600 focus:ring-primary-500';
         case 'secondary':
           return 'bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 focus:ring-primary-500';
         case 'danger':
@@ -79,7 +79,7 @@ const Button: React.FC<ButtonProps> = ({
         case 'navigation':
           return 'text-gray-600 hover:text-gray-800 transition-colors rounded-xl border border-gray-300 hover:border-gray-400';
         default:
-          return 'bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:from-primary-600 hover:to-primary-700 focus:ring-primary-500';
+          return 'bg-primary-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:bg-primary-600 focus:ring-primary-500';
       }
     }
   };

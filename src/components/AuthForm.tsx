@@ -33,8 +33,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
         success: '#059669',
         warning: '#d97706',
         info: '#0284c7',
-        catColor: '#06b6d4',
-        cowColor: '#8b5cf6',
+        catColor: '#8b5cf6',
+        cowColor: '#06b6d4',
         mint: '#6ee7b7',
         sky: '#0ea5e9',
       };

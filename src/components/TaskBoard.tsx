@@ -7,8 +7,10 @@ import PixelIcon from './PixelIcon';
 import Button from './ui/Button';
 import NavigationButton from './ui/NavigationButton';
 import LoadingSpinner from './ui/LoadingSpinner';
+import Card from './ui/Card';
 import PointsDisplay from './PointsDisplay';
 import { useAuth } from '../hooks/useAuth';
+import { useUser } from '../contexts/UserContext';
 import { taskService, userService, pointService } from '../services/database';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
@@ -52,6 +54,7 @@ interface TaskBoardProps {
 const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { userProfile } = useUser();
   const [view, setView] = useState<'published' | 'assigned' | 'available'>('published');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -93,6 +96,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   
   // 手动刷新功能
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 编辑任务状态
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTask, setEditTask] = useState<Partial<Task>>({});
   
   // 手动刷新数据
   const handleRefresh = async () => {
@@ -262,10 +269,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 获取当前用户名称（显示用）
   const getCurrentUserName = () => {
-    if (!currentUser) return 'Whimsical Cat';
-    if (currentUser.toLowerCase().includes('cat')) return 'Whimsical Cat';
-    if (currentUser.toLowerCase().includes('cow')) return 'Whimsical Cow';
-    return 'Whimsical Cat';
+    // 优先使用UserContext中的display_name
+    if (userProfile?.display_name) {
+      return userProfile.display_name;
+    }
+    
+    // 回退到props传入的currentUser
+    if (currentUser) {
+      return currentUser;
+    }
+    
+    // 最后回退到默认值
+    return 'User';
   };
 
   // 获取当前用户ID（数据库操作用）
@@ -275,6 +290,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   const currentUserName = getCurrentUserName();
   const currentUserId = getCurrentUserId();
+  
+
 
   // 重新加载任务数据的函数
   const reloadTasks = async () => {
@@ -511,6 +528,85 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       status: 'pending_review',
       submittedAt: new Date().toISOString()
     });
+  };
+
+  // 编辑任务
+  const handleEditTask = (task: Task) => {
+    setEditTask({
+      title: task.title,
+      description: task.description,
+      deadline: task.deadline,
+      points: task.points,
+      taskType: task.taskType,
+      repeatType: task.repeatType,
+      requiresProof: task.requiresProof,
+      // 重复任务字段
+      startDate: task.startDate,
+      endDate: task.endDate,
+      repeatFrequency: task.repeatFrequency,
+      repeatTime: task.repeatTime,
+      repeatWeekdays: task.repeatWeekdays,
+      // 一次性任务时间范围字段
+      taskStartTime: task.taskStartTime,
+      taskEndTime: task.taskEndTime
+    });
+    setIsEditing(true);
+  };
+
+  // 保存编辑的任务
+  const handleSaveEdit = async () => {
+    if (!selectedTask || !editTask.title?.trim()) {
+      alert('请填写任务标题');
+      return;
+    }
+
+    try {
+      // 准备数据库更新数据
+      const dbUpdates: any = {
+        title: editTask.title.trim(),
+        description: editTask.description || '',
+        deadline: editTask.deadline,
+        points: editTask.points || 50,
+        task_type: editTask.taskType,
+        repeat_type: editTask.repeatType,
+        requires_proof: editTask.requiresProof || false,
+      };
+
+      // 根据任务类型添加相应字段
+      if (editTask.repeatType === 'repeat') {
+        dbUpdates.start_date = editTask.startDate;
+        dbUpdates.end_date = editTask.endDate;
+        dbUpdates.repeat_frequency = editTask.repeatFrequency;
+        dbUpdates.repeat_time = editTask.repeatTime;
+        dbUpdates.repeat_weekdays = editTask.repeatWeekdays;
+      } else {
+        dbUpdates.task_start_time = editTask.taskStartTime;
+        dbUpdates.task_end_time = editTask.taskEndTime;
+      }
+
+      await taskService.updateTask(selectedTask.id, dbUpdates);
+      
+      // 刷新任务列表
+      await reloadTasks();
+      
+      // 关闭编辑模式
+      setIsEditing(false);
+      setSelectedTask(null);
+      
+      // 触发全局事件
+      globalEventService.emit(GlobalEvents.TASKS_UPDATED);
+      
+      alert('任务更新成功！');
+    } catch (error: any) {
+      console.error('❌ 更新任务失败:', error);
+      alert(`更新任务失败: ${error?.message || '未知错误'}`);
+    }
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditTask({});
   };
 
   // 自动将过期任务移动到abandoned状态
@@ -1132,26 +1228,30 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   // 按视图筛选任务
   const getTasksByView = () => {
     const currentUserName = getCurrentUserName();
+    const currentUserId = getCurrentUserId();
     
     switch (view) {
       case 'published':
-        return tasks.filter(task => task.creator === currentUserName);
+        return tasks.filter(task => task.creator === currentUserName || task.creator === currentUserId);
       case 'assigned':
         return tasks.filter(task => task.assignee === currentUserName);
       case 'available':
-        return tasks.filter(task => task.status === 'recruiting' && task.creator !== currentUserName);
+        return tasks.filter(task => task.status === 'recruiting' && task.creator !== currentUserName && task.creator !== currentUserId);
       default:
         return tasks;
     }
   };
 
-  // 获取已发布的任务
+  // 获取我发布的任务
   const getPublishedTasks = () => {
     const currentUserName = getCurrentUserName();
-    return tasks.filter(task => task.creator === currentUserName);
+    const currentUserId = getCurrentUserId();
+    const result = tasks.filter(task => task.creator === currentUserName || task.creator === currentUserId);
+
+    return result;
   };
 
-  // 获取已分配的任务
+  // 获取我领取的任务
   const getAssignedTasks = () => {
     const currentUserName = getCurrentUserName();
     return tasks.filter(task => task.assignee === currentUserName);
@@ -1160,7 +1260,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   // 获取可领取的任务
   const getAvailableTasks = () => {
     const currentUserName = getCurrentUserName();
-    return tasks.filter(task => task.status === 'recruiting' && task.creator !== currentUserName);
+    const currentUserId = getCurrentUserId();
+    return tasks.filter(task => task.status === 'recruiting' && task.creator !== currentUserName && task.creator !== currentUserId);
   };
 
   const formatDate = (dateString?: string) => {
@@ -1306,7 +1407,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   // 渲染任务卡片 - 遵循设计系统的统一卡片样式
   const renderTaskCard = (task: Task) => {
     // 判断当前视图和当前用户，决定显示内容
-    const isCurrentUserCreator = task.creator === currentUserName;
+    const isCurrentUserCreator = task.creator === currentUserName || task.creator === currentUserId;
     const isPublishedView = view === 'published';
     const isAssignedView = view === 'assigned';
     const isAvailableView = view === 'available';
@@ -1314,18 +1415,17 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const isOverdue = isTaskOverdue(task);
 
   return (
-      <div
+      <Card
         key={task.id}
         onClick={() => setSelectedTask(task)}
-        className={`p-4 mb-4 cursor-pointer transition-all duration-300 ${
-          theme === 'pixel' 
-            ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel hover:shadow-pixel-lg hover:border-pixel-accent'
-            : 'bg-white rounded-xl shadow-soft hover:shadow-lg hover:border-primary-300'
-        } ${getStatusColor(task.status)} ${isExpiringSoon ? 'border-yellow-500' : ''} ${isOverdue ? 'border-red-500 opacity-75' : ''}`}
+        variant="interactive"
+        size="md"
+        className={`mb-4 ${getStatusColor(task.status)} ${isExpiringSoon ? 'border-yellow-500' : ''} ${isOverdue ? 'border-red-500 opacity-75' : ''}`}
       >
         <div className="flex items-start justify-between mb-2">
           <h4 className={`font-bold ${
-              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
+              theme === 'fresh' ? 'text-fresh-text' : 'text-gray-800'
             }`}>
             {task.title}
           </h4>
@@ -1366,7 +1466,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         </div>
 
         <p className={`mb-3 ${
-          theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-600'
+          theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 
+          theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-600'
         }`}>
           {task.description}
         </p>
@@ -1374,7 +1475,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         <div className="space-y-2">
           {/* 用户信息行 */}
           <div className="flex items-center space-x-4">
-            {/* 只在"我的任务"和"可领取"视图中显示创建者 */}
+            {/* 只在"我领取的"和"可领取的"视图中显示创建者 */}
             {!isPublishedView && (
               <div className={`flex items-center space-x-1 ${
                 theme === 'pixel' ? 'text-pixel-accent' : 'text-blue-600'
@@ -1392,7 +1493,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </div>
             )}
             
-            {/* 只在"已发布"和"可领取"视图中显示执行者 */}
+            {/* 只在"我发布的"和"可领取的"视图中显示执行者 */}
             {task.assignee && (isPublishedView || isAvailableView) && (
               <div className={`flex items-center space-x-1 ${
                 theme === 'pixel' ? 'text-pixel-info' : 'text-green-600'
@@ -1538,8 +1639,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               )}
         </div>
         </div>
-        </div>
-      );
+      </Card>
+    );
   };
 
   // 判断任务是否已过期
@@ -1562,7 +1663,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const renderTaskDetailModal = () => {
     if (!selectedTask) return null;
 
-    const isTaskOwner = selectedTask.creator === currentUserName;
+    // 检查任务所有者 - 如果creator是UUID则与用户ID比较，否则与用户名比较
+    const isTaskOwner = selectedTask.creator === currentUserId || selectedTask.creator === currentUserName;
     const isAssignee = selectedTask.assignee === currentUserName;
     const isRecruiting = selectedTask.status === 'recruiting';
     const isAssigned = selectedTask.status === 'assigned';
@@ -1572,6 +1674,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const isAbandoned = selectedTask.status === 'abandoned';
     const hasProof = selectedTask.proof !== undefined;
     const canComplete = !selectedTask.requiresProof || hasProof;
+    
+
 
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -1600,6 +1704,97 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       </div>
 
           <div className="space-y-6">
+            {isEditing ? (
+              // 编辑表单
+              <>
+                <h4 className={`text-lg font-bold mb-4 ${
+                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+                }`}>
+                  {theme === 'pixel' ? 'EDIT_TASK' : '编辑任务'}
+                </h4>
+                
+                {/* 任务标题输入 */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'TASK_TITLE:' : '任务标题'}
+                  </label>
+                  <input
+                    type="text"
+                    value={editTask.title || ''}
+                    onChange={(e) => setEditTask({...editTask, title: e.target.value})}
+                    className={`w-full px-3 py-2 ${
+                      theme === 'pixel'
+                        ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                        : 'border border-gray-300 rounded-lg'
+                    }`}
+                    placeholder={theme === 'pixel' ? 'ENTER_TITLE...' : '输入任务标题...'}
+                  />
+                </div>
+
+                {/* 任务描述输入 */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'DESCRIPTION:' : '任务描述'}
+                  </label>
+                  <textarea
+                    value={editTask.description || ''}
+                    onChange={(e) => setEditTask({...editTask, description: e.target.value})}
+                    rows={3}
+                    className={`w-full px-3 py-2 ${
+                      theme === 'pixel'
+                        ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                        : 'border border-gray-300 rounded-lg'
+                    }`}
+                    placeholder={theme === 'pixel' ? 'ENTER_DESCRIPTION...' : '输入任务描述...'}
+                  />
+                </div>
+
+                {/* 积分输入 */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'POINTS:' : '积分奖励'}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={editTask.points || 50}
+                    onChange={(e) => setEditTask({...editTask, points: parseInt(e.target.value) || 50})}
+                    className={`w-full px-3 py-2 ${
+                      theme === 'pixel'
+                        ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                        : 'border border-gray-300 rounded-lg'
+                    }`}
+                  />
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="flex space-x-3 pt-4">
+                  <Button
+                    onClick={handleSaveEdit}
+                    variant="primary"
+                    className="flex-1"
+                  >
+                    {theme === 'pixel' ? 'SAVE' : '保存'}
+                  </Button>
+                  <Button
+                    onClick={handleCancelEdit}
+                    variant="secondary"
+                    className="flex-1"
+                  >
+                    {theme === 'pixel' ? 'CANCEL' : '取消'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              // 任务详情显示
+              <>
             {/* 任务标题 */}
             <div>
               <h4 className={`text-lg font-bold mb-2 ${
@@ -1865,7 +2060,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
             {/* 操作按钮 */}
                   <div className="flex space-x-3">
-              {/* 领取任务按钮 - 可领取视图 */}
+              {/* 编辑任务按钮 - 我发布的任务且处于招募状态 */}
+              {isTaskOwner && isRecruiting && view === 'published' && (
+                <Button
+                  onClick={() => handleEditTask(selectedTask)}
+                  variant="secondary"
+                  className="flex-1"
+                >
+                  {theme === 'pixel' ? 'EDIT_TASK' : '编辑任务'}
+                </Button>
+              )}
+
+              {/* 领取任务按钮 - 可领取的视图 */}
               {view === 'available' && isRecruiting && !selectedTask.assignee && !isTaskOverdue(selectedTask) && (
                     <Button
                       onClick={async () => {
@@ -1983,6 +2189,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 {theme === 'pixel' ? 'CLOSE' : '关闭'}
               </button>
             </div>
+                  </>
+                )}
                     </div>
                   </div>
                 </div>
@@ -2147,7 +2355,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         );
       }
     } else if (type === 'assigned') {
-      // "我的任务"视图 - 按状态分类为四列
+      // "我领取的"视图 - 按状态分类为四列
       const notStartedTasks = taskList.filter(task => task.status === 'assigned');
       const inProgressTasks = taskList.filter(task => task.status === 'in_progress');
       const completedTasks = taskList.filter(task => task.status === 'completed');
@@ -2265,6 +2473,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           <h2 className={`text-2xl sm:text-3xl font-bold ${
             theme === 'pixel' 
               ? 'font-retro text-pixel-text uppercase tracking-wider' 
+              : theme === 'fresh'
+              ? 'font-display text-fresh-text fresh-gradient-text'
               : 'font-display text-gray-700'
           }`}>
             {theme === 'pixel' ? 'TASK_MANAGER.EXE' : '任务看板'}
@@ -2273,39 +2483,47 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           {/* View Switcher */}
           <div className={`flex overflow-hidden w-full sm:w-auto ${
             theme === 'pixel' 
-              ? 'border-4 border-pixel-border bg-pixel-card shadow-pixel'
-              : 'bg-gray-100 rounded-xl border border-gray-200'
+              ? 'border-4 border-pixel-border bg-pixel-card shadow-pixel' 
+              : theme === 'fresh'
+              ? 'border border-fresh-border bg-fresh-card shadow-fresh rounded-fresh-lg'
+              : 'border border-gray-200 rounded-lg'
           }`}>
             {[
-              { id: 'published', label: theme === 'pixel' ? 'PUBLISHED' : '已发布' },
-              { id: 'assigned', label: theme === 'pixel' ? 'MY_TASKS' : '我的任务' },
-              { id: 'available', label: theme === 'pixel' ? 'AVAILABLE' : '可领取' }
+              { id: 'published', label: theme === 'pixel' ? 'MY_PUBLISHED' : '我发布的' },
+              { id: 'assigned', label: theme === 'pixel' ? 'MY_CLAIMED' : '我领取的' },
+              { id: 'available', label: theme === 'pixel' ? 'AVAILABLE' : '可领取的' }
             ].map((viewOption) => (
             <button
                 key={viewOption.id}
                 onClick={() => setView(viewOption.id as any)}
                 className={`flex items-center justify-center flex-1 px-3 sm:px-4 py-2 text-sm font-medium transition-all duration-300 ${
-                theme === 'pixel' 
-                    ? `font-mono uppercase ${
+              theme === 'pixel' 
+                  ? `font-mono uppercase ${
                         view === viewOption.id
-                          ? 'bg-pixel-accent text-black shadow-pixel-inner'
-                          : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
+                        ? 'bg-pixel-accent text-black shadow-pixel-inner'
+                        : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                       }${viewOption.id !== 'available' ? ' border-r-4 border-pixel-border' : ''}`
+                    : theme === 'fresh'
+                    ? `${
+                        view === viewOption.id
+                          ? 'bg-fresh-accent text-white shadow-fresh-sm'
+                          : 'text-fresh-text hover:bg-fresh-primary'
+                      }${viewOption.id !== 'available' ? ' border-r border-fresh-border' : ''}`
                     : `${
                         view === viewOption.id
                           ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:bg-gray-50'
+                        : 'text-gray-600 hover:bg-gray-50'
                     }${viewOption.id !== 'available' ? ' border-r border-gray-200' : ''}`
               }`}
             >
               <span className="font-medium whitespace-nowrap">
                 {viewOption.label}
-              </span>
+            </span>
             </button>
             ))}
           </div>
         </div>
-        
+
         <div className="flex space-x-3">
           <Button
             onClick={handleRefresh}
@@ -2331,7 +2549,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
       {/* Task Columns */}
       <div className="space-y-8">
-        {loading || !tasksLoaded ? (
+        {loading || !tasksLoaded || !userProfile ? (
           <LoadingSpinner
             size="lg"
             title={theme === 'pixel' ? 'LOADING TASKS...' : '正在加载任务列表...'}
@@ -2347,29 +2565,15 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
         {view === 'assigned' && (
           <div>
-            <h3 className={`text-xl font-bold mb-4 ${
-              theme === 'pixel' 
-                ? 'font-retro text-pixel-text uppercase tracking-wider' 
-                : 'font-display text-gray-700'
-            }`}>
-              {theme === 'pixel' ? 'ASSIGNED_TASKS' : '我领取的任务'}
-          </h3>
             {renderTaskList(getAssignedTasks(), 'assigned')}
                   </div>
                 )}
 
         {view === 'available' && (
           <div>
-            <h3 className={`text-xl font-bold mb-4 ${
-              theme === 'pixel' 
-                ? 'font-retro text-pixel-text uppercase tracking-wider' 
-                : 'font-display text-gray-700'
-            }`}>
-              {theme === 'pixel' ? 'AVAILABLE_TASKS' : '可领取的任务'}
-          </h3>
             {renderTaskList(getAvailableTasks(), 'available')}
                   </div>
-            )}
+        )}
           </>
                 )}
       </div>
@@ -2539,8 +2743,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-500'
                 }`}>
                   {newTask.repeatType === 'repeat' 
-                    ? '🔄 重复性任务：每次完成都可获得此积分奖励' 
-                    : '📅 一次性任务：完成后获得此积分奖励'
+                    ? '重复性任务：每次完成都可获得此积分奖励' 
+                    : '一次性任务：完成后获得此积分奖励'
                   }
                 </p>
               </div>

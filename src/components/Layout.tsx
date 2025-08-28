@@ -44,14 +44,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
     if (uiTheme === 'cat') {
       return { 
         icon: 'user',
-        name: theme === 'pixel' ? displayName.toUpperCase() : theme === 'fresh' ? `${displayName} 🐱` : displayName, 
+        name: theme === 'pixel' ? displayName.toUpperCase() : displayName, 
         color: theme === 'fresh' ? 'cat' : 'primary',
         emoji: '🐱'
       };
     } else if (uiTheme === 'cow') {
       return { 
         icon: 'user',
-        name: theme === 'pixel' ? displayName.toUpperCase() : theme === 'fresh' ? `${displayName} 🐮` : displayName, 
+        name: theme === 'pixel' ? displayName.toUpperCase() : displayName, 
         color: theme === 'fresh' ? 'cow' : 'blue',
         emoji: '🐮'
       };
@@ -157,13 +157,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                           : 'border-pixel-border bg-pixel-panel'
                       }`
                     : theme === 'fresh'
-                    ? `rounded-fresh-lg border ${
+                    ? `rounded-fresh-lg border shadow-fresh-sm ${
                         userInfo?.color === 'cat'
-                          ? 'border-fresh-catColor bg-fresh-catColor/10'
+                          ? 'border-purple-400 bg-purple-50'
                           : userInfo?.color === 'cow'
-                          ? 'border-fresh-cowColor bg-fresh-cowColor/10'
+                          ? 'border-cyan-400 bg-cyan-50'
                           : 'border-fresh-border bg-fresh-card'
-                      } shadow-fresh-sm`
+                      }`
                     : `rounded-xl backdrop-blur-md ${
                         userInfo?.color === 'blue' 
                           ? 'bg-blue-100/50 border border-blue-200/40' 
@@ -186,9 +186,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                     <div 
                       className="w-6 h-6 rounded-fresh-full flex items-center justify-center text-sm"
                       style={{
-                        backgroundColor: userInfo?.color === 'cat' ? '#06b6d420' : userInfo?.color === 'cow' ? '#8b5cf620' : '#e2e8f0',
-                        color: userInfo?.color === 'cat' ? '#06b6d4' : userInfo?.color === 'cow' ? '#8b5cf6' : '#64748b',
-                        border: `1px solid ${userInfo?.color === 'cat' ? '#06b6d4' : userInfo?.color === 'cow' ? '#8b5cf6' : '#e2e8f0'}`
+                        backgroundColor: userInfo?.color === 'cat' ? '#8b5cf620' : userInfo?.color === 'cow' ? '#06b6d420' : '#e2e8f0',
+                        color: userInfo?.color === 'cat' ? '#8b5cf6' : userInfo?.color === 'cow' ? '#06b6d4' : '#64748b',
+                        border: `1px solid ${userInfo?.color === 'cat' ? '#8b5cf6' : userInfo?.color === 'cow' ? '#06b6d4' : '#e2e8f0'}`
                       }}
                     >
                       {userInfo?.emoji || '👤'}

@@ -52,10 +52,10 @@ const Settings: React.FC = () => {
             {/* Theme Selection */}
             <div className={theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg p-8 neon-border pixel-matrix' : theme === 'fresh' ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-6' : 'card-cutesy p-6'}>
               <h3 className={`text-xl font-bold mb-4 ${theme === 'pixel' ? 'text-pixel-text font-retro uppercase tracking-wider' : theme === 'fresh' ? 'text-fresh-text fresh-gradient-text' : 'text-gray-800'}`}>
-                {theme === 'pixel' ? '>>> SELECT THEME' : theme === 'fresh' ? '选择主题风格 🌿' : '选择主题风格'}
+                {theme === 'pixel' ? '>>> SELECT THEME' : '选择主题风格'}
               </h3>
               <p className={`text-sm mb-6 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'fresh' ? 'text-fresh-textMuted' : 'text-sage-600'}`}>
-                {theme === 'pixel' ? 'CHOOSE YOUR ADVENTURE STYLE!' : theme === 'fresh' ? '选择适合你的风格，享受简约清新的体验 🌱' : '选择你喜欢的视觉风格，设置会自动保存'}
+                {theme === 'pixel' ? 'CHOOSE YOUR ADVENTURE STYLE!' : '选择你喜欢的视觉风格，设置会自动保存'}
               </p>
 
               {/* 主题网格 */}
@@ -114,7 +114,7 @@ const Settings: React.FC = () => {
                             ? 'text-fresh-accent'
                             : 'text-primary-600'
                         }`}>
-                          {theme === 'pixel' ? '>>> CURRENT THEME <<<' : theme === 'fresh' ? '🌿 当前使用 🌿' : '当前使用'}
+                          {theme === 'pixel' ? '>>> CURRENT THEME <<<' : '当前使用'}
                         </div>
                       )}
                     </div>
@@ -156,18 +156,18 @@ const Settings: React.FC = () => {
             {theme === 'fresh' && (
               <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh-lg p-6 fresh-minimal">
                 <h3 className="text-xl font-bold mb-4 text-fresh-text fresh-gradient-text">
-                  主题预览 🌿
+                  主题预览
                 </h3>
                 
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
-                    <span className="text-2xl animate-fresh-breathe">💚</span>
+                    <PaintBrushIcon className="w-6 h-6 text-fresh-accent" />
                     <span className="text-fresh-text font-medium">清新淡雅主题</span>
                   </div>
                   <p className="text-fresh-textMuted text-sm leading-relaxed">
                     追求简约现代的设计理念，采用清新淡雅的绿色系配色。<br/>
                     特色包括轻盈的阴影、简洁的线条和流畅的动画效果。<br/>
-                    完美适合喜欢极简风格和自然色调的用户！🌱
+                    完美适合喜欢极简风格和自然色调的用户！
                   </p>
                   <div className="flex space-x-3 mt-4">
                     <div className="w-6 h-6 bg-fresh-accent rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
@@ -176,11 +176,11 @@ const Settings: React.FC = () => {
                     <div className="w-6 h-6 bg-fresh-mint rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
                   </div>
                   <div className="text-center mt-4">
-                    <div className="flex justify-center space-x-2 text-xl opacity-50">
-                      <span className="animate-fresh-wave">🌿</span>
-                      <span className="animate-fresh-breathe">💚</span>
-                      <span className="animate-fresh-bounce">🌱</span>
-                      <span className="animate-fresh-wave" style={{animationDelay: '1s'}}>🍃</span>
+                    <div className="flex justify-center space-x-2 opacity-50">
+                      <div className="w-2 h-2 bg-fresh-accent rounded-full animate-fresh-wave"></div>
+                      <div className="w-2 h-2 bg-fresh-accent rounded-full animate-fresh-breathe"></div>
+                      <div className="w-2 h-2 bg-fresh-accent rounded-full animate-fresh-bounce"></div>
+                      <div className="w-2 h-2 bg-fresh-accent rounded-full animate-fresh-wave" style={{animationDelay: '1s'}}></div>
                     </div>
                   </div>
                 </div>
@@ -239,9 +239,9 @@ const Settings: React.FC = () => {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center space-x-3">
-          <span className="text-3xl animate-fresh-breathe">⚙️</span>
+          <Cog6ToothIcon className="w-8 h-8 text-fresh-accent" />
           <h2 className="text-3xl font-display font-bold text-fresh-text fresh-gradient-text">
-            设置中心 🌿
+            设置中心
           </h2>
         </div>
 

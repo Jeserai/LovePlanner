@@ -5,6 +5,7 @@ import PixelIcon from './PixelIcon';
 import Button from './ui/Button';
 import NavigationButton from './ui/NavigationButton';
 import LoadingSpinner from './ui/LoadingSpinner';
+import Card from './ui/Card';
 import ConfirmDialog from './ConfirmDialog';
 import { format, subMonths, addMonths, isSameDay, isSameMonth } from 'date-fns';
 import { userService, taskService } from '../services/database';
@@ -100,10 +101,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   // 监听用户身份确定后，自动设置为"我的日历"视图
   useEffect(() => {
     if (currentUserIsUser1 !== null && user) {
-      console.log('📅 设置默认视图为"我的日历":', { 
-        currentUserIsUser1, 
-        userId: user.id 
-      });
+      // console.log('📅 设置默认视图为"我的日历":', { currentUserIsUser1, userId: user.id });
       setCurrentView('my'); // 总是默认显示"我的日历"
     }
   }, [currentUserIsUser1, user]);
@@ -113,7 +111,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const events: Event[] = [];
     
     if (!task.start_date || !task.end_date || !task.repeat_frequency) {
-      console.log('⚠️ 重复性任务缺少必要信息:', task.title);
+      // console.log('⚠️ 重复性任务缺少必要信息:', task.title);
       return events;
     }
     
@@ -136,7 +134,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           
           const taskEvent: Event = {
             id: `task-${task.id}-${dateStr}`,
-            title: `📋 ${task.title}`,
+            title: task.title,
             date: dateStr,
             time: task.repeat_time || undefined,
             participants,
@@ -197,39 +195,29 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }
     }
     
-    console.log(`🔄 为任务 "${task.title}" 生成了 ${events.length} 个重复事件`);
+    // console.log(`🔄 为任务 "${task.title}" 生成了 ${events.length} 个重复事件`);
     return events;
   };
 
   // 同步任务到日历显示
   const syncTasksToCalendar = async () => {
-    console.log('🔄 syncTasksToCalendar 被调用, 状态:', { coupleId, user: !!user });
+    // console.log('🔄 syncTasksToCalendar 被调用, 状态:', { coupleId, user: !!user });
     if (!coupleId || !user) {
-      console.log('⚠️ syncTasksToCalendar 条件不满足，跳过同步');
+      // console.log('⚠️ syncTasksToCalendar 条件不满足，跳过同步');
       return;
     }
     
     try {
-      console.log('🔄 开始同步任务到日历');
+      // console.log('🔄 开始同步任务到日历');
       // 从数据库获取所有任务
       const dbTasks = await taskService.getCoupleTasksOld(coupleId);
-      console.log('📊 获取到的数据库任务:', dbTasks);
+      // console.log('📊 获取到的数据库任务:', dbTasks);
       
       // 转换任务为日历事件
       const taskEvents: Event[] = [];
       
       dbTasks.forEach(task => {
-        console.log('🔍 检查任务:', { 
-          id: task.id, 
-          title: task.title, 
-          status: task.status, 
-          assignee_id: task.assignee_id, 
-          repeat_type: task.repeat_type,
-          repeat_frequency: task.repeat_frequency,
-          start_date: task.start_date,
-          end_date: task.end_date,
-          deadline: task.deadline 
-        });
+        // console.log('🔍 检查任务:', { id: task.id, title: task.title, status: task.status, assignee_id: task.assignee_id, repeat_type: task.repeat_type, repeat_frequency: task.repeat_frequency, start_date: task.start_date, end_date: task.end_date, deadline: task.deadline });
         
         // 只显示已分配或进行中的任务
         if (task.status === 'assigned' || task.status === 'in_progress') {
@@ -238,26 +226,20 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           
           if (task.repeat_type === 'repeat' && task.start_date && task.end_date) {
             // 重复性任务：根据频率生成多个事件
-            console.log('🔄 处理重复性任务:', task.title, {
-              repeat_frequency: task.repeat_frequency,
-              start_date: task.start_date,
-              end_date: task.end_date,
-              repeat_time: task.repeat_time,
-              repeat_weekdays: task.repeat_weekdays
-            });
+            // console.log('🔄 处理重复性任务:', task.title, { repeat_frequency: task.repeat_frequency, start_date: task.start_date, end_date: task.end_date, repeat_time: task.repeat_time, repeat_weekdays: task.repeat_weekdays });
             const events = generateRecurringTaskEvents(task, participants, taskColor);
-            console.log(`🔄 生成的事件数量: ${events.length}，前几个日期:`, events.slice(0, 5).map(e => e.date));
+            // console.log(`🔄 生成的事件数量: ${events.length}，前几个日期:`, events.slice(0, 5).map(e => e.date));
             taskEvents.push(...events);
             
           } else if (task.repeat_type === 'once' && task.deadline) {
             // 一次性任务：只显示deadline
-            console.log('📅 处理一次性任务:', task.title);
+            // console.log('📅 处理一次性任务:', task.title);
             const deadlineDate = new Date(task.deadline);
             const dateStr = `${deadlineDate.getFullYear()}-${String(deadlineDate.getMonth() + 1).padStart(2, '0')}-${String(deadlineDate.getDate()).padStart(2, '0')}`;
             
             const taskEvent = {
               id: `task-${task.id}`,
-              title: `📋 ${task.title}`,
+              title: task.title,
               date: dateStr,
               time: task.repeat_time || undefined,
               participants,
@@ -265,7 +247,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       isRecurring: false
             };
             
-            console.log('✨ 创建一次性任务事件:', taskEvent);
+            // console.log('✨ 创建一次性任务事件:', taskEvent);
             taskEvents.push(taskEvent);
             
           } else {
@@ -278,15 +260,15 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             });
           }
         } else {
-          console.log('⚠️ 任务状态不符合条件，跳过:', { title: task.title, status: task.status });
+          // console.log('⚠️ 任务状态不符合条件，跳过:', { title: task.title, status: task.status });
         }
       });
       
       // 将任务事件存储到localStorage（用于Calendar的readTaskEvents函数）
       localStorage.setItem('calendarTaskEvents', JSON.stringify(taskEvents));
       
-      console.log('✅ 任务同步到日历完成:', taskEvents.length, '个任务事件');
-      console.log('💾 存储到localStorage的数据:', taskEvents);
+      // console.log('✅ 任务同步到日历完成:', taskEvents.length, '个任务事件');
+      // console.log('💾 存储到localStorage的数据:', taskEvents);
       
       // 强制触发重新渲染，让getAllEvents重新读取localStorage中的任务事件
       setForceRefresh(prev => prev + 1);
@@ -306,7 +288,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         const dbEvents = await simplifiedEventService.getCoupleEvents(coupleId);
         const convertedEvents = dbEvents.map(convertSimplifiedEventToEvent);
         setEvents(convertedEvents);
-        console.log('🔄 Calendar 手动刷新完成');
+        // console.log('🔄 Calendar 手动刷新完成');
       }
     } catch (error) {
       console.error('🔄 Calendar 手动刷新失败:', error);
@@ -1356,20 +1338,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info - 暂时隐藏 */}
-      {/* 
-      <div className="bg-yellow-100 p-4 rounded-lg mb-4">
-        <h3 className="font-bold mb-2">Debug Info:</h3>
-        <pre className="text-sm">
-          {JSON.stringify({
-            currentMonth,
-            currentYear,
-            currentMonthName: monthNames[currentMonth],
-            today: new Date().toISOString()
-          }, null, 2)}
-        </pre>
-      </div>
-      */}
+
 
       {/* 颜色示例图 */}
       <div className={`p-3 rounded-lg mb-4 ${
@@ -1451,7 +1420,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               ? 'font-display text-fresh-text fresh-gradient-text'
               : 'font-display text-gray-700'
           }`}>
-            {theme === 'pixel' ? 'CALENDAR.EXE' : theme === 'fresh' ? '日程安排 🌿' : '日程安排'}
+            {theme === 'pixel' ? 'CALENDAR.EXE' : '日程安排'}
           </h2>
           
           {/* View Switcher */}

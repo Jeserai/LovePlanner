@@ -339,7 +339,7 @@ const UserProfile: React.FC = () => {
         {/* 详细信息 */}
         <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-6">
           <h3 className="text-xl font-bold text-fresh-text mb-6 pb-3 border-b border-fresh-border">
-            个人信息 🌿
+            个人信息
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -433,7 +433,7 @@ const UserProfile: React.FC = () => {
             {getUserTypeIcon(currentUserType, 'lg')}
             <div>
               <h2 className="text-2xl font-bold text-romantic-text romantic-gradient-text">
-                {profile.display_name} ✨
+                {profile.display_name}
               </h2>
               <p className="text-romantic-textMuted">
                 @{profile.username}
@@ -449,7 +449,7 @@ const UserProfile: React.FC = () => {
                   onClick={handleSave}
                   className="px-4 py-2 bg-romantic-accent text-white rounded-romantic font-medium hover:shadow-romantic-sm transition-all hover:scale-105"
                 >
-                  保存 💕
+                  保存
                 </button>
                 <button
                   onClick={() => {
@@ -466,7 +466,7 @@ const UserProfile: React.FC = () => {
                 onClick={() => setIsEditing(true)}
                 className="px-4 py-2 bg-romantic-accent text-white rounded-romantic font-medium hover:shadow-romantic-sm transition-all hover:scale-105"
               >
-                编辑资料 ✨
+                编辑资料
               </button>
             )}
           </div>
@@ -542,7 +542,7 @@ const UserProfile: React.FC = () => {
             <div>
               <label className="block text-romantic-text font-medium mb-2">积分</label>
               <div className="w-full border-2 border-romantic-border bg-romantic-panel text-romantic-text rounded-romantic px-4 py-3">
-                <span className="font-bold text-romantic-accent">{profile.points}</span> 分 ✨
+                <span className="font-bold text-romantic-accent">{profile.points}</span> 分
               </div>
             </div>
           </div>
