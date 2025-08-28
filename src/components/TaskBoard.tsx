@@ -6,11 +6,13 @@ import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import PixelIcon from './PixelIcon';
 import Button from './ui/Button';
 import NavigationButton from './ui/NavigationButton';
+import LoadingSpinner from './ui/LoadingSpinner';
 import PointsDisplay from './PointsDisplay';
 import { useAuth } from '../hooks/useAuth';
-import { taskService, userService } from '../services/database';
+import { taskService, userService, pointService } from '../services/database';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
+import { globalEventService, GlobalEvents } from '../services/globalEventService';
 
 // 前端Task接口（简化版 - 去除UI字段）
 interface Task {
@@ -19,15 +21,15 @@ interface Task {
   description: string;
   deadline: string;
   points: number;
-  status: 'recruiting' | 'assigned' | 'in-progress' | 'completed' | 'abandoned' | 'pending_review';
-  assignee?: string;
+  status: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned' | 'pending_review';
+  assignee?: string | null;
   creator: string;
   createdAt: string;
   requiresProof: boolean;
-  proof?: string;
+  proof?: string | null;
   taskType: 'daily' | 'habit' | 'special';
   repeatType: 'once' | 'repeat';
-  reviewComment?: string;
+  reviewComment?: string | null;
   submittedAt?: string;
   // 重复性任务字段
   repeatFrequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
@@ -83,7 +85,29 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [coupleId, setCoupleId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tasksLoaded, setTasksLoaded] = useState(false);
+  
+  // 调试信息
+  console.log('📋 TaskBoard 加载状态:', { loading, tasksLoaded, user: !!user, tasksCount: tasks.length });
   const [userMap, setUserMap] = useState<{[id: string]: string}>({});
+  
+  // 手动刷新功能
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 手动刷新数据
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      await reloadTasks();
+      console.log('🔄 TaskBoard 手动刷新完成');
+    } catch (error) {
+      console.error('🔄 TaskBoard 手动刷新失败:', error);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500); // 最少显示0.5秒刷新状态
+    }
+  };
 
   // 计算结束日期的辅助函数
   const calculateEndDate = (startDate: string, duration: '21days' | '1month' | '6months' | '1year'): string => {
@@ -194,8 +218,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         }
       } catch (error) {
         console.error('加载数据失败:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     loadCoupleData();
@@ -205,7 +230,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   useEffect(() => {
     const loadTasks = async () => {
       if (!coupleId) {
-        setTasks([]);
+        // 不要立即设置为空数组，保持加载状态
         return;
       }
 
@@ -218,9 +243,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         const dbTasks = await taskService.getCoupleTasksOld(coupleId);
         const convertedTasks = dbTasks.map(convertDatabaseTaskToTask);
         setTasks(convertedTasks);
+        setTasksLoaded(true);
       } catch (error) {
         console.error('❌ 加载任务失败:', error);
         setTasks([]);
+        setTasksLoaded(true);
       }
     };
 
@@ -233,7 +260,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
   }, [coupleId, loading, userMap]);
 
-  // 获取当前用户名称
+  // 获取当前用户名称（显示用）
   const getCurrentUserName = () => {
     if (!currentUser) return 'Whimsical Cat';
     if (currentUser.toLowerCase().includes('cat')) return 'Whimsical Cat';
@@ -241,13 +268,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     return 'Whimsical Cat';
   };
 
+  // 获取当前用户ID（数据库操作用）
+  const getCurrentUserId = () => {
+    return user?.id || '';
+  };
+
   const currentUserName = getCurrentUserName();
+  const currentUserId = getCurrentUserId();
 
   // 重新加载任务数据的函数
   const reloadTasks = async () => {
 
     if (!coupleId) {
-      setTasks([]);
       return;
     }
 
@@ -277,44 +309,117 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       const dbTasks = await taskService.getCoupleTasksOld(coupleId);
       const convertedTasks = dbTasks.map(convertDatabaseTaskToTask);
       setTasks(convertedTasks);
+      setTasksLoaded(true);
     } catch (error) {
       console.error('❌ 重新加载任务失败:', error);
+      setTasksLoaded(true);
     }
   };
 
-  // 数据库任务操作辅助函数
+  // 优化版数据库任务操作辅助函数
   const updateTaskInDatabase = async (taskId: string, updates: Partial<Task>) => {
-
     try {
-      // 数据库模式：更新数据库然后重新加载
+      // 1. 准备数据库更新数据
       const dbUpdates: any = {};
       if (updates.status) dbUpdates.status = updates.status;
-      if (updates.assignee) dbUpdates.assignee_id = updates.assignee;
-      if (updates.proof) dbUpdates.proof_url = updates.proof;
-      if (updates.reviewComment) dbUpdates.review_comment = updates.reviewComment;
+      if (updates.assignee !== undefined) dbUpdates.assignee_id = updates.assignee;
+      if (updates.proof !== undefined) dbUpdates.proof_url = updates.proof;
+      if (updates.reviewComment !== undefined) dbUpdates.review_comment = updates.reviewComment;
       if (updates.submittedAt) dbUpdates.submitted_at = updates.submittedAt;
 
-      await taskService.updateTask(taskId, dbUpdates);
-      await reloadTasks(); // 重新加载数据
+      // 2. 检查任务是否存在（防止无效操作）
+      const taskBefore = tasks.find(t => t.id === taskId);
+      if (!taskBefore) {
+        throw new Error(`找不到ID为 ${taskId} 的任务`);
+      }
 
+      // 3. 更新数据库
+      await taskService.updateTask(taskId, dbUpdates);
+
+      // 4. 立即更新本地状态（乐观更新）
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId 
+            ? { ...task, ...updates }
+            : task
+        )
+      );
+
+      // 5. 发布全局事件，通知其他组件
+      globalEventService.emit(GlobalEvents.TASKS_UPDATED);
+
+      console.log('✅ 任务更新完成');
+
+    } catch (error: any) {
+      console.error('❌ 更新任务失败:', error?.message);
+      
+      // 6. 如果失败，重新加载数据以确保一致性
+      try {
+        await reloadTasks();
+      } catch (reloadError) {
+        console.error('❌ 重新加载任务失败:', reloadError);
+      }
+      
+      alert(`更新任务失败: ${error?.message || '未知错误'}，请重试`);
+      throw error;
+    }
+  };
+
+  // 奖励任务积分
+  const awardTaskPoints = async (task: Task, userId: string) => {
+    if (!coupleId || !userId) return;
+    
+    try {
+      const taskTypeDescription = task.repeatType === 'repeat' ? '重复性任务' : '一次性任务';
+      const description = `完成${taskTypeDescription}：${task.title}`;
+      
+      const success = await pointService.addTransaction(
+        userId,
+        coupleId,
+        task.points,
+        'task_completion',
+        description,
+        task.id
+      );
+      
+      if (success) {
+        const pointsMessage = task.repeatType === 'repeat' 
+          ? `✅ 积分奖励成功: +${task.points} 积分/次 (${task.title})`
+          : `✅ 积分奖励成功: +${task.points} 积分 (${task.title})`;
+        console.log(pointsMessage);
+        
+        // 发布全局事件通知积分更新
+        globalEventService.emit(GlobalEvents.USER_PROFILE_UPDATED);
+      } else {
+        console.error('❌ 积分奖励失败:', task.title);
+      }
     } catch (error) {
-      console.error('❌ 更新任务失败:', error);
-      alert('更新任务失败，请重试');
+      console.error('❌ 积分奖励出错:', error);
     }
   };
 
   // 任务操作函数
   const handleAcceptTask = async (taskId: string) => {
-    await updateTaskInDatabase(taskId, {
-      assignee: currentUserName,
-      status: 'assigned'
-    });
+    try {
+      await updateTaskInDatabase(taskId, {
+        assignee: currentUserId,  // 使用用户ID而不是显示名称
+        status: 'assigned'
+      });
+    } catch (error: any) {
+      console.error('❌ 领取任务失败:', error?.message);
+      throw error;
+    }
   };
 
   const handleStartTask = async (taskId: string) => {
-    await updateTaskInDatabase(taskId, {
-      status: 'in-progress'
-    });
+    try {
+      await updateTaskInDatabase(taskId, {
+        status: 'in_progress'
+      });
+    } catch (error: any) {
+      console.error('❌ 开始任务失败:', error?.message);
+      throw error;
+    }
   };
 
   const handleCompleteTask = async (taskId: string) => {
@@ -335,20 +440,33 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         submittedAt: new Date().toISOString()
       });
     } else {
-      // 不需要凭证的任务直接完成
+      // 不需要凭证的任务直接完成并奖励积分
       await updateTaskInDatabase(taskId, { 
         status: 'completed',
         submittedAt: new Date().toISOString()
       });
+      
+      // 奖励积分给完成任务的用户
+      await awardTaskPoints(task, currentUserId);
     }
   };
 
     const handleReviewTask = async (taskId: string, approved: boolean, comment?: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
     if (approved) {
       await updateTaskInDatabase(taskId, { 
         status: 'completed',
         reviewComment: comment 
       });
+      
+      // 审核通过时奖励积分（如果任务被分配给其他用户）
+      if (task.assignee && currentUserId !== task.assignee) {
+        // 这里需要获取assignee的实际ID，因为task.assignee可能是显示名
+        const assigneeId = Object.keys(userMap).find(id => userMap[id] === task.assignee) || task.assignee;
+        await awardTaskPoints(task, assigneeId);
+      }
     } else {
       await updateTaskInDatabase(taskId, { 
         status: 'assigned',
@@ -364,9 +482,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     
     // 只有assigned状态的任务才能手动放弃
     if (task.status === 'assigned') {
+      console.log('🚫 放弃任务:', { taskId });
       await updateTaskInDatabase(taskId, { 
         status: 'recruiting',
-        assignee: undefined
+        assignee: null  // 使用null而不是undefined
       });
     }
   };
@@ -376,11 +495,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task || task.status !== 'abandoned') return;
     
+    console.log('📢 重新发布任务:', { taskId });
     await updateTaskInDatabase(taskId, { 
       status: 'recruiting',
-      assignee: undefined,
-      proof: undefined,
-      reviewComment: undefined
+      assignee: null,  // 使用null而不是undefined
+      proof: null,
+      reviewComment: null
     });
   };
 
@@ -398,7 +518,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const overdueTasksUpdates = tasks.filter(task => {
       // 检查各种状态的过期任务
           return (
-        (task.status === 'in-progress' && isTaskOverdue(task)) ||
+        (task.status === 'in_progress' && isTaskOverdue(task)) ||
         (task.status === 'assigned' && isTaskOverdue(task)) ||
         (task.status === 'recruiting' && isTaskOverdue(task))
       );
@@ -420,6 +540,36 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       moveOverdueTasksToAbandoned();
     }
   }, [loading, tasks]);
+
+  // 订阅全局事件，响应其他组件的数据更新
+  useEffect(() => {
+    // 订阅事件更新（日历可能影响任务显示）
+    const unsubscribeEvents = globalEventService.subscribe(GlobalEvents.EVENTS_UPDATED, () => {
+      console.log('📅 TaskBoard 收到事件更新通知');
+      // 任务页面可能需要响应事件变化，暂时不做处理
+    });
+
+    // 订阅任务数据更新（包括其他用户的操作）
+    const unsubscribeTasks = globalEventService.subscribe(GlobalEvents.TASKS_UPDATED, () => {
+      console.log('📋 TaskBoard 收到任务更新通知（可能来自其他用户）');
+      // 如果任务已经加载过，则自动刷新
+      if (tasksLoaded && !loading) {
+        handleRefresh();
+      }
+    });
+
+    // 订阅用户资料更新
+    const unsubscribeProfile = globalEventService.subscribe(GlobalEvents.USER_PROFILE_UPDATED, () => {
+      console.log('👤 TaskBoard 收到用户资料更新通知');
+      // 可能需要重新加载用户映射
+    });
+
+    return () => {
+      unsubscribeEvents();
+      unsubscribeTasks();
+      unsubscribeProfile();
+    };
+  }, []);
 
   // 创建新任务
   const handleCreateTask = async () => {
@@ -531,6 +681,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         console.log('🚀 创建任务数据:', dbTaskData);
         await taskService.createTask(dbTaskData);
         await reloadTasks(); // 重新加载数据
+        
+        // 发布全局事件，通知其他组件任务数据已更新
+        globalEventService.emit(GlobalEvents.TASKS_UPDATED);
 
         console.log('✅ 任务创建成功');
 
@@ -569,7 +722,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 渲染任务时间字段（根据repeatType动态显示）
   const renderTaskTimeFields = () => {
-        if (newTask.repeatType === 'once') {
+    if (newTask.repeatType === 'once') {
       // 一次性任务：支持两种模式
       return (
         <div className="space-y-4">
@@ -680,16 +833,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           ) : (
             // 简单模式：截止日期和时间
             <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div>
                 <label className={`block text-sm font-medium mb-1 ${
                   theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
                   theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
                 }`}>
                   {theme === 'pixel' ? 'DEADLINE_DATE *' : '截止日期 *'}
-                </label>
-                <input
-                  type="date"
-                  value={newTask.deadline}
+              </label>
+              <input
+                type="date"
+                value={newTask.deadline}
                   onChange={(e) => setNewTask(prev => ({ ...prev, deadline: e.target.value }))}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                     theme === 'pixel' 
@@ -697,24 +850,24 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                       : theme === 'fresh'
                       ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
                       : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
+                }`}
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
 
-              <div>
+          <div>
                 <label className={`block text-sm font-medium mb-1 ${
                   theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
                   theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
                 }`}>
                   {theme === 'pixel' ? 'DEADLINE_TIME' : '截止时间'}
-                </label>
-                <input
+            </label>
+              <input
                   type="time"
                   value={newTask.time}
                   onChange={(e) => setNewTask(prev => ({ ...prev, time: e.target.value }))}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
+                        theme === 'pixel' 
                       ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
                       : theme === 'fresh'
                       ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
@@ -786,7 +939,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 const startDate = e.target.value;
                   setNewTask(prev => ({
                     ...prev,
-                    startDate,
+                  startDate,
                     endDate: calculateEndDate(startDate, selectedDuration)
                   }));
                 }}
@@ -1021,7 +1174,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const statusMap = {
       'recruiting': '招募中',
       'assigned': '已分配',
-      'in-progress': '进行中', 
+      'in_progress': '进行中', 
       'completed': '已完成',
       'abandoned': '已关闭',
       'pending_review': '待审核'
@@ -1123,7 +1276,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       switch (status) {
         case 'recruiting': return 'border-pixel-info bg-pixel-card border-4';
         case 'assigned': return 'border-pixel-warning bg-pixel-card border-4';
-        case 'in-progress': return 'border-pixel-info bg-pixel-panel border-4';
+        case 'in_progress': return 'border-pixel-info bg-pixel-panel border-4';
         case 'completed': return 'border-pixel-success bg-pixel-card border-4';
         case 'abandoned': return 'border-pixel-accent bg-pixel-card border-4';
         case 'pending_review': return 'border-pixel-warning bg-pixel-card border-4';
@@ -1134,7 +1287,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     switch (status) {
       case 'recruiting': return 'border-blue-300 bg-blue-50';
       case 'assigned': return 'border-yellow-300 bg-yellow-50';
-      case 'in-progress': return 'border-blue-300 bg-blue-50';
+      case 'in_progress': return 'border-blue-300 bg-blue-50';
       case 'completed': return 'border-green-300 bg-green-50';
       case 'abandoned': return 'border-red-300 bg-red-50';
       case 'pending_review': return 'border-orange-300 bg-orange-50';
@@ -1236,7 +1389,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 }`}>
                   {theme === 'pixel' ? 'CREATOR:' : '创建者:'} {task.creator}
                 </span>
-              </div>
+          </div>
             )}
             
             {/* 只在"已发布"和"可领取"视图中显示执行者 */}
@@ -1254,9 +1407,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 }`}>
                   {theme === 'pixel' ? 'ASSIGNEE:' : '执行者:'} {task.assignee}
                 </span>
-              </div>
-            )}
           </div>
+            )}
+        </div>
 
           {/* 任务详情信息行 - 改为可换行布局 */}
           <div className="flex flex-wrap items-center gap-2">
@@ -1298,7 +1451,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   </>
                 )}
               </span>
-            </div>
+          </div>
 
             <div className={`flex items-center space-x-1 ${
               theme === 'pixel' ? 'text-pixel-accent' : 'text-yellow-600'
@@ -1311,9 +1464,20 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               <span className={`text-xs font-medium ${
                 theme === 'pixel' ? 'font-mono' : ''
               }`}>
-                {task.points}
+                {task.repeatType === 'repeat' ? (
+                  <span className="flex items-center">
+                    {task.points}
+                    <span className={`text-xs ml-0.5 ${
+                      theme === 'pixel' ? 'text-pixel-textMuted' : 'text-yellow-500'
+                    }`}>
+                      /次
+                    </span>
+                  </span>
+                ) : (
+                  task.points
+                )}
               </span>
-            </div>
+          </div>
 
             {/* 重复任务的详细信息 */}
             {task.repeatType === 'repeat' && task.repeatFrequency && (
@@ -1335,7 +1499,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     </span>
                   )}
                 </span>
-              </div>
+          </div>
             )}
 
             {/* 每周重复的星期显示 */}
@@ -1353,7 +1517,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 }`}>
                   {getWeekdaysDisplay(task.repeatWeekdays)}
                 </span>
-              </div>
+          </div>
             )}
 
             {task.requiresProof && (
@@ -1402,7 +1566,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const isAssignee = selectedTask.assignee === currentUserName;
     const isRecruiting = selectedTask.status === 'recruiting';
     const isAssigned = selectedTask.status === 'assigned';
-    const isInProgress = selectedTask.status === 'in-progress';
+    const isInProgress = selectedTask.status === 'in_progress';
     const isPendingReview = selectedTask.status === 'pending_review';
     const isCompleted = selectedTask.status === 'completed';
     const isAbandoned = selectedTask.status === 'abandoned';
@@ -1453,9 +1617,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             {/* 任务信息 */}
             <div className="space-y-4">
               {/* 基础信息 */}
-              <div className={`grid grid-cols-2 gap-4 ${
-                theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
-              }`}>
+            <div className={`grid grid-cols-2 gap-4 ${
+              theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
+            }`}>
                 {/* 时间信息 - 根据任务类型动态显示 */}
                 {selectedTask.repeatType === 'once' ? (
                   // 一次性任务
@@ -1479,13 +1643,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                       </div>
                     </>
                   ) : (
-                    <div className="flex items-center space-x-2">
-                      {theme === 'pixel' ? (
-                        <PixelIcon name="clock" size="sm" />
-                      ) : (
-                        <ClockIcon className="w-5 h-5" />
-                      )}
-                      <span>截止日期：{formatDate(selectedTask.deadline)}</span>
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="clock" size="sm" />
+                ) : (
+                  <ClockIcon className="w-5 h-5" />
+                )}
+                <span>截止日期：{formatDate(selectedTask.deadline)}</span>
                     </div>
                   )
                 ) : (
@@ -1510,34 +1674,44 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   </>
                 )}
 
-                <div className="flex items-center space-x-2">
-                  {theme === 'pixel' ? (
-                    <PixelIcon name="star" size="sm" className="text-pixel-accent" />
-                  ) : (
-                    <StarIcon className="w-5 h-5 text-yellow-500" />
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="star" size="sm" className="text-pixel-accent" />
+                ) : (
+                  <StarIcon className="w-5 h-5 text-yellow-500" />
                   )}
-                  <span>积分奖励：{selectedTask.points}</span>
-                </div>
+                <span>
+                  积分奖励：{selectedTask.points}
+                  {selectedTask.repeatType === 'repeat' && (
+                    <span className={`text-sm ml-1 ${
+                      theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 
+                      theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-500'
+                    }`}>
+                      (每次完成)
+                    </span>
+                  )}
+                </span>
+              </div>
 
-                <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="user" size="sm" />
+                ) : (
+                  <UserIcon className="w-5 h-5" />
+                )}
+                <span>发布者：{selectedTask.creator}</span>
+                    </div>
+
+              {selectedTask.assignee && (
+                    <div className="flex items-center space-x-2">
                   {theme === 'pixel' ? (
                     <PixelIcon name="user" size="sm" />
                   ) : (
                     <UserIcon className="w-5 h-5" />
                   )}
-                  <span>发布者：{selectedTask.creator}</span>
-                </div>
-
-                {selectedTask.assignee && (
-                  <div className="flex items-center space-x-2">
-                    {theme === 'pixel' ? (
-                      <PixelIcon name="user" size="sm" />
-                    ) : (
-                      <UserIcon className="w-5 h-5" />
-                    )}
-                    <span>执行者：{selectedTask.assignee}</span>
-                  </div>
-                )}
+                  <span>执行者：{selectedTask.assignee}</span>
+                    </div>
+              )}
 
                 <div className="flex items-center space-x-2">
                   {theme === 'pixel' ? (
@@ -1547,13 +1721,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   )}
                   <span>类型：{getCategoryName(selectedTask.taskType)}</span>
                 </div>
-              </div>
+                  </div>
 
               {/* 重复性任务详情 */}
               {selectedTask.repeatType === 'repeat' && (
                 <div className={`p-4 rounded ${
-                  theme === 'pixel'
-                    ? 'bg-pixel-card border-2 border-pixel-border'
+                theme === 'pixel'
+                  ? 'bg-pixel-card border-2 border-pixel-border'
                     : 'bg-gray-50 border border-gray-200'
                 }`}>
                   <h5 className={`font-bold mb-3 ${
@@ -1564,7 +1738,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   <div className={`grid grid-cols-2 gap-3 text-sm ${
                     theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
                   }`}>
-                    <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2">
                       {theme === 'pixel' ? (
                         <PixelIcon name="refresh" size="sm" />
                       ) : (
@@ -1617,7 +1791,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   )}
                   <span className={theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'}>
                     当前状态：
-                  </span>
+                    </span>
                 </div>
                 <span className={`px-3 py-1 text-sm font-medium rounded-full ${
                   theme === 'pixel'
@@ -1694,9 +1868,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               {/* 领取任务按钮 - 可领取视图 */}
               {view === 'available' && isRecruiting && !selectedTask.assignee && !isTaskOverdue(selectedTask) && (
                     <Button
-                      onClick={() => {
-                        handleAcceptTask(selectedTask.id);
+                      onClick={async () => {
+                        try {
+                          await handleAcceptTask(selectedTask.id);
                         setSelectedTask(null);
+                        } catch (error) {
+                          console.error('❌ 领取任务按钮处理失败:', error);
+                        }
                       }}
                       variant="primary"
                       className="flex-1"
@@ -1709,9 +1887,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               {isAssignee && isAssigned && !isTaskOverdue(selectedTask) && (
                 <div className="flex space-x-2 flex-1">
                     <Button
-                      onClick={() => {
-                        handleStartTask(selectedTask.id);
+                      onClick={async () => {
+                        try {
+                          await handleStartTask(selectedTask.id);
                         setSelectedTask(null);
+                        } catch (error) {
+                          // 错误已经在handleStartTask中记录和显示了
+                          console.error('❌ 按钮点击处理失败:', error);
+                        }
                       }}
                       variant="primary"
                       className="flex-1"
@@ -1719,8 +1902,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                       {theme === 'pixel' ? 'START_TASK' : '开始任务'}
                     </Button>
                     <Button
-                      onClick={() => {
-                        handleAbandonTask(selectedTask.id);
+                      onClick={async () => {
+                        await handleAbandonTask(selectedTask.id);
                         setSelectedTask(null);
                       }}
                       variant="danger"
@@ -1774,8 +1957,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               {/* 重新发布按钮 - 已放弃 */}
               {isTaskOwner && isAbandoned && (
                 <button
-                  onClick={() => {
-                    handleRepublishTask(selectedTask.id);
+                  onClick={async () => {
+                    await handleRepublishTask(selectedTask.id);
                     setSelectedTask(null);
                   }}
                   className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
@@ -1810,7 +1993,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const renderTaskList = (taskList: Task[], type: 'published' | 'assigned' | 'available') => {
     if (type === 'published') {
       const recruitingTasks = taskList.filter(task => task.status === 'recruiting');
-      const inProgressTasks = taskList.filter(task => task.status === 'in-progress');
+      const inProgressTasks = taskList.filter(task => task.status === 'in_progress');
       const pendingReviewTasks = taskList.filter(task => task.status === 'pending_review');
       const completedTasks = taskList.filter(task => task.status === 'completed');
       const abandonedTasks = taskList.filter(task => task.status === 'abandoned');
@@ -1966,7 +2149,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     } else if (type === 'assigned') {
       // "我的任务"视图 - 按状态分类为四列
       const notStartedTasks = taskList.filter(task => task.status === 'assigned');
-      const inProgressTasks = taskList.filter(task => task.status === 'in-progress');
+      const inProgressTasks = taskList.filter(task => task.status === 'in_progress');
       const completedTasks = taskList.filter(task => task.status === 'completed');
       const abandonedTasks = taskList.filter(task => task.status === 'abandoned');
 
@@ -2076,23 +2259,22 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-          <h2 className={`text-3xl font-bold ${
+      {/* Header with View Switcher */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:space-x-4">
+          <h2 className={`text-2xl sm:text-3xl font-bold ${
             theme === 'pixel' 
               ? 'font-retro text-pixel-text uppercase tracking-wider' 
               : 'font-display text-gray-700'
           }`}>
             {theme === 'pixel' ? 'TASK_MANAGER.EXE' : '任务看板'}
           </h2>
-      </div>
           
-      {/* View Switcher and Add Button */}
-      <div className="flex items-center justify-between w-full mb-6">
-          <div className={`flex ${
+          {/* View Switcher */}
+          <div className={`flex overflow-hidden w-full sm:w-auto ${
             theme === 'pixel' 
-              ? 'bg-pixel-panel border-2 border-pixel-border rounded-pixel p-1'
-              : 'bg-gray-100 rounded-xl p-1'
+              ? 'border-4 border-pixel-border bg-pixel-card shadow-pixel'
+              : 'bg-gray-100 rounded-xl border border-gray-200'
           }`}>
             {[
               { id: 'published', label: theme === 'pixel' ? 'PUBLISHED' : '已发布' },
@@ -2121,25 +2303,37 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             ))}
         </div>
 
-        <Button
+        <div className="flex space-x-3">
+          <Button
+            onClick={handleRefresh}
+            variant="secondary"
+            size="md"
+            icon="refresh"
+            iconComponent={<ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />}
+            disabled={isRefreshing}
+          >
+            {theme === 'pixel' ? 'REFRESH' : '刷新'}
+          </Button>
+          <Button
           onClick={() => setShowAddForm(true)}
-          variant="primary"
-          size="md"
-          icon="plus"
-          iconComponent={<PlusIcon className="w-4 h-4" />}
-        >
-          {theme === 'pixel' ? 'NEW_TASK' : '新建任务'}
-        </Button>
+            variant="primary"
+            size="md"
+            icon="plus"
+            iconComponent={<PlusIcon className="w-4 h-4" />}
+          >
+            {theme === 'pixel' ? 'NEW_TASK' : '新建任务'}
+          </Button>
+        </div>
       </div>
 
       {/* Task Columns */}
       <div className="space-y-8">
-        {loading ? (
-          <div className="text-center py-8">
-            <div className={`${theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-500'}`}>
-              {theme === 'pixel' ? 'LOADING...' : '加载中...'}
-            </div>
-          </div>
+        {loading || !tasksLoaded ? (
+          <LoadingSpinner
+            size="lg"
+            title={theme === 'pixel' ? 'LOADING TASKS...' : '正在加载任务列表...'}
+            subtitle={theme === 'pixel' ? 'FETCHING DATA...' : '正在从数据库获取任务数据'}
+          />
         ) : (
           <>
         {view === 'published' && (
@@ -2337,6 +2531,15 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   }`}
                   placeholder={theme === 'pixel' ? '50' : '输入积分 (1-1000)'}
                 />
+                <p className={`text-xs mt-1 ${
+                  theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 
+                  theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-500'
+                }`}>
+                  {newTask.repeatType === 'repeat' 
+                    ? '🔄 重复性任务：每次完成都可获得此积分奖励' 
+                    : '📅 一次性任务：完成后获得此积分奖励'
+                  }
+                </p>
               </div>
 
               {/* 需要凭证 */}
@@ -2386,8 +2589,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     setShowAddForm(false);
                   }}
                   className="flex-1"
-                >
-                  {theme === 'pixel' ? 'CANCEL' : '取消'}
+              >
+                {theme === 'pixel' ? 'CANCEL' : '取消'}
                 </Button>
                 <Button
                   variant="primary"

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useUser } from '../contexts/UserContext';
 import { UserIcon, CalendarIcon, EnvelopeIcon, AtSymbolIcon, GiftIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
+import LoadingSpinner from './ui/LoadingSpinner';
 import { getUserDisplayInfo } from '../services/authService';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
 
-// 用户资料接口
+// 本地使用的UserProfile类型（与UserContext中的保持一致）
 interface UserProfile {
   id: string;
   username: string;
@@ -17,142 +17,44 @@ interface UserProfile {
   timezone: string;
 }
 
-// 获取当前用户资料的函数
-const getCurrentUserProfile = (): UserProfile | null => {
-  try {
-    // 首先尝试从真实模式获取用户数据 (preset_user)
-    const presetUser = localStorage.getItem('preset_user');
-    if (presetUser) {
-      const user = JSON.parse(presetUser);
-      // 返回真实的用户资料
-      const userInfo = getUserDisplayInfo(user);
-      return {
-        id: user.id,
-        username: user.user_metadata?.username || 'unknown_user',
-        display_name: user.user_metadata?.display_name || 'Unknown User',
-        email: user.email,
-        birthday: user.user_metadata?.birthday || '1990-01-01',
-        points: userInfo?.uiTheme === 'cat' ? 150 : 300,
-        timezone: userInfo?.uiTheme === 'cat' ? 'Asia/Shanghai' : 'America/New_York'
-      };
-    }
-    
 
-    
-    return null;
-  } catch (error) {
-    console.error('获取用户资料失败:', error);
-    return null;
-  }
-};
 
 const UserProfile: React.FC = () => {
   const { theme } = useTheme();
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { userProfile: profile, loading, updateUserProfile } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<UserProfile>>({});
-  const [loading, setLoading] = useState(true);
+  
+  // 调试信息
+  console.log('👤 UserProfile 全局状态:', { loading, profile: !!profile });
 
   // 获取当前用户UI主题（仅用于头部图标显示）
   const currentUserInfo = profile ? getUserDisplayInfo(profile) : null;
   const currentUserType = currentUserInfo?.uiTheme === 'cow' ? 'cow' : (currentUserInfo?.uiTheme === 'cat' ? 'cat' : null);
 
-  // 从数据库加载用户资料
-  useEffect(() => {
-    const loadUserProfile = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // 从数据库获取完整的用户资料
-        const { data: userProfile, error } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('获取用户资料失败:', error);
-          // 尝试从 localStorage 获取作为后备
-          const fallbackProfile = getCurrentUserProfile();
-          if (fallbackProfile) {
-            setProfile(fallbackProfile);
-            setEditForm(fallbackProfile);
-          }
-        } else if (userProfile) {
-          // 使用数据库中的真实资料
-          const formattedProfile: UserProfile = {
-            id: userProfile.id,
-            username: userProfile.username,
-            display_name: userProfile.display_name,
-            email: userProfile.email,
-            birthday: userProfile.birthday || '1990-01-01',
-            points: userProfile.points || 0,
-            timezone: userProfile.timezone || 'UTC'
-          };
-          setProfile(formattedProfile);
-          setEditForm(formattedProfile);
-        }
-      } catch (error) {
-        console.error('加载用户资料时出错:', error);
-        // 尝试从 localStorage 获取作为后备
-        const fallbackProfile = getCurrentUserProfile();
-        if (fallbackProfile) {
-          setProfile(fallbackProfile);
-          setEditForm(fallbackProfile);
-        }
-      }
-
-      setLoading(false);
-    };
-
-    loadUserProfile();
-  }, [user]);
+  // 当全局用户资料加载完成时，初始化编辑表单
+  React.useEffect(() => {
+    if (profile) {
+      setEditForm(profile);
+    }
+  }, [profile]);
 
   // 保存资料
   const handleSave = async () => {
-    if (!profile || !editForm || !user) return;
+    if (!profile || !editForm) return;
 
     try {
-      // 更新数据库中的用户资料
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({
-          username: editForm.username,
-          display_name: editForm.display_name,
-          birthday: editForm.birthday
-        })
-        .eq('id', user.id);
+      // 使用全局状态的更新方法
+      await updateUserProfile({
+        username: editForm.username,
+        display_name: editForm.display_name,
+        birthday: editForm.birthday
+      });
 
-      if (error) {
-        console.error('更新数据库失败:', error);
-        throw new Error('保存失败，请重试');
-      }
-
-      // 更新本地状态
-      const updatedProfile = { ...profile, ...editForm };
-      setProfile(updatedProfile);
-      
-      // 同时更新localStorage中的用户数据（保持一致性）
-      const presetUser = localStorage.getItem('preset_user');
-      if (presetUser) {
-        const localUser = JSON.parse(presetUser);
-        localUser.user_metadata = {
-          ...localUser.user_metadata,
-          username: updatedProfile.username,
-          display_name: updatedProfile.display_name,
-          birthday: updatedProfile.birthday
-        };
-        localStorage.setItem('preset_user', JSON.stringify(localUser));
-      }
-      
       setIsEditing(false);
-
+      console.log('✅ 用户资料更新成功');
     } catch (error) {
-      console.error('保存用户资料失败:', error);
+      console.error('保存用户资料时出错:', error);
       alert('保存失败，请重试');
     }
   };
@@ -214,17 +116,17 @@ const UserProfile: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={`flex items-center justify-center p-8 ${
-        theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : 'text-gray-600'
-      }`}>
-        <div className="text-center">
-          <div className="text-lg">加载中...</div>
-        </div>
-      </div>
+      <LoadingSpinner
+        size="lg"
+        title={theme === 'pixel' ? 'LOADING PROFILE...' : '正在加载用户资料...'}
+        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : '请稍候，正在从数据库获取您的信息'}
+        className="min-h-[400px]"
+      />
     );
   }
 
-  if (!profile) {
+  // 如果没有profile且确实完成了加载，才显示错误信息
+  if (!profile && !loading) {
     return (
       <div className={`flex items-center justify-center p-8 ${
         theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : 'text-gray-600'
@@ -234,6 +136,18 @@ const UserProfile: React.FC = () => {
           <div className="text-sm opacity-75">请重新登录</div>
         </div>
       </div>
+    );
+  }
+
+  // 如果仍在加载或profile为null，继续显示加载状态
+  if (!profile) {
+    return (
+      <LoadingSpinner
+        size="lg"
+        title={theme === 'pixel' ? 'LOADING PROFILE...' : '正在加载用户资料...'}
+        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : '请稍候，正在从数据库获取您的信息'}
+        className="min-h-[400px]"
+      />
     );
   }
 

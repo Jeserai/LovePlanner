@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
+import { UserProvider, useUser } from '../src/contexts/UserContext';
 import { useAuth } from '../src/hooks/useAuth';
+import { realtimeSyncService } from '../src/services/realtimeSync';
 import { userService } from '../src/services/database';
 import Layout from '../src/components/Layout';
 import Calendar from '../src/components/Calendar';
@@ -8,7 +10,6 @@ import TaskBoard from '../src/components/TaskBoard';
 import Shop from '../src/components/Shop';
 import Settings from '../src/components/Settings';
 import AuthForm from '../src/components/AuthForm';
-import { getUserDisplayInfo } from '../src/services/authService';
 // 路由测试工具已移除（清理调试信息）
 
 // 加载组件
@@ -102,71 +103,70 @@ const LoadingScreen: React.FC = () => {
   );
 };
 
-// 主应用组件
+// 主应用组件 - 现在使用全局用户状态
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('calendar'); // 默认显示日历
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [initializedTabs, setInitializedTabs] = useState<Set<string>>(new Set(['calendar'])); // 跟踪已初始化的标签页
   const { user, loading: authLoading, signOut } = useAuth();
-
-  // 当认证状态变化时，获取或创建用户档案
+  const { userProfile, loading: userLoading } = useUser();
+  
+  // 实时同步初始化
   useEffect(() => {
-    const initializeUser = async () => {
-      if (user && !authLoading) {
+    let visibilityCleanup: (() => void) | undefined;
+    
+    const initializeRealtime = async () => {
+      if (user && userProfile) {
         try {
-          // 尝试获取用户档案
-          let profile = await userService.getProfile(user.id);
-          
-          if (!profile) {
-            // 如果没有档案，可能是新用户，等待触发器创建
-            // 稍等一下再重试
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            profile = await userService.getProfile(user.id);
-          }
-
-          if (profile) {
-            setUserProfile(profile);
-            const userInfo = getUserDisplayInfo(profile);
-            console.log(`✅ 用户档案加载成功: ${profile.display_name} (${userInfo?.uiTheme})`);
-          } else {
-            console.warn('⚠️ 未找到用户档案，可能需要完善信息');
-            // 可以在这里引导用户完善档案
+          // 获取情侣关系ID
+          const coupleData = await userService.getCoupleRelation(user.id);
+          if (coupleData) {
+            // 初始化实时同步
+            realtimeSyncService.initialize(coupleData.id, user.id);
+            
+            // 初始化页面可见性同步
+            visibilityCleanup = realtimeSyncService.initializeVisibilitySync();
+            
+            console.log('🔔 实时同步服务已启动');
           }
         } catch (error) {
-          console.error('❌ 初始化用户档案时出错:', error);
+          console.error('❌ 初始化实时同步失败:', error);
         }
-      } else if (!user && !authLoading) {
-        // 用户未登录
-        setUserProfile(null);
-        console.log('📝 用户未登录');
       }
-      
-      setIsInitializing(false);
     };
 
-    initializeUser();
-  }, [user, authLoading]);
+    initializeRealtime();
+    
+    // 清理函数
+    return () => {
+      if (visibilityCleanup) {
+        visibilityCleanup();
+      }
+    };
+  }, [user, userProfile]);
+
+  // 当切换标签页时，记录已初始化的标签页
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setInitializedTabs(prev => {
+      const newSet = new Set(prev);
+      newSet.add(tab);
+      return newSet;
+    });
+  };
 
   // 处理认证成功
   const handleAuthSuccess = (authUser: any, profile: any) => {
     console.log('🎉 认证成功:', authUser.email);
-    console.log('📝 用户对象:', authUser);
-    console.log('👤 用户档案:', profile);
-    
-    if (profile) {
-      setUserProfile(profile);
-    }
-    
-    // 强制更新初始化状态，确保页面重新渲染
-    setIsInitializing(false);
     setActiveTab('calendar');
   };
 
   // 处理登出
   const handleLogout = async () => {
     try {
+      // 清理实时同步
+      realtimeSyncService.cleanup();
+      
       await signOut();
-      setUserProfile(null);
       setActiveTab('calendar');
       console.log('👋 用户已登出');
     } catch (error) {
@@ -174,26 +174,38 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // 渲染主应用内容
+  // 渲染主应用内容 - 只初始化访问过的标签页，保持其状态
   const renderContent = () => {
     const currentUserName = userProfile?.display_name || user?.email || null;
     
-    switch (activeTab) {
-      case 'calendar':
-        return <Calendar currentUser={currentUserName} />;
-      case 'tasks':
-        return <TaskBoard currentUser={currentUserName} />;
-      case 'shop':
-        return <Shop />;
-      case 'settings':
-        return <Settings />;
-      default:
-        return <Calendar currentUser={currentUserName} />;
-    }
+    return (
+      <>
+        {initializedTabs.has('calendar') && (
+          <div style={{ display: activeTab === 'calendar' ? 'block' : 'none' }}>
+            <Calendar currentUser={currentUserName} />
+          </div>
+        )}
+        {initializedTabs.has('tasks') && (
+          <div style={{ display: activeTab === 'tasks' ? 'block' : 'none' }}>
+            <TaskBoard currentUser={currentUserName} />
+          </div>
+        )}
+        {initializedTabs.has('shop') && (
+          <div style={{ display: activeTab === 'shop' ? 'block' : 'none' }}>
+            <Shop />
+          </div>
+        )}
+        {initializedTabs.has('settings') && (
+          <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
+            <Settings />
+          </div>
+        )}
+      </>
+    );
   };
 
   // 加载状态 - 认证状态检查中或用户初始化中
-  if (authLoading || isInitializing) {
+  if (authLoading || userLoading) {
     return <LoadingScreen />;
   }
 
@@ -209,7 +221,7 @@ const AppContent: React.FC = () => {
   return (
     <Layout 
       activeTab={activeTab} 
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       currentUser={currentUserName}
       onLogout={handleLogout}
     >
@@ -221,7 +233,9 @@ const AppContent: React.FC = () => {
 export default function Home() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
     </ThemeProvider>
   );
 } 

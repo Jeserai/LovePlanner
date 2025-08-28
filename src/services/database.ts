@@ -249,14 +249,15 @@ export const taskService = {
 
   // 通用任务更新方法
   async updateTask(taskId: string, updates: any): Promise<boolean> {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('tasks')
       .update(updates)
       .eq('id', taskId)
+      .select()
 
     if (error) {
-      console.error('Error updating task:', error)
-      return false
+      console.error('❌ 任务更新失败:', error.message);
+      throw error;
     }
 
     return true

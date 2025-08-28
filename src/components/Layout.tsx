@@ -1,5 +1,7 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useUser } from '../contexts/UserContext';
+import { getUserDisplayInfo } from '../services/authService';
 import { HeartIcon, CalendarDaysIcon, ListBulletIcon, ShoppingBagIcon, Cog6ToothIcon, UserIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 
@@ -13,6 +15,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, currentUser, onLogout }) => {
   const { theme } = useTheme();
+  const { userProfile, loading } = useUser();
   
   const tabs = [
     { id: 'calendar', name: 'CALENDAR', icon: CalendarDaysIcon },
@@ -21,33 +24,48 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
     { id: 'settings', name: 'SETTINGS', icon: Cog6ToothIcon },
   ];
 
-  // 根据主题和用户名获取显示信息
-  const getUserInfo = (username: string) => {
-    if (username.toLowerCase().includes('cat')) {
+
+
+  // 根据真实用户信息和主题获取显示信息
+  const getUserInfo = () => {
+    if (!userProfile) {
       return { 
         icon: 'user',
-        name: theme === 'pixel' ? 'PLAYER_CAT' : theme === 'fresh' ? '清新小猫 🐱' : 'Whimsical Cat', 
+        name: 'Guest', 
+        color: 'gray',
+        emoji: '👤'
+      };
+    }
+
+    const displayName = userProfile.display_name || userProfile.username || 'User';
+    const userDisplayInfo = getUserDisplayInfo(userProfile);
+    const uiTheme = userDisplayInfo?.uiTheme;
+
+    if (uiTheme === 'cat') {
+      return { 
+        icon: 'user',
+        name: theme === 'pixel' ? displayName.toUpperCase() : theme === 'fresh' ? `${displayName} 🐱` : displayName, 
         color: theme === 'fresh' ? 'cat' : 'primary',
         emoji: '🐱'
       };
-    } else if (username.toLowerCase().includes('cow')) {
+    } else if (uiTheme === 'cow') {
       return { 
         icon: 'user',
-        name: theme === 'pixel' ? 'PLAYER_COW' : theme === 'fresh' ? '简约小牛 🐮' : 'Whimsical Cow', 
+        name: theme === 'pixel' ? displayName.toUpperCase() : theme === 'fresh' ? `${displayName} 🐮` : displayName, 
         color: theme === 'fresh' ? 'cow' : 'blue',
         emoji: '🐮'
       };
     } else {
       return { 
         icon: 'user',
-        name: username, 
+        name: theme === 'pixel' ? displayName.toUpperCase() : displayName, 
         color: 'gray',
         emoji: '👤'
       };
     }
   };
 
-  const userInfo = currentUser ? getUserInfo(currentUser) : null;
+  const userInfo = getUserInfo();
 
   return (
     <div className={`min-h-screen ${
@@ -126,30 +144,30 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
             </nav>
 
             {/* User Info & Logout */}
-            {userInfo && (
+            {(userInfo || loading) && (
               <div className="flex items-center space-x-3">
                 {/* User Display */}
                 <div className={`flex items-center space-x-2 px-3 py-2 ${
                   theme === 'pixel' 
                     ? `rounded-pixel border-2 ${
-                        userInfo.color === 'blue' 
+                        userInfo?.color === 'blue' 
                           ? 'border-pixel-info bg-pixel-panel' 
-                          : userInfo.color === 'primary'
+                          : userInfo?.color === 'primary'
                           ? 'border-pixel-warning bg-pixel-panel'
                           : 'border-pixel-border bg-pixel-panel'
                       }`
                     : theme === 'fresh'
                     ? `rounded-fresh-lg border ${
-                        userInfo.color === 'cat'
+                        userInfo?.color === 'cat'
                           ? 'border-fresh-catColor bg-fresh-catColor/10'
-                          : userInfo.color === 'cow'
+                          : userInfo?.color === 'cow'
                           ? 'border-fresh-cowColor bg-fresh-cowColor/10'
                           : 'border-fresh-border bg-fresh-card'
                       } shadow-fresh-sm`
                     : `rounded-xl backdrop-blur-md ${
-                        userInfo.color === 'blue' 
+                        userInfo?.color === 'blue' 
                           ? 'bg-blue-100/50 border border-blue-200/40' 
-                          : userInfo.color === 'primary'
+                          : userInfo?.color === 'primary'
                           ? 'bg-primary-100/50 border border-primary-200/40'
                           : 'bg-sage-100/50 border border-sage-200/40'
                       }`
@@ -158,8 +176,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                     <PixelIcon 
                       name="user" 
                       className={`${
-                        userInfo.color === 'blue' ? 'text-pixel-info' :
-                        userInfo.color === 'primary' ? 'text-pixel-warning' :
+                        userInfo?.color === 'blue' ? 'text-pixel-info' :
+                        userInfo?.color === 'primary' ? 'text-pixel-warning' :
                         'text-pixel-text'
                       }`}
                       size="sm"
@@ -168,17 +186,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                     <div 
                       className="w-6 h-6 rounded-fresh-full flex items-center justify-center text-sm"
                       style={{
-                        backgroundColor: userInfo.color === 'cat' ? '#06b6d420' : userInfo.color === 'cow' ? '#8b5cf620' : '#e2e8f0',
-                        color: userInfo.color === 'cat' ? '#06b6d4' : userInfo.color === 'cow' ? '#8b5cf6' : '#64748b',
-                        border: `1px solid ${userInfo.color === 'cat' ? '#06b6d4' : userInfo.color === 'cow' ? '#8b5cf6' : '#e2e8f0'}`
+                        backgroundColor: userInfo?.color === 'cat' ? '#06b6d420' : userInfo?.color === 'cow' ? '#8b5cf620' : '#e2e8f0',
+                        color: userInfo?.color === 'cat' ? '#06b6d4' : userInfo?.color === 'cow' ? '#8b5cf6' : '#64748b',
+                        border: `1px solid ${userInfo?.color === 'cat' ? '#06b6d4' : userInfo?.color === 'cow' ? '#8b5cf6' : '#e2e8f0'}`
                       }}
                     >
-                      {userInfo.emoji}
+                      {userInfo?.emoji || '👤'}
                     </div>
                   ) : (
                     <UserIcon className={`w-4 h-4 ${
-                      userInfo.color === 'blue' ? 'text-blue-600' :
-                      userInfo.color === 'primary' ? 'text-primary-600' :
+                      userInfo?.color === 'blue' ? 'text-blue-600' :
+                      userInfo?.color === 'primary' ? 'text-primary-600' :
                       'text-gray-600'
                     }`} />
                   )}
@@ -187,13 +205,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                       ? 'text-pixel-text font-mono'
                       : theme === 'fresh'
                       ? 'text-fresh-text'
-                      : userInfo.color === 'blue' 
+                      : userInfo?.color === 'blue' 
                         ? 'text-blue-700' 
-                        : userInfo.color === 'primary'
+                        : userInfo?.color === 'primary'
                         ? 'text-primary-700'
                         : 'text-sage-700'
                   }`}>
-                    {userInfo.name}
+                    {loading ? (theme === 'pixel' ? 'LOADING...' : '加载中...') : userInfo?.name || 'Guest'}
                   </span>
                 </div>
 

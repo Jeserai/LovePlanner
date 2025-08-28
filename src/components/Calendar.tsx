@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { PlusIcon, UserIcon, ArrowPathIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, CalendarDaysIcon, HeartIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 import Button from './ui/Button';
 import NavigationButton from './ui/NavigationButton';
+import LoadingSpinner from './ui/LoadingSpinner';
 import ConfirmDialog from './ConfirmDialog';
 import { format, subMonths, addMonths, isSameDay, isSameMonth } from 'date-fns';
-import { userService } from '../services/database';
+import { userService, taskService } from '../services/database';
 import { simplifiedEventService, type SimplifiedEvent } from '../services/simplifiedEventService';
 import { minimalColorService, type CoupleColors } from '../services/minimalColorService';
 import { useAuth } from '../hooks/useAuth';
+import { globalEventService, GlobalEvents } from '../services/globalEventService';
 
 // 前端展示用的Event接口
 interface Event {
@@ -50,8 +52,14 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const [coupleId, setCoupleId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // 手动刷新功能
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 强制刷新状态，用于触发重新渲染
+  const [forceRefresh, setForceRefresh] = useState(0);
+  
   // 用户类型定义
-  type UserView = 'user1' | 'user2' | 'shared';
+  type UserView = 'my' | 'partner' | 'shared';
   
   // 用户信息状态
   const [coupleUsers, setCoupleUsers] = useState<{user1: any, user2: any} | null>(null);
@@ -60,21 +68,15 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   // 颜色配置状态
   const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null);
   
-  // 获取当前用户视图类型的辅助函数
-  const getDefaultView = (): UserView => {
-    if (!user) return 'shared'; // 未登录时显示共同日历
-    return 'user1'; // 默认显示"我的日历"
-  };
-
-  // 添加视图状态 - 使用动态默认值
-  const [currentView, setCurrentView] = useState<UserView>(getDefaultView());
+  // 添加视图状态 - 初始化为shared，等用户信息加载完成后更新
+  const [currentView, setCurrentView] = useState<UserView>('shared');
   
   // 获取视图显示名称
   const getViewDisplayName = (view: UserView): string => {
     switch (view) {
-      case 'user1':
+      case 'my':
         return theme === 'pixel' ? 'MY_CALENDAR' : '我的日历';
-      case 'user2':
+      case 'partner':
         return theme === 'pixel' ? 'PARTNER_CALENDAR' : '伴侣日历';
       case 'shared':
         return theme === 'pixel' ? 'SHARED_CALENDAR' : '共同日历';
@@ -82,12 +84,236 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         return '';
     }
   };
+
+  // 获取实际的数据库视图（将逻辑视图转换为物理视图）
+  const getActualView = (logicalView: UserView): 'user1' | 'user2' | 'shared' => {
+    if (logicalView === 'shared') return 'shared';
+    if (currentUserIsUser1 === null) return 'user1'; // 默认
+    
+    if (logicalView === 'my') {
+      return currentUserIsUser1 ? 'user1' : 'user2';
+    } else { // partner
+      return currentUserIsUser1 ? 'user2' : 'user1';
+    }
+  };
   
-  // 监听用户变化，当用户切换时自动更新视图
+  // 监听用户身份确定后，自动设置为"我的日历"视图
   useEffect(() => {
-    const newDefaultView = getDefaultView();
-    setCurrentView(newDefaultView);
-  }, [currentUser]);
+    if (currentUserIsUser1 !== null && user) {
+      console.log('📅 设置默认视图为"我的日历":', { 
+        currentUserIsUser1, 
+        userId: user.id 
+      });
+      setCurrentView('my'); // 总是默认显示"我的日历"
+    }
+  }, [currentUserIsUser1, user]);
+
+  // 生成重复性任务的日历事件
+  const generateRecurringTaskEvents = (task: any, participants: string[], color: string): Event[] => {
+    const events: Event[] = [];
+    
+    if (!task.start_date || !task.end_date || !task.repeat_frequency) {
+      console.log('⚠️ 重复性任务缺少必要信息:', task.title);
+      return events;
+    }
+    
+    const startDate = new Date(task.start_date);
+    const endDate = new Date(task.end_date);
+    const currentDate = new Date(startDate);
+    
+    // 确保不超过合理的事件数量限制（避免无限循环）
+    const maxEvents = 365; // 最多一年的事件
+    let eventCount = 0;
+    
+    // 如果有指定工作日，使用特殊逻辑
+    if (task.repeat_weekdays && task.repeat_weekdays.length > 0) {
+      // 为每个指定的工作日生成事件
+      while (currentDate <= endDate && eventCount < maxEvents) {
+        const dayOfWeek = currentDate.getDay(); // 0=Sunday, 1=Monday, ...
+        
+        if (task.repeat_weekdays.includes(dayOfWeek)) {
+          const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+          
+          const taskEvent: Event = {
+            id: `task-${task.id}-${dateStr}`,
+            title: `📋 ${task.title}`,
+            date: dateStr,
+            time: task.repeat_time || undefined,
+            participants,
+            color,
+            isRecurring: true,
+            recurrenceType: task.repeat_frequency,
+            originalDate: task.start_date
+          };
+          
+          events.push(taskEvent);
+          eventCount++;
+        }
+        
+        // 移动到下一天
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    } else {
+      // 常规重复频率逻辑
+      while (currentDate <= endDate && eventCount < maxEvents) {
+        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+        
+        const taskEvent: Event = {
+          id: `task-${task.id}-${dateStr}`,
+          title: `📋 ${task.title}`,
+          date: dateStr,
+          time: task.repeat_time || undefined,
+          participants,
+          color,
+          isRecurring: true,
+          recurrenceType: task.repeat_frequency,
+          originalDate: task.start_date
+        };
+        
+        events.push(taskEvent);
+        eventCount++;
+        
+        // 根据重复频率移动到下一个日期
+        switch (task.repeat_frequency) {
+          case 'daily':
+            currentDate.setDate(currentDate.getDate() + 1);
+            break;
+          case 'weekly':
+            currentDate.setDate(currentDate.getDate() + 7);
+            break;
+          case 'biweekly':
+            currentDate.setDate(currentDate.getDate() + 14);
+            break;
+          case 'monthly':
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            break;
+          case 'yearly':
+            currentDate.setFullYear(currentDate.getFullYear() + 1);
+            break;
+          default:
+            console.warn('⚠️ 未知的重复频率:', task.repeat_frequency);
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+      }
+    }
+    
+    console.log(`🔄 为任务 "${task.title}" 生成了 ${events.length} 个重复事件`);
+    return events;
+  };
+
+  // 同步任务到日历显示
+  const syncTasksToCalendar = async () => {
+    console.log('🔄 syncTasksToCalendar 被调用, 状态:', { coupleId, user: !!user });
+    if (!coupleId || !user) {
+      console.log('⚠️ syncTasksToCalendar 条件不满足，跳过同步');
+      return;
+    }
+    
+    try {
+      console.log('🔄 开始同步任务到日历');
+      // 从数据库获取所有任务
+      const dbTasks = await taskService.getCoupleTasksOld(coupleId);
+      console.log('📊 获取到的数据库任务:', dbTasks);
+      
+      // 转换任务为日历事件
+      const taskEvents: Event[] = [];
+      
+      dbTasks.forEach(task => {
+        console.log('🔍 检查任务:', { 
+          id: task.id, 
+          title: task.title, 
+          status: task.status, 
+          assignee_id: task.assignee_id, 
+          repeat_type: task.repeat_type,
+          repeat_frequency: task.repeat_frequency,
+          start_date: task.start_date,
+          end_date: task.end_date,
+          deadline: task.deadline 
+        });
+        
+        // 只显示已分配或进行中的任务
+        if (task.status === 'assigned' || task.status === 'in_progress') {
+          const participants = task.assignee_id ? [task.assignee_id] : [];
+          const taskColor = task.status === 'assigned' ? 'bg-yellow-400' : 'bg-blue-400';
+          
+          if (task.repeat_type === 'repeat' && task.start_date && task.end_date) {
+            // 重复性任务：根据频率生成多个事件
+            console.log('🔄 处理重复性任务:', task.title, {
+              repeat_frequency: task.repeat_frequency,
+              start_date: task.start_date,
+              end_date: task.end_date,
+              repeat_time: task.repeat_time,
+              repeat_weekdays: task.repeat_weekdays
+            });
+            const events = generateRecurringTaskEvents(task, participants, taskColor);
+            console.log(`🔄 生成的事件数量: ${events.length}，前几个日期:`, events.slice(0, 5).map(e => e.date));
+            taskEvents.push(...events);
+            
+          } else if (task.repeat_type === 'once' && task.deadline) {
+            // 一次性任务：只显示deadline
+            console.log('📅 处理一次性任务:', task.title);
+            const deadlineDate = new Date(task.deadline);
+            const dateStr = `${deadlineDate.getFullYear()}-${String(deadlineDate.getMonth() + 1).padStart(2, '0')}-${String(deadlineDate.getDate()).padStart(2, '0')}`;
+            
+            const taskEvent = {
+              id: `task-${task.id}`,
+              title: `📋 ${task.title}`,
+              date: dateStr,
+              time: task.repeat_time || undefined,
+              participants,
+              color: taskColor,
+      isRecurring: false
+            };
+            
+            console.log('✨ 创建一次性任务事件:', taskEvent);
+            taskEvents.push(taskEvent);
+            
+          } else {
+            console.log('⚠️ 任务缺少必要的日期信息，跳过:', { 
+              title: task.title, 
+              repeat_type: task.repeat_type,
+              has_deadline: !!task.deadline,
+              has_start_date: !!task.start_date,
+              has_end_date: !!task.end_date
+            });
+          }
+        } else {
+          console.log('⚠️ 任务状态不符合条件，跳过:', { title: task.title, status: task.status });
+        }
+      });
+      
+      // 将任务事件存储到localStorage（用于Calendar的readTaskEvents函数）
+      localStorage.setItem('calendarTaskEvents', JSON.stringify(taskEvents));
+      
+      console.log('✅ 任务同步到日历完成:', taskEvents.length, '个任务事件');
+      console.log('💾 存储到localStorage的数据:', taskEvents);
+      
+      // 强制触发重新渲染，让getAllEvents重新读取localStorage中的任务事件
+      setForceRefresh(prev => prev + 1);
+      
+    } catch (error) {
+      console.error('❌ 同步任务到日历失败:', error);
+    }
+  };
+
+  // 手动刷新数据
+  const handleRefresh = async () => {
+    if (isRefreshing || loading) return;
+    
+    setIsRefreshing(true);
+    try {
+      if (coupleId && coupleUsers) {
+        const dbEvents = await simplifiedEventService.getCoupleEvents(coupleId);
+        const convertedEvents = dbEvents.map(convertSimplifiedEventToEvent);
+        setEvents(convertedEvents);
+        console.log('🔄 Calendar 手动刷新完成');
+      }
+    } catch (error) {
+      console.error('🔄 Calendar 手动刷新失败:', error);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500); // 最少显示0.5秒刷新状态
+    }
+  };
   
 
 
@@ -253,12 +479,24 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 setCurrentUserIsUser1(true);
                 user1 = users[0]; // 当前用户
                 user2 = users[1]; // 伴侣
+                console.log('👤 用户身份确认:', { 
+                  currentUserId: user.id, 
+                  currentUser: users[0], 
+                  isUser1: true,
+                  displayName: users[0]?.display_name 
+                });
               } else if (currentUserIsSecondInArray) {
                 // 当前用户是数组中的第二个，在couples表中是user2
                 isUser1 = false;
                 setCurrentUserIsUser1(false);
                 user1 = users[0]; // 伴侣 (在couples表中是user1)
                 user2 = users[1]; // 当前用户 (在couples表中是user2)
+                console.log('👤 用户身份确认:', { 
+                  currentUserId: user.id, 
+                  currentUser: users[1], 
+                  isUser1: false,
+                  displayName: users[1]?.display_name 
+                });
               } else {
                 // 异常情况：当前用户不在用户列表中
                 return;
@@ -299,7 +537,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       } catch (error) {
         console.error('加载情侣关系失败:', error);
       }
-      setLoading(false);
+      
+      // 添加最小加载时间，确保用户能看到加载状态
+      setTimeout(() => {
+        setLoading(false);
+      }, 500); // 最少显示0.5秒加载状态
     };
 
     loadCoupleInfo();
@@ -325,8 +567,54 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
     if (!loading) {
       loadEvents();
+      // 同时同步任务到日历
+      syncTasksToCalendar();
     }
   }, [coupleId, loading, coupleUsers]);
+
+  // 创建稳定的回调函数，避免闭包陷阱
+  const handleTasksUpdated = useCallback(() => {
+    console.log('📋 Calendar 收到任务更新通知，准备同步任务到日历');
+    console.log('📋 当前状态:', { coupleId, user: !!user, loading });
+    // 只有在条件满足时才同步
+    if (coupleId && user && !loading) {
+      console.log('📋 条件满足，开始同步任务到日历');
+      syncTasksToCalendar();
+    } else {
+      console.log('📋 条件不满足，跳过同步');
+    }
+  }, [coupleId, user, loading]);
+
+  const handleEventsUpdated = useCallback(() => {
+    console.log('📅 Calendar 收到事件更新通知（可能来自其他用户）');
+    // 如果事件已经加载过，则自动刷新
+    if (!loading && coupleId && coupleUsers) {
+      handleRefresh();
+    }
+  }, [loading, coupleId, coupleUsers]);
+
+  const handleUserProfileUpdated = useCallback(() => {
+    console.log('👤 Calendar 收到用户资料更新通知');
+    // 可能需要重新加载颜色配置
+  }, []);
+
+  // 订阅全局事件，响应其他组件的数据更新
+  useEffect(() => {
+    // 订阅任务更新（任务可能影响日历显示）
+    const unsubscribeTasks = globalEventService.subscribe(GlobalEvents.TASKS_UPDATED, handleTasksUpdated);
+
+    // 订阅事件数据更新（包括其他用户的操作）
+    const unsubscribeEvents = globalEventService.subscribe(GlobalEvents.EVENTS_UPDATED, handleEventsUpdated);
+
+    // 订阅用户资料更新
+    const unsubscribeProfile = globalEventService.subscribe(GlobalEvents.USER_PROFILE_UPDATED, handleUserProfileUpdated);
+
+    return () => {
+      unsubscribeTasks();
+      unsubscribeEvents();
+      unsubscribeProfile();
+    };
+  }, [handleTasksUpdated, handleEventsUpdated, handleUserProfileUpdated]);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -419,29 +707,41 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const readTaskEvents = (): Event[] => {
     try {
       const raw = localStorage.getItem('calendarTaskEvents');
-      if (!raw) return [];
+      if (!raw) {
+        console.log('📋 没有找到calendarTaskEvents数据');
+        return [];
+      }
+      
       const parsed = JSON.parse(raw) as any[];
-      return parsed.map((e, idx) => ({
+      console.log('📋 读取到任务事件原始数据:', parsed);
+      
+      const taskEvents = parsed.map((e, idx) => ({
         id: typeof e.id === 'string' ? e.id : `task-${idx}`,
         title: String(e.title || 'Task'),
         date: String(e.date),
         time: e.time ? String(e.time) : undefined,
-        participants: Array.isArray(e.participants) ? e.participants.filter((p: any) => p === 'cat' || p === 'cow') : [],
+        participants: Array.isArray(e.participants) ? e.participants : [], // 移除错误的过滤逻辑
         color: typeof e.color === 'string' ? e.color : 'bg-lavender-400',
         isRecurring: Boolean(e.isRecurring),
         recurrenceType: e.recurrenceType,
         recurrenceEnd: e.recurrenceEnd,
         originalDate: e.originalDate
       }));
-    } catch {
+      
+      console.log('📋 转换后的任务事件:', taskEvents);
+      return taskEvents;
+    } catch (error) {
+      console.error('❌ 读取任务事件失败:', error);
       return [];
     }
   };
 
-  // 获取所有事件（包括重复事件的实例）
-  const getAllEvents = (): Event[] => {
+  // 获取所有事件（包括重复事件的实例和任务事件）
+  const getAllEvents = useMemo((): Event[] => {
+    console.log('📅 getAllEvents 被调用 (useMemo), forceRefresh:', forceRefresh);
     const baseEvents: Event[] = [];
     
+    // 添加常规事件
     events.forEach(event => {
       if (event.isRecurring) {
         baseEvents.push(...generateRecurringEvents(event));
@@ -449,9 +749,16 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         baseEvents.push(event);
       }
     });
-
+    console.log('📅 常规事件数量:', baseEvents.length);
+    
+    // 添加任务事件
+    const taskEvents = readTaskEvents();
+    console.log('📋 任务事件数量:', taskEvents.length);
+    baseEvents.push(...taskEvents);
+    
+    console.log('📅 总事件数量:', baseEvents.length);
     return baseEvents;
-  };
+  }, [events, forceRefresh]); // 依赖于events和forceRefresh
 
   // 检查事件是否包含指定用户的辅助函数
   const eventIncludesUser = (event: Event, userId: string): boolean => {
@@ -463,8 +770,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 根据当前视图筛选事件
   const getFilteredEvents = (allEvents: Event[]): Event[] => {
+    console.log('🔍 开始过滤事件, 当前视图:', currentView);
+    console.log('📊 所有事件:', allEvents);
+    
     // 如果没有加载用户信息，返回所有事件
     if (!coupleUsers || !user) {
+      console.log('⚠️ 用户信息未加载，返回所有事件');
       return allEvents;
     }
     
@@ -473,20 +784,35 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const user2Id = coupleUsers.user2.id;
     const currentUserId = user.id;
     
-    // 使用已设置的currentUserIsUser1状态，而不是重新计算
-    const isCurrentUserUser1 = currentUserIsUser1;
-    const currentUserIdForFiltering = isCurrentUserUser1 ? user1Id : user2Id;
-    const partnerIdForFiltering = isCurrentUserUser1 ? user2Id : user1Id;
+    console.log('👤 用户信息:', { 
+      currentUserId, 
+      user1Id, 
+      user2Id, 
+      currentUserIsUser1 
+    });
     
+    // 使用实际的当前用户ID，而不是通过isUser1推导
+    const currentUserIdForFiltering = currentUserId;
+    const partnerIdForFiltering = currentUserId === user1Id ? user2Id : user1Id;
+    
+    console.log('🎯 过滤用的ID:', { 
+      currentUserIdForFiltering, 
+      partnerIdForFiltering 
+    });
     
     let filteredEvents: Event[] = [];
     
     switch (currentView) {
-      case 'user1':
+      case 'my':
         // 我的日历：显示所有当前登录用户参与的事件（包括共同参与的）
-        filteredEvents = allEvents.filter(event => eventIncludesUser(event, currentUserIdForFiltering));
+        filteredEvents = allEvents.filter(event => {
+          const included = eventIncludesUser(event, currentUserIdForFiltering);
+          console.log(`🔍 检查事件 "${event.title}" 是否包含用户 ${currentUserIdForFiltering}:`, included);
+          console.log('   事件参与者:', event.participants);
+          return included;
+        });
         break;
-      case 'user2':
+      case 'partner':
         // 伴侣日历：显示所有伴侣参与的事件（包括共同参与的）
         filteredEvents = allEvents.filter(event => eventIncludesUser(event, partnerIdForFiltering));
         break;
@@ -500,12 +826,14 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         filteredEvents = allEvents;
     }
     
+    console.log('✅ 过滤后的事件:', filteredEvents);
+    
     return filteredEvents;
   };
 
   // 修改获取某天事件的函数
   const getEventsForDay = (day: number) => {
-    const allEvents = getAllEvents();
+    const allEvents = getAllEvents; // getAllEvents现在是一个计算好的值，不是函数
     const filteredEvents = getFilteredEvents(allEvents);
     const dayStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     return filteredEvents.filter(event => event.date === dayStr);
@@ -568,6 +896,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           // 使用数据库返回的事件数据（包含真实的ID）
           const convertedEvent = convertSimplifiedEventToEvent(savedEvent);
           setEvents([...events, convertedEvent]);
+          
+          // 发布全局事件，通知其他组件事件数据已更新
+          globalEventService.emit(GlobalEvents.EVENTS_UPDATED);
         }
       } else {
         throw new Error('用户未登录或缺少情侣关系信息');
@@ -919,7 +1250,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 获取指定日期（YYYY-MM-DD）的事件
   const getEventsForDate = (dateStr: string) => {
-    const allEvents = getAllEvents();
+    const allEvents = getAllEvents; // getAllEvents现在是一个计算好的值，不是函数
     const filteredEvents = getFilteredEvents(allEvents);
     const dayEvents = filteredEvents.filter(event => event.date === dateStr);
     return sortEventsByTime(dayEvents);
@@ -1010,6 +1341,19 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     setSelectedDate(todayStr);
   };
 
+  // 如果正在加载，显示加载状态
+  if (loading || currentUserIsUser1 === null) {
+    return (
+      <div className="space-y-6">
+        <LoadingSpinner
+          size="lg"
+          title={theme === 'pixel' ? 'LOADING CALENDAR...' : '正在加载日历...'}
+          subtitle={theme === 'pixel' ? 'FETCHING EVENTS...' : '正在获取您的日程安排'}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Debug Info - 暂时隐藏 */}
@@ -1098,9 +1442,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       </div>
 
       {/* Header with View Switcher */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h2 className={`text-3xl font-bold ${
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:space-x-4">
+          <h2 className={`text-2xl sm:text-3xl font-bold ${
             theme === 'pixel' 
               ? 'font-retro text-pixel-text uppercase tracking-wider' 
               : theme === 'fresh'
@@ -1111,78 +1455,78 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           </h2>
           
           {/* View Switcher */}
-          <div className={`flex ${
+          <div className={`flex overflow-hidden w-full sm:w-auto ${
             theme === 'pixel' 
               ? 'border-4 border-pixel-border bg-pixel-card shadow-pixel' 
               : theme === 'fresh'
               ? 'border border-fresh-border bg-fresh-card shadow-fresh rounded-fresh-lg'
-              : 'border border-gray-200'
+              : 'border border-gray-200 rounded-lg'
           }`}>
             <button
               onClick={() => {
-                setCurrentView('user1');
+                setCurrentView('my');
               }}
-              className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
+              className={`flex items-center justify-center flex-1 px-3 sm:px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel' 
                   ? `font-mono uppercase border-r-4 border-pixel-border ${
-                      currentView === 'user1'
+                      currentView === 'my'
                         ? `${getCurrentUserColor().pixel} text-black shadow-pixel-inner`
                         : `text-pixel-text hover:bg-pixel-panel hover:text-${getCurrentUserColor().pixel.replace('bg-', '')}`
                     }`
                   : theme === 'fresh'
                   ? `border-r border-fresh-border ${
-                      currentView === 'user1'
+                      currentView === 'my'
                         ? 'text-white shadow-fresh-sm'
                         : 'text-fresh-text hover:bg-fresh-primary'
                     }`
                   : `${
-                      currentView === 'user1'
+                      currentView === 'my'
                         ? `${getCurrentUserColor().default} text-white`
                         : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
-              style={theme === 'fresh' && currentView === 'user1' ? { backgroundColor: getCurrentUserColor().fresh } : undefined}
+              style={theme === 'fresh' && currentView === 'my' ? { backgroundColor: getCurrentUserColor().fresh } : undefined}
             >
-              <UserIcon className="w-4 h-4 mr-1" />
-              <span className="font-medium">
-                {theme === 'pixel' ? 'MY_CALENDAR' : '我的日历'}
+              <UserIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+              <span className="font-medium whitespace-nowrap">
+                {getViewDisplayName('my')}
               </span>
             </button>
             <button
               onClick={() => {
-                setCurrentView('user2');
+                setCurrentView('partner');
               }}
-              className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
+              className={`flex items-center justify-center flex-1 px-3 sm:px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel'
                   ? `font-mono uppercase border-r-4 border-pixel-border ${
-                      currentView === 'user2'
+                      currentView === 'partner'
                         ? `${getPartnerColor().pixel} text-black shadow-pixel-inner`
                         : `text-pixel-text hover:bg-pixel-panel hover:text-${getPartnerColor().pixel.replace('bg-', '')}`
                     }`
                   : theme === 'fresh'
                   ? `border-r border-fresh-border ${
-                      currentView === 'user2'
+                      currentView === 'partner'
                         ? 'text-white shadow-fresh-sm'
                         : 'text-fresh-text hover:bg-fresh-primary'
                     }`
                   : `${
-                      currentView === 'user2'
+                      currentView === 'partner'
                         ? `${getPartnerColor().default} text-white`
                         : 'text-gray-600 hover:bg-gray-50'
                     }`
               }`}
-              style={theme === 'fresh' && currentView === 'user2' ? { backgroundColor: getPartnerColor().fresh } : undefined}
+              style={theme === 'fresh' && currentView === 'partner' ? { backgroundColor: getPartnerColor().fresh } : undefined}
             >
-              <UserIcon className="w-4 h-4 mr-1" />
-              <span className="font-medium">
-                {theme === 'pixel' ? 'PARTNER_CALENDAR' : '伴侣日历'}
+              <UserIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+              <span className="font-medium whitespace-nowrap">
+                {getViewDisplayName('partner')}
               </span>
             </button>
             <button
               onClick={() => {
                 setCurrentView('shared');
               }}
-              className={`px-4 py-2 text-sm font-medium transition-all duration-300 ${
+              className={`flex items-center justify-center flex-1 px-3 sm:px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel'
                   ? `font-mono uppercase ${
                       currentView === 'shared'
@@ -1203,23 +1547,37 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               }`}
               style={theme === 'fresh' && currentView === 'shared' ? { backgroundColor: '#10b981' } : undefined}
             >
-              {getHeartIcon('sm')}
-              <span className="font-medium">
+              <span className="mr-1 flex-shrink-0">
+                {getHeartIcon('sm')}
+              </span>
+              <span className="font-medium whitespace-nowrap">
                 {theme === 'pixel' ? 'SHARED_CALENDAR' : '共同日历'}
               </span>
             </button>
           </div>
         </div>
         
-        <Button
-          onClick={() => setShowAddForm(true)}
-          variant="primary"
-          size="lg"
-          icon="plus"
-          iconComponent={<PlusIcon className="w-5 h-5" />}
-        >
-          {theme === 'pixel' ? 'NEW_EVENT' : '新增日程'}
-        </Button>
+        <div className="flex space-x-3">
+          <Button
+            onClick={handleRefresh}
+            variant="secondary"
+            size="lg"
+            icon="refresh"
+            iconComponent={<ArrowPathIcon className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />}
+            disabled={isRefreshing}
+          >
+            {theme === 'pixel' ? 'REFRESH' : '刷新'}
+          </Button>
+          <Button
+            onClick={() => setShowAddForm(true)}
+            variant="primary"
+            size="lg"
+            icon="plus"
+            iconComponent={<PlusIcon className="w-5 h-5" />}
+          >
+            {theme === 'pixel' ? 'NEW_EVENT' : '新增日程'}
+          </Button>
+        </div>
       </div>
 
       {/* Calendar Navigation */}
@@ -1475,11 +1833,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 </div>
                 <p className={`${theme === 'pixel' ? 'text-pixel-textMuted font-mono uppercase' : 'text-gray-500'}`}>
                   {theme === 'pixel' 
-                     ? (currentView === 'user1' ? 'NO_EVENTS_FOR_YOU' : 
-                        currentView === 'user2' ? 'NO_PARTNER_EVENTS' : 
+                     ? (currentView === 'my' ? 'NO_EVENTS_FOR_YOU' : 
+                        currentView === 'partner' ? 'NO_PARTNER_EVENTS' : 
                        'NO_SHARED_EVENTS')
-                     : (currentView === 'user1' ? '该日没有您的日程安排' : 
-                        currentView === 'user2' ? '该日没有伴侣日程安排' : 
+                     : (currentView === 'my' ? '该日没有您的日程安排' : 
+                        currentView === 'partner' ? '该日没有伴侣日程安排' : 
                         '该日没有共同日程')
                   }
                 </p>

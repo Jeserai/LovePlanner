@@ -100,7 +100,7 @@ export type Database = {
           description: string | null
           deadline: string
           points: number
-          status: 'recruiting' | 'assigned' | 'in-progress' | 'pending_review' | 'completed' | 'abandoned'
+          status: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
           creator_id: string
           assignee_id: string | null
           couple_id: string
@@ -130,7 +130,7 @@ export type Database = {
           description?: string | null
           deadline: string
           points: number
-          status?: 'recruiting' | 'assigned' | 'in-progress' | 'pending_review' | 'completed' | 'abandoned'
+          status?: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
           creator_id: string
           assignee_id?: string | null
           couple_id: string
@@ -160,7 +160,7 @@ export type Database = {
           description?: string | null
           deadline?: string
           points?: number
-          status?: 'recruiting' | 'assigned' | 'in-progress' | 'pending_review' | 'completed' | 'abandoned'
+          status?: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
           creator_id?: string
           assignee_id?: string | null
           couple_id?: string
