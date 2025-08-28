@@ -2284,25 +2284,28 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             <button
                 key={viewOption.id}
                 onClick={() => setView(viewOption.id as any)}
-                className={`px-4 py-2 transition-all ${
+                className={`flex items-center justify-center flex-1 px-3 sm:px-4 py-2 text-sm font-medium transition-all duration-300 ${
                 theme === 'pixel' 
-                    ? `font-mono text-xs font-bold uppercase tracking-wider ${
+                    ? `font-mono uppercase ${
                         view === viewOption.id
-                          ? 'bg-pixel-accent text-black rounded-pixel border-2 border-pixel-border shadow-pixel'
-                          : 'text-pixel-text hover:text-pixel-accent'
-                      }`
-                    : `font-medium text-sm ${
+                          ? 'bg-pixel-accent text-black shadow-pixel-inner'
+                          : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
+                      }${viewOption.id !== 'available' ? ' border-r-4 border-pixel-border' : ''}`
+                    : `${
                         view === viewOption.id
-                          ? 'bg-white text-gray-900 rounded-lg shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                    }`
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-50'
+                    }${viewOption.id !== 'available' ? ' border-r border-gray-200' : ''}`
               }`}
             >
+              <span className="font-medium whitespace-nowrap">
                 {viewOption.label}
+              </span>
             </button>
             ))}
+          </div>
         </div>
-
+        
         <div className="flex space-x-3">
           <Button
             onClick={handleRefresh}
