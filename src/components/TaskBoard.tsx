@@ -111,11 +111,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   };
 
   // 计算两个日期之间的持续时间标签（用于显示）
-  const getDurationLabel = (startDate: string, endDate: string): string => {
-    if (!startDate || !endDate) return '';
+  const getDurationLabel = (startDate?: string, endDate?: string): string => {
+    if (!startDate || !endDate) return '--';
     
     const start = new Date(startDate);
     const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return '--';
+    
     const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     
     if (diffDays <= 25) return '21天';
@@ -148,7 +151,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       taskType: dbTask.task_type as Task['taskType'],
       repeatType: dbTask.repeat_type as Task['repeatType'],
       reviewComment: dbTask.review_comment || undefined,
-      submittedAt: dbTask.submitted_at || undefined
+      submittedAt: dbTask.submitted_at || undefined,
+      // 重复性任务字段
+      repeatFrequency: dbTask.repeat_frequency as Task['repeatFrequency'],
+      startDate: dbTask.start_date || undefined,
+      endDate: dbTask.end_date || undefined,
+      repeatTime: dbTask.repeat_time || undefined,
+      repeatWeekdays: dbTask.repeat_weekdays || undefined,
+      // 一次性任务时间范围字段
+      taskStartTime: dbTask.task_start_time || undefined,
+      taskEndTime: dbTask.task_end_time || undefined
     };
   };
 
@@ -998,8 +1010,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     return tasks.filter(task => task.status === 'recruiting' && task.creator !== currentUserName);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '--';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '--';
     return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
   };
 
@@ -1057,6 +1071,51 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return task.repeatType === 'repeat' ? 'REPEAT' : 'ONCE';
     }
     return task.repeatType === 'repeat' ? '重复' : '单次';
+  };
+
+  // 获取重复频率显示名称
+  const getRepeatFrequencyName = (frequency?: string) => {
+    if (!frequency) return '--';
+    const names = {
+      'daily': theme === 'pixel' ? 'DAILY' : '每日',
+      'weekly': theme === 'pixel' ? 'WEEKLY' : '每周',
+      'biweekly': theme === 'pixel' ? 'BIWEEKLY' : '双周',
+      'monthly': theme === 'pixel' ? 'MONTHLY' : '每月',
+      'yearly': theme === 'pixel' ? 'YEARLY' : '每年'
+    };
+    return names[frequency as keyof typeof names] || frequency;
+  };
+
+  // 获取星期几显示名称
+  const getWeekdaysDisplay = (weekdays?: number[]) => {
+    if (!weekdays || weekdays.length === 0) return '--';
+    const dayNames = theme === 'pixel' 
+      ? ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+      : ['日', '一', '二', '三', '四', '五', '六'];
+    return weekdays.map(day => dayNames[day]).join(',');
+  };
+
+  // 检查是否为时间范围模式
+  const isTimeRangeMode = (task: Task) => {
+    return task.repeatType === 'once' && task.taskStartTime;
+  };
+
+  // 格式化时间范围显示
+  const formatTimeRange = (startTime?: string, endTime?: string) => {
+    if (!startTime) return '';
+    const start = new Date(startTime);
+    const end = endTime ? new Date(endTime) : null;
+    
+    const timeOptions: Intl.DateTimeFormatOptions = { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    };
+    
+    const startTimeStr = start.toLocaleTimeString('zh-CN', timeOptions);
+    const endTimeStr = end ? end.toLocaleTimeString('zh-CN', timeOptions) : '';
+    
+    return endTimeStr ? `${startTimeStr}-${endTimeStr}` : startTimeStr;
   };
 
   const getStatusColor = (status: string) => {
@@ -1159,7 +1218,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           {task.description}
         </p>
 
-        <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          {/* 用户信息行 */}
           <div className="flex items-center space-x-4">
             {/* 只在"我的任务"和"可领取"视图中显示创建者 */}
             {!isPublishedView && (
@@ -1176,7 +1236,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 }`}>
                   {theme === 'pixel' ? 'CREATOR:' : '创建者:'} {task.creator}
                 </span>
-          </div>
+              </div>
             )}
             
             {/* 只在"已发布"和"可领取"视图中显示执行者 */}
@@ -1194,11 +1254,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 }`}>
                   {theme === 'pixel' ? 'ASSIGNEE:' : '执行者:'} {task.assignee}
                 </span>
-          </div>
+              </div>
             )}
           </div>
 
-          <div className="flex items-center space-x-3">
+          {/* 任务详情信息行 - 改为可换行布局 */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* 日期和时间信息 */}
             <div className={`flex items-center space-x-1 ${
               theme === 'pixel' ? 'text-pixel-warning' : 'text-orange-600'
             }`}>
@@ -1210,9 +1272,33 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               <span className={`text-xs ${
                 theme === 'pixel' ? 'font-mono' : ''
               }`}>
-                {formatDate(task.deadline)}
+                {task.repeatType === 'once' ? (
+                  isTimeRangeMode(task) ? (
+                    // 时间范围模式：显示开始时间范围
+                    <>
+                      {formatDate(task.taskStartTime!)}
+                      {task.taskStartTime && (
+                        <span className="ml-1 text-xs opacity-75">
+                          {formatTimeRange(task.taskStartTime, task.taskEndTime)}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    // 简单模式：显示截止日期
+                    formatDate(task.deadline)
+                  )
+                ) : (
+                  // 重复任务：显示日期范围
+                  <>
+                    {task.startDate && task.endDate && (
+                      <>
+                        {formatDate(task.startDate)} - {formatDate(task.endDate)}
+                      </>
+                    )}
+                  </>
+                )}
               </span>
-          </div>
+            </div>
 
             <div className={`flex items-center space-x-1 ${
               theme === 'pixel' ? 'text-pixel-accent' : 'text-yellow-600'
@@ -1227,7 +1313,48 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               }`}>
                 {task.points}
               </span>
-          </div>
+            </div>
+
+            {/* 重复任务的详细信息 */}
+            {task.repeatType === 'repeat' && task.repeatFrequency && (
+              <div className={`flex items-center space-x-1 ${
+                theme === 'pixel' ? 'text-pixel-info' : 'text-blue-600'
+              }`}>
+                {theme === 'pixel' ? (
+                  <PixelIcon name="refresh" size="sm" />
+                ) : (
+                  <ArrowPathIcon className="w-4 h-4" />
+                )}
+                <span className={`text-xs ${
+                  theme === 'pixel' ? 'font-mono' : ''
+                }`}>
+                  {getRepeatFrequencyName(task.repeatFrequency)}
+                  {task.repeatTime && (
+                    <span className="ml-1 opacity-75">
+                      {task.repeatTime.slice(0, 5)}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+
+            {/* 每周重复的星期显示 */}
+            {task.repeatType === 'repeat' && task.repeatFrequency === 'weekly' && task.repeatWeekdays && task.repeatWeekdays.length > 0 && (
+              <div className={`flex items-center space-x-1 ${
+                theme === 'pixel' ? 'text-pixel-purple' : 'text-purple-600'
+              }`}>
+                {theme === 'pixel' ? (
+                  <PixelIcon name="calendar" size="sm" />
+                ) : (
+                  <CalendarIcon className="w-4 h-4" />
+                )}
+                <span className={`text-xs ${
+                  theme === 'pixel' ? 'font-mono' : ''
+                }`}>
+                  {getWeekdaysDisplay(task.repeatWeekdays)}
+                </span>
+              </div>
+            )}
 
             {task.requiresProof && (
               <div className={`flex items-center space-x-1 ${
@@ -1324,67 +1451,175 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     </div>
 
             {/* 任务信息 */}
-            <div className={`grid grid-cols-2 gap-4 ${
-              theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
-            }`}>
-              <div className="flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="clock" size="sm" />
-                ) : (
-                  <ClockIcon className="w-5 h-5" />
-                )}
-                <span>截止日期：{formatDate(selectedTask.deadline)}</span>
+            <div className="space-y-4">
+              {/* 基础信息 */}
+              <div className={`grid grid-cols-2 gap-4 ${
+                theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
+              }`}>
+                {/* 时间信息 - 根据任务类型动态显示 */}
+                {selectedTask.repeatType === 'once' ? (
+                  // 一次性任务
+                  isTimeRangeMode(selectedTask) ? (
+                    <>
+                      <div className="flex items-center space-x-2">
+                        {theme === 'pixel' ? (
+                          <PixelIcon name="clock" size="sm" />
+                        ) : (
+                          <ClockIcon className="w-5 h-5" />
+                        )}
+                        <span>执行日期：{formatDate(selectedTask.taskStartTime)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {theme === 'pixel' ? (
+                          <PixelIcon name="clock" size="sm" />
+                        ) : (
+                          <ClockIcon className="w-5 h-5" />
+                        )}
+                        <span>时间范围：{formatTimeRange(selectedTask.taskStartTime, selectedTask.taskEndTime)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      {theme === 'pixel' ? (
+                        <PixelIcon name="clock" size="sm" />
+                      ) : (
+                        <ClockIcon className="w-5 h-5" />
+                      )}
+                      <span>截止日期：{formatDate(selectedTask.deadline)}</span>
                     </div>
-              <div className="flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="star" size="sm" className="text-pixel-accent" />
+                  )
                 ) : (
-                  <StarIcon className="w-5 h-5 text-yellow-500" />
+                  // 重复性任务
+                  <>
+                    <div className="flex items-center space-x-2">
+                      {theme === 'pixel' ? (
+                        <PixelIcon name="calendar" size="sm" />
+                      ) : (
+                        <CalendarIcon className="w-5 h-5" />
+                      )}
+                      <span>开始日期：{formatDate(selectedTask.startDate)}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {theme === 'pixel' ? (
+                        <PixelIcon name="calendar" size="sm" />
+                      ) : (
+                        <CalendarIcon className="w-5 h-5" />
+                      )}
+                      <span>结束日期：{formatDate(selectedTask.endDate)}</span>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center space-x-2">
+                  {theme === 'pixel' ? (
+                    <PixelIcon name="star" size="sm" className="text-pixel-accent" />
+                  ) : (
+                    <StarIcon className="w-5 h-5 text-yellow-500" />
                   )}
-                <span>积分奖励：{selectedTask.points}</span>
-              </div>
-                    <div className="flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="user" size="sm" />
-                ) : (
-                  <UserIcon className="w-5 h-5" />
-                )}
-                <span>发布者：{selectedTask.creator}</span>
-                    </div>
-              {selectedTask.assignee && (
-                    <div className="flex items-center space-x-2">
+                  <span>积分奖励：{selectedTask.points}</span>
+                </div>
+
+                <div className="flex items-center space-x-2">
                   {theme === 'pixel' ? (
                     <PixelIcon name="user" size="sm" />
                   ) : (
                     <UserIcon className="w-5 h-5" />
                   )}
-                  <span>执行者：{selectedTask.assignee}</span>
+                  <span>发布者：{selectedTask.creator}</span>
+                </div>
+
+                {selectedTask.assignee && (
+                  <div className="flex items-center space-x-2">
+                    {theme === 'pixel' ? (
+                      <PixelIcon name="user" size="sm" />
+                    ) : (
+                      <UserIcon className="w-5 h-5" />
+                    )}
+                    <span>执行者：{selectedTask.assignee}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center space-x-2">
+                  {theme === 'pixel' ? (
+                    <PixelIcon name="tag" size="sm" />
+                  ) : (
+                    <TagIcon className="w-5 h-5" />
+                  )}
+                  <span>类型：{getCategoryName(selectedTask.taskType)}</span>
+                </div>
+              </div>
+
+              {/* 重复性任务详情 */}
+              {selectedTask.repeatType === 'repeat' && (
+                <div className={`p-4 rounded ${
+                  theme === 'pixel'
+                    ? 'bg-pixel-card border-2 border-pixel-border'
+                    : 'bg-gray-50 border border-gray-200'
+                }`}>
+                  <h5 className={`font-bold mb-3 ${
+                    theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+                  }`}>
+                    {theme === 'pixel' ? 'REPEAT DETAILS' : '重复详情'}
+                  </h5>
+                  <div className={`grid grid-cols-2 gap-3 text-sm ${
+                    theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
+                  }`}>
+                    <div className="flex items-center space-x-2">
+                      {theme === 'pixel' ? (
+                        <PixelIcon name="refresh" size="sm" />
+                      ) : (
+                        <ArrowPathIcon className="w-4 h-4" />
+                      )}
+                      <span>频率：{getRepeatFrequencyName(selectedTask.repeatFrequency)}</span>
                     </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      {theme === 'pixel' ? (
+                        <PixelIcon name="calendar" size="sm" />
+                      ) : (
+                        <CalendarIcon className="w-4 h-4" />
+                      )}
+                      <span>持续时长：{getDurationLabel(selectedTask.startDate, selectedTask.endDate)}</span>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      {theme === 'pixel' ? (
+                        <PixelIcon name="clock" size="sm" />
+                      ) : (
+                        <ClockIcon className="w-4 h-4" />
+                      )}
+                      <span>指定时间：{selectedTask.repeatTime || '--'}</span>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      {theme === 'pixel' ? (
+                        <PixelIcon name="calendar" size="sm" />
+                      ) : (
+                        <CalendarIcon className="w-4 h-4" />
+                      )}
+                      <span>执行日：{getWeekdaysDisplay(selectedTask.repeatWeekdays)}</span>
+                    </div>
+                  </div>
+                </div>
               )}
-              <div className="flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="tag" size="sm" />
-                ) : (
-                  <TagIcon className="w-5 h-5" />
-                )}
-                <span>类型：{getCategoryName(selectedTask.taskType)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="refresh" size="sm" />
-                ) : (
-                  <ArrowPathIcon className="w-5 h-5" />
-                )}
-                <span>重复：{getRepeatTypeName(selectedTask)}</span>
-              </div>
-              <div className="col-span-2 flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="status" size="sm" />
-                ) : (
-                  <DocumentIcon className="w-5 h-5" />
-                )}
-                <span>状态：{getStatusDisplay(selectedTask.status)}</span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+
+              {/* 状态信息 */}
+              <div className={`flex items-center justify-between p-3 rounded ${
+                theme === 'pixel'
+                  ? 'bg-pixel-card border-2 border-pixel-border'
+                  : 'bg-gray-50 border border-gray-200'
+              }`}>
+                <div className="flex items-center space-x-2">
+                  {theme === 'pixel' ? (
+                    <PixelIcon name="status" size="sm" />
+                  ) : (
+                    <DocumentIcon className="w-5 h-5" />
+                  )}
+                  <span className={theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'}>
+                    当前状态：
+                  </span>
+                </div>
+                <span className={`px-3 py-1 text-sm font-medium rounded-full ${
                   theme === 'pixel'
                     ? `font-mono uppercase ${getStatusColor(selectedTask.status)}`
                     : getStatusColor(selectedTask.status)
@@ -1392,7 +1627,27 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   {getStatusDisplay(selectedTask.status)}
                 </span>
               </div>
-                  </div>
+
+              {/* 需要凭证提示 */}
+              {selectedTask.requiresProof && (
+                <div className={`flex items-center space-x-2 p-3 rounded ${
+                  theme === 'pixel'
+                    ? 'bg-pixel-warning border-2 border-pixel-border text-pixel-text'
+                    : 'bg-yellow-50 border border-yellow-200 text-yellow-800'
+                }`}>
+                  {theme === 'pixel' ? (
+                    <PixelIcon name="warning" size="sm" />
+                  ) : (
+                    <DocumentIcon className="w-5 h-5" />
+                  )}
+                  <span className={`text-sm font-medium ${
+                    theme === 'pixel' ? 'font-mono uppercase' : ''
+                  }`}>
+                    {theme === 'pixel' ? 'PROOF REQUIRED' : '此任务需要提交完成凭证'}
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* 任务凭证 */}
             {selectedTask.proof && (
