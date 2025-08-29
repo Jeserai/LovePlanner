@@ -25,7 +25,7 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeType>('fresh');
+  const [theme, setThemeState] = useState<ThemeType>('modern');
 
   // Load theme from localStorage on mount
   useEffect(() => {
@@ -33,9 +33,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     if (savedTheme && (savedTheme === 'pixel' || savedTheme === 'fresh' || savedTheme === 'modern')) {
       setThemeState(savedTheme);
     } else {
-      // 默认使用清新主题
-      setThemeState('fresh');
-      localStorage.setItem('theme', 'fresh');
+      // 默认使用现代主题
+      setThemeState('modern');
+      localStorage.setItem('theme', 'modern');
     }
   }, []);
 

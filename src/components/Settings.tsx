@@ -25,8 +25,16 @@ const Settings: React.FC = () => {
 
   const themes = [
     {
+      id: 'modern' as const,
+      name: '现代主题（默认）',
+      description: '基于shadcn/ui的现代设计系统，简洁优雅的界面风格',
+      icon: PaintBrushIcon,
+      preview: 'bg-gradient-to-br from-gray-500 to-slate-600',
+      color: 'text-gray-600'
+    },
+    {
       id: 'fresh' as const,
-      name: '清新淡雅（默认）',
+      name: '清新淡雅',
       description: '简约现代的设计风格，清新淡雅的绿色系配色',
       icon: PaintBrushIcon,
       preview: 'bg-gradient-to-br from-fresh-accent to-fresh-mint',
@@ -39,14 +47,6 @@ const Settings: React.FC = () => {
       icon: CommandLineIcon,
       preview: 'bg-gradient-to-br from-pixel-accent to-pixel-purple',
       color: 'text-pixel-accent'
-    },
-    {
-      id: 'modern' as const,
-      name: '现代主题',
-      description: '基于shadcn/ui的现代设计系统，简洁优雅的界面风格',
-      icon: PaintBrushIcon,
-      preview: 'bg-gradient-to-br from-gray-500 to-slate-600',
-      color: 'text-gray-600'
     }
   ];
 

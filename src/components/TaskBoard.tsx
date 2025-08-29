@@ -64,6 +64,26 @@ interface Task {
 // 数据库Task类型
 type DatabaseTask = Database['public']['Tables']['tasks']['Row'];
 
+// 编辑任务的状态类型（包含新字段）
+interface EditTaskState {
+  title?: string;
+  description?: string;
+  points?: number;
+  taskType?: 'daily' | 'habit' | 'special';
+  requiresProof?: boolean;
+  // 新的重复字段
+  repeat?: 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
+  // 一次性任务时间字段
+  taskStartTime?: string;
+  taskEndTime?: string;
+  // 重复任务字段
+  repeatStartDate?: string;
+  endRepeat?: 'never' | 'on_date';
+  endRepeatDate?: string;
+  taskTimeStart?: string;
+  taskTimeEnd?: string;
+}
+
 interface TaskBoardProps {
   currentUser?: string | null;
 }
@@ -79,27 +99,22 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    deadline: '', // 一次性任务的截止日期（简单模式）
-    time: '', // 一次性任务的截止时间（简单模式）
+    // 一次性任务时间设置
+    taskStartTime: '', // 任务开始时间（可选）
+    taskEndTime: '',   // 任务结束时间（必填）
     points: 50,
     requiresProof: false,
     taskType: 'daily' as 'daily' | 'habit' | 'special',
-    repeatType: 'once' as 'once' | 'repeat',
-    // 重复性任务字段
-    repeatFrequency: 'daily' as 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly',
-    startDate: '',
-    endDate: '',
-    repeatTime: '',
-    repeatWeekdays: [] as number[],
-    // 一次性任务时间范围字段（可选）
-    taskStartTime: '',
-    taskEndTime: ''
+    repeat: 'never' as 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly',
+    // 重复任务设置
+    repeatStartDate: '', // 重复任务循环开始日期（必填）
+    endRepeat: 'never' as 'never' | 'on_date',
+    endRepeatDate: '',   // 结束重复的日期
+    taskTimeStart: '',   // 指定任务时间段 - 开始时间（可选）
+    taskTimeEnd: ''      // 指定任务时间段 - 结束时间（可选）
   });
 
-  // UI辅助状态（不存储到数据库）
-  const [useTimeRange, setUseTimeRange] = useState(false); // 控制一次性任务是否使用时间范围
-  const [selectedDuration, setSelectedDuration] = useState<'21days' | '1month' | '6months' | '1year'>('21days'); // 重复任务持续时间选择器
-  const [repeatHasSpecificTime, setRepeatHasSpecificTime] = useState(false); // 控制重复任务是否指定时间
+  // UI辅助状态已简化
   
   // 数据库相关状态
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -116,7 +131,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   
   // 编辑任务状态
   const [isEditing, setIsEditing] = useState(false);
-  const [editTask, setEditTask] = useState<Partial<Task>>({});
+  const [editTask, setEditTask] = useState<EditTaskState>({});
   
   // 手动刷新数据
   const handleRefresh = async () => {
@@ -549,24 +564,50 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 编辑任务
   const handleEditTask = (task: Task) => {
-    setEditTask({
+    // 根据任务类型映射到新的字段结构
+    const editData: any = {
       title: task.title,
       description: task.description,
-      deadline: task.deadline,
       points: task.points,
       taskType: task.taskType,
-      repeatType: task.repeatType,
       requiresProof: task.requiresProof,
-      // 重复任务字段
-      startDate: task.startDate,
-      endDate: task.endDate,
-      repeatFrequency: task.repeatFrequency,
-      repeatTime: task.repeatTime,
-      repeatWeekdays: task.repeatWeekdays,
-      // 一次性任务时间范围字段
-      taskStartTime: task.taskStartTime,
-      taskEndTime: task.taskEndTime
-    });
+    };
+
+    // 映射重复频率
+    if (task.repeatType === 'once') {
+      editData.repeat = 'never';
+      // 一次性任务时间映射
+      if (task.taskStartTime) {
+        editData.taskStartTime = new Date(task.taskStartTime).toISOString().slice(0, 16);
+      }
+      if (task.taskEndTime) {
+        editData.taskEndTime = new Date(task.taskEndTime).toISOString().slice(0, 16);
+      } else if (task.deadline) {
+        // 如果没有taskEndTime，使用deadline
+        editData.taskEndTime = new Date(task.deadline).toISOString().slice(0, 16);
+      }
+    } else {
+      editData.repeat = task.repeatFrequency || 'daily';
+      // 重复任务字段映射
+      editData.repeatStartDate = task.startDate;
+      editData.endRepeat = task.endDate ? 'on_date' : 'never';
+      editData.endRepeatDate = task.endDate;
+      
+      // 映射任务时间段
+      if (task.repeatTime) {
+        editData.taskTimeStart = task.repeatTime;
+        // 如果task_end_time包含时间信息，提取时间部分
+        if (task.taskEndTime) {
+          const endTime = new Date(task.taskEndTime);
+          if (endTime.getFullYear() === 1970) {
+            // 固定日期格式，提取时间
+            editData.taskTimeEnd = endTime.toTimeString().slice(0, 5);
+          }
+        }
+      }
+    }
+
+    setEditTask(editData);
     setIsEditing(true);
   };
 
@@ -585,8 +626,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return;
     }
     
-    if (!editTask.repeatType) {
-      alert('请选择重复类型');
+    if (!editTask.repeat) {
+      alert('请选择重复频率');
       return;
     }
     
@@ -596,26 +637,57 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
     
     // 验证时间字段
-    if (editTask.repeatType === 'once') {
-      if (!editTask.deadline) {
-        alert('请选择截止时间');
+    if (editTask.repeat === 'never') {
+      // 一次性任务：验证结束时间
+      if (!editTask.taskEndTime) {
+        alert('请选择任务结束时间');
         return;
       }
-    } else if (editTask.repeatType === 'repeat') {
-      if (!editTask.startDate) {
-        alert('请选择开始日期');
+      
+      // 如果有开始时间，验证开始时间要早于结束时间
+      if (editTask.taskStartTime) {
+        const startTime = new Date(editTask.taskStartTime);
+        const endTime = new Date(editTask.taskEndTime);
+        if (startTime >= endTime) {
+          alert('任务开始时间必须早于结束时间');
+          return;
+        }
+      }
+    } else {
+      // 重复任务：验证开始日期
+      if (!editTask.repeatStartDate) {
+        alert('请选择重复任务的循环开始日期');
         return;
       }
-      if (!editTask.endDate) {
-        alert('请选择结束日期');
+      
+      // 验证结束重复设置
+      if (editTask.endRepeat === 'on_date' && !editTask.endRepeatDate) {
+        alert('请选择结束重复的日期');
         return;
       }
-      if (!editTask.repeatFrequency) {
-        alert('请选择重复频率');
-        return;
+      
+      if (editTask.endRepeat === 'on_date') {
+        const startDate = new Date(editTask.repeatStartDate!);
+        const endDate = new Date(editTask.endRepeatDate!);
+        if (endDate <= startDate) {
+          alert('结束重复日期必须晚于开始日期');
+          return;
+        }
       }
-      if (new Date(editTask.startDate) >= new Date(editTask.endDate)) {
-        alert('结束日期必须晚于开始日期');
+      
+      // 如果指定了任务时间段，验证时间段有效性
+      if (editTask.taskTimeStart && editTask.taskTimeEnd) {
+        const startTime = editTask.taskTimeStart;
+        const endTime = editTask.taskTimeEnd;
+        if (startTime >= endTime) {
+          alert('任务开始时间必须早于结束时间');
+          return;
+        }
+      } else if (editTask.taskTimeStart && !editTask.taskTimeEnd) {
+        alert('指定了开始时间，请同时指定结束时间');
+        return;
+      } else if (!editTask.taskTimeStart && editTask.taskTimeEnd) {
+        alert('指定了结束时间，请同时指定开始时间');
         return;
       }
     }
@@ -625,23 +697,53 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       const dbUpdates: any = {
         title: editTask.title.trim(),
         description: editTask.description || '',
-        deadline: editTask.deadline,
         points: editTask.points || 50,
         task_type: editTask.taskType,
-        repeat_type: editTask.repeatType,
         requires_proof: editTask.requiresProof || false,
       };
 
       // 根据任务类型添加相应字段
-      if (editTask.repeatType === 'repeat') {
-        dbUpdates.start_date = editTask.startDate;
-        dbUpdates.end_date = editTask.endDate;
-        dbUpdates.repeat_frequency = editTask.repeatFrequency;
-        dbUpdates.repeat_time = editTask.repeatTime;
-        dbUpdates.repeat_weekdays = editTask.repeatWeekdays;
+      if (editTask.repeat === 'never') {
+        // 一次性任务
+        dbUpdates.repeat_type = 'once';
+        dbUpdates.deadline = new Date(editTask.taskEndTime!).toISOString();
+        
+        // 如果有开始时间，保存到task_start_time字段
+        if (editTask.taskStartTime) {
+          dbUpdates.task_start_time = new Date(editTask.taskStartTime).toISOString();
+        }
+        
+        // 保存结束时间到task_end_time字段
+        dbUpdates.task_end_time = new Date(editTask.taskEndTime!).toISOString();
       } else {
-        dbUpdates.task_start_time = editTask.taskStartTime;
-        dbUpdates.task_end_time = editTask.taskEndTime;
+        // 重复任务
+        dbUpdates.repeat_type = 'repeat';
+        dbUpdates.repeat_frequency = editTask.repeat;
+        
+        // 设置循环开始日期
+        dbUpdates.start_date = editTask.repeatStartDate;
+        
+        // 设置结束日期
+        if (editTask.endRepeat === 'on_date') {
+          dbUpdates.end_date = editTask.endRepeatDate;
+          dbUpdates.deadline = `${editTask.endRepeatDate}T23:59:59.000Z`;
+        } else {
+          // 默认设置结束日期为3年后
+          const startDate = new Date(editTask.repeatStartDate!);
+          const threeYearsLater = new Date(startDate);
+          threeYearsLater.setFullYear(threeYearsLater.getFullYear() + 3);
+          const endDateStr = threeYearsLater.toISOString().split('T')[0];
+          dbUpdates.end_date = endDateStr;
+          dbUpdates.deadline = `${endDateStr}T23:59:59.000Z`;
+        }
+        
+        // 如果指定了任务时间段，保存时间信息
+        if (editTask.taskTimeStart && editTask.taskTimeEnd) {
+          // 将开始时间保存到repeat_time字段（兼容现有数据库结构）
+          dbUpdates.repeat_time = editTask.taskTimeStart;
+          // 将结束时间保存到task_end_time字段
+          dbUpdates.task_end_time = `1970-01-01T${editTask.taskTimeEnd}:00.000Z`; // 使用固定日期+时间
+        }
       }
 
       await taskService.updateTask(selectedTask.id, dbUpdates);
@@ -651,7 +753,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       
       // 关闭编辑模式
       setIsEditing(false);
-      setSelectedTask(null);
+                                        handleCloseTaskDetail();
       
       // 触发全局事件
       globalEventService.emit(GlobalEvents.TASKS_UPDATED);
@@ -667,6 +769,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditTask({});
+  };
+
+  // 统一的关闭任务详情函数
+  const handleCloseTaskDetail = () => {
+    setIsEditing(false);
+    setEditTask({});
+                                      handleCloseTaskDetail();
   };
 
   // 自动将过期任务移动到abandoned状态
@@ -735,56 +844,73 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return;
     }
 
-    if (newTask.repeatType === 'once') {
-      if (useTimeRange) {
-        // 时间范围模式验证
-        if (!newTask.taskStartTime) {
-          alert('请选择开始时间');
-          return;
-        }
-        if (newTask.taskEndTime && new Date(newTask.taskStartTime) >= new Date(newTask.taskEndTime)) {
-          alert('结束时间必须晚于开始时间');
-          return;
-        }
-      } else {
-        // 简单模式验证
-        if (!newTask.deadline) {
-          alert('请选择截止日期');
+    // 验证时间设置
+    if (newTask.repeat === 'never') {
+      // 一次性任务：任务结束时间必填
+      if (!newTask.taskEndTime) {
+        alert('请选择任务结束时间');
+        return;
+      }
+      
+      // 验证结束时间不能是过去
+      const endTime = new Date(newTask.taskEndTime);
+      if (endTime <= new Date()) {
+        alert('任务结束时间不能是过去时间');
+        return;
+      }
+      
+      // 如果有开始时间，验证开始时间要早于结束时间
+      if (newTask.taskStartTime) {
+        const startTime = new Date(newTask.taskStartTime);
+        if (startTime >= endTime) {
+          alert('任务开始时间必须早于结束时间');
           return;
         }
       }
     } else {
-      if (!newTask.startDate) {
-        alert('请选择开始日期');
+      // 重复任务：循环开始日期必填
+      if (!newTask.repeatStartDate) {
+        alert('请选择重复任务的循环开始日期');
         return;
       }
       
-      // 验证每周重复任务的周日选择
-      if (newTask.repeatFrequency === 'weekly' && repeatHasSpecificTime && (!newTask.repeatWeekdays || newTask.repeatWeekdays.length === 0)) {
-        alert('请选择每周重复的日期');
+      // 验证开始日期不能是过去
+      const startDate = new Date(newTask.repeatStartDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (startDate < today) {
+        alert('循环开始日期不能是过去日期');
         return;
       }
-    }
-
-    // 构建完整的截止时间（仅限一次性任务）
-    let fullDeadline = '';
-    if (newTask.repeatType === 'once') {
-      if (useTimeRange) {
-        // 时间范围模式：使用结束时间作为截止时间，如果没有则使用开始时间+24小时
-        if (newTask.taskEndTime) {
-          fullDeadline = `${newTask.taskEndTime}:00.000Z`;
-        } else {
-          const startTime = new Date(newTask.taskStartTime);
-          const endTime = new Date(startTime.getTime() + 24 * 60 * 60 * 1000);
-          fullDeadline = endTime.toISOString();
+      
+      // 验证结束重复设置
+      if (newTask.endRepeat === 'on_date' && !newTask.endRepeatDate) {
+        alert('请选择结束重复的日期');
+        return;
+      }
+      
+      if (newTask.endRepeat === 'on_date') {
+        const endDate = new Date(newTask.endRepeatDate);
+        if (endDate <= startDate) {
+          alert('结束重复日期必须晚于开始日期');
+          return;
         }
-      } else {
-        // 简单模式：使用截止日期和时间
-        if (newTask.time) {
-          fullDeadline = `${newTask.deadline}T${newTask.time}:00.000Z`;
-        } else {
-          fullDeadline = `${newTask.deadline}T23:59:59.000Z`;
+      }
+      
+      // 如果指定了任务时间段，验证时间段有效性
+      if (newTask.taskTimeStart && newTask.taskTimeEnd) {
+        const startTime = newTask.taskTimeStart;
+        const endTime = newTask.taskTimeEnd;
+        if (startTime >= endTime) {
+          alert('任务开始时间必须早于结束时间');
+          return;
         }
+      } else if (newTask.taskTimeStart && !newTask.taskTimeEnd) {
+        alert('指定了开始时间，请同时指定结束时间');
+        return;
+      } else if (!newTask.taskTimeStart && newTask.taskTimeEnd) {
+        alert('指定了结束时间，请同时指定开始时间');
+        return;
       }
     }
 
@@ -800,38 +926,50 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           creator_id: user.id,
           requires_proof: newTask.requiresProof,
           task_type: newTask.taskType,
-          repeat_type: newTask.repeatType,
           created_at: new Date().toISOString()
         };
 
-                // 一次性任务：添加截止时间和可选的时间范围字段
-        if (newTask.repeatType === 'once') {
-          dbTaskData.deadline = fullDeadline;
+        if (newTask.repeat === 'never') {
+          // 一次性任务
+          dbTaskData.repeat_type = 'once';
+          dbTaskData.deadline = new Date(newTask.taskEndTime).toISOString();
           
-          // 只有在使用时间范围模式时才保存时间范围字段
-          if (useTimeRange && newTask.taskStartTime) {
-            dbTaskData.task_start_time = newTask.taskStartTime;
-            if (newTask.taskEndTime) {
-              dbTaskData.task_end_time = newTask.taskEndTime;
-            }
+          // 如果有开始时间，保存到task_start_time字段
+          if (newTask.taskStartTime) {
+            dbTaskData.task_start_time = new Date(newTask.taskStartTime).toISOString();
           }
+          
+          // 保存结束时间到task_end_time字段
+          dbTaskData.task_end_time = new Date(newTask.taskEndTime).toISOString();
         } else {
-          // 重复性任务：添加重复相关字段
-          dbTaskData.start_date = newTask.startDate;
-          dbTaskData.end_date = newTask.endDate;
-          dbTaskData.repeat_frequency = newTask.repeatFrequency;
+          // 重复任务
+          dbTaskData.repeat_type = 'repeat';
+          dbTaskData.repeat_frequency = newTask.repeat;
           
-          if (newTask.repeatTime) {
-            dbTaskData.repeat_time = newTask.repeatTime;
+          // 设置循环开始日期
+          dbTaskData.start_date = newTask.repeatStartDate;
+          
+          // 设置结束日期
+          if (newTask.endRepeat === 'on_date') {
+            dbTaskData.end_date = newTask.endRepeatDate;
+            dbTaskData.deadline = `${newTask.endRepeatDate}T23:59:59.000Z`;
+          } else {
+            // 默认设置结束日期为3年后（重复任务默认长期运行）
+            const startDate = new Date(newTask.repeatStartDate);
+            const threeYearsLater = new Date(startDate);
+            threeYearsLater.setFullYear(threeYearsLater.getFullYear() + 3);
+            const endDateStr = threeYearsLater.toISOString().split('T')[0];
+            dbTaskData.end_date = endDateStr;
+            dbTaskData.deadline = `${endDateStr}T23:59:59.000Z`;
           }
           
-          if (newTask.repeatFrequency === 'weekly' && newTask.repeatWeekdays && newTask.repeatWeekdays.length > 0) {
-            dbTaskData.repeat_weekdays = newTask.repeatWeekdays;
+          // 如果指定了任务时间段，保存时间信息
+          if (newTask.taskTimeStart && newTask.taskTimeEnd) {
+            // 将开始时间保存到repeat_time字段（兼容现有数据库结构）
+            dbTaskData.repeat_time = newTask.taskTimeStart;
+            // 将结束时间保存到task_end_time字段
+            dbTaskData.task_end_time = `1970-01-01T${newTask.taskTimeEnd}:00.000Z`; // 使用固定日期+时间
           }
-          
-          // 注意：当前数据库表可能不支持所有这些字段，可能需要更新表结构
-          // 暂时使用deadline字段存储结束日期
-          dbTaskData.deadline = `${newTask.endDate}T23:59:59.000Z`;
         }
 
         console.log('🚀 创建任务数据:', dbTaskData);
@@ -852,430 +990,247 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       throw new Error('用户未登录或缺少情侣关系信息');
     }
 
-    // 重置表单
-    setNewTask({
-      title: '',
-      description: '',
-      deadline: '',
-      time: '',
-      points: 50,
-      requiresProof: false,
-      taskType: 'daily',
-      repeatType: 'once',
-      repeatFrequency: 'daily',
-      startDate: '',
-      endDate: '',
-      repeatTime: '',
-      repeatWeekdays: [],
-      taskStartTime: '',
-      taskEndTime: ''
-    });
-    setUseTimeRange(false);
-    setSelectedDuration('21days');
-    setRepeatHasSpecificTime(false);
-    setShowAddForm(false);
+            // 重置表单
+        setNewTask({
+          title: '',
+          description: '',
+          taskStartTime: '',
+          taskEndTime: '',
+          points: 50,
+          requiresProof: false,
+          taskType: 'daily',
+          repeat: 'never',
+          repeatStartDate: '',
+          endRepeat: 'never',
+          endRepeatDate: '',
+          taskTimeStart: '',
+          taskTimeEnd: ''
+        });
+        setShowAddForm(false);
   };
 
-  // 渲染任务时间字段（根据repeatType动态显示）
+  // 渲染任务时间字段（根据repeat类型动态显示）
   const renderTaskTimeFields = () => {
-    if (newTask.repeatType === 'once') {
-      // 一次性任务：支持两种模式
+    if (newTask.repeat === 'never') {
+      // 一次性任务：任务开始时间（可选）+ 任务结束时间（必填）
       return (
         <div className="space-y-4">
-          {/* 是否指定时间范围 */}
-          <div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="useTimeRangeOnce"
-                checked={useTimeRange}
-                onChange={(e) => {
-                  const useRange = e.target.checked;
-                  setUseTimeRange(useRange);
-                  if (useRange && newTask.taskStartTime && !newTask.taskEndTime) {
-                    // 如果开启时间范围且有开始时间但没有结束时间，设置默认24小时后
-                    const startTime = new Date(newTask.taskStartTime);
-                    const endTime = new Date(startTime.getTime() + 24 * 60 * 60 * 1000);
-                    setNewTask(prev => ({
-                      ...prev,
-                      taskEndTime: endTime.toISOString().slice(0, 16)
-                    }));
-                  }
-                }}
-                className={`mr-3 ${
-                  theme === 'pixel' ? 'text-pixel-accent' : theme === 'fresh' ? 'text-fresh-primary' : 'text-blue-500'
-                }`}
-              />
-              <label htmlFor="useTimeRangeOnce" className={`text-sm ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-              }`}>
-                {theme === 'pixel' ? 'SPECIFIC_TIME_RANGE' : '指定时间范围'}
-              </label>
-            </div>
-            <p className={`text-xs mt-1 ${
-              theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
-            }`}>
-              {theme === 'pixel' ? 'ENABLE_FOR_TIME_RANGE_TASKS' : '开启以设置任务的具体完成时间范围'}
-            </p>
-          </div>
+          {/* 任务开始时间（可选） */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'TASK_START_TIME' : theme === 'modern' ? 'Task Start Time' : '任务开始时间'}
+            description={theme === 'pixel' ? 'OPTIONAL_ANY_TIME_BEFORE_END' : theme === 'modern' ? 'Optional: Leave empty if task can be completed anytime before end time' : '可选：留空表示在结束时间前任意时间开始都可以'}
+          >
+            <ThemeInput
+              type="datetime-local"
+              value={newTask.taskStartTime}
+              onChange={(e) => setNewTask(prev => ({ ...prev, taskStartTime: e.target.value }))}
+              min={new Date().toISOString().slice(0, 16)}
+            />
+          </ThemeFormField>
 
-          {useTimeRange ? (
-            // 时间范围模式
-            <div className="space-y-4">
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'START_TIME *' : '开始时间 *'}
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newTask.taskStartTime}
-                  onChange={(e) => {
-                    const startTime = e.target.value;
-                    // 如果结束时间未设置，自动设置为24小时后
-                    if (!newTask.taskEndTime) {
-                      const start = new Date(startTime);
-                      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-                      setNewTask(prev => ({
-                        ...prev,
-                        taskStartTime: startTime,
-                        taskEndTime: end.toISOString().slice(0, 16)
-                      }));
-                    } else {
-                      setNewTask(prev => ({ ...prev, taskStartTime: startTime }));
-                    }
-                  }}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                  min={new Date().toISOString().slice(0, 16)}
-                />
-              </div>
-              
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'END_TIME' : '结束时间'}
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newTask.taskEndTime}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, taskEndTime: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                  min={newTask.taskStartTime || new Date().toISOString().slice(0, 16)}
-                />
-                <p className={`text-xs mt-1 ${
-                  theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
-                }`}>
-                  {theme === 'pixel' ? 'OPTIONAL_DEFAULT_24H_AFTER_START' : '可选：默认开始时间后24小时'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            // 简单模式：截止日期和时间
-            <div className="grid grid-cols-2 gap-3">
-            <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'DEADLINE_DATE *' : '截止日期 *'}
-              </label>
-              <input
-                type="date"
-                value={newTask.deadline}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, deadline: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                }`}
-                min={new Date().toISOString().split('T')[0]}
-              />
-            </div>
-
-          <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'DEADLINE_TIME' : '截止时间'}
-            </label>
-              <input
-                  type="time"
-                  value={newTask.time}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, time: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                        theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                />
-              </div>
-            </div>
-          )}
+          {/* 任务结束时间（必填） */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'TASK_END_TIME' : theme === 'modern' ? 'Task End Time' : '任务结束时间'}
+            required
+          >
+            <ThemeInput
+              type="datetime-local"
+              value={newTask.taskEndTime}
+              onChange={(e) => setNewTask(prev => ({ ...prev, taskEndTime: e.target.value }))}
+              min={newTask.taskStartTime || new Date().toISOString().slice(0, 16)}
+            />
+          </ThemeFormField>
         </div>
       );
     } else {
-      // 重复性任务：需要开始日期、持续时间、重复频率等
+      // 重复任务：循环开始日期（必填）+ 指定任务时间段（可选）
       return (
         <div className="space-y-4">
-          {/* 重复频率 */}
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-              theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-            }`}>
-              {theme === 'pixel' ? 'REPEAT_FREQUENCY *' : '重复频率 *'}
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: 'daily', label: theme === 'pixel' ? 'DAILY' : '每天' },
-                { value: 'weekly', label: theme === 'pixel' ? 'WEEKLY' : '每周' },
-                { value: 'biweekly', label: theme === 'pixel' ? 'BIWEEKLY' : '每两周' },
-                { value: 'monthly', label: theme === 'pixel' ? 'MONTHLY' : '每月' },
-                { value: 'yearly', label: theme === 'pixel' ? 'YEARLY' : '每年' },
-              ].map(freq => (
-                <button
-                  key={freq.value}
-                  type="button"
-                  onClick={() => setNewTask(prev => ({ ...prev, repeatFrequency: freq.value as any }))}
-                  className={`py-2 px-3 text-sm transition-all duration-300 rounded-md border-2 ${
-                          newTask.repeatFrequency === freq.value
-                      ? theme === 'pixel'
-                        ? 'bg-pixel-accent text-black border-pixel-accent'
-                        : theme === 'fresh'
-                        ? 'bg-fresh-primary text-white border-fresh-primary'
-                        : 'bg-blue-500 text-white border-blue-500'
-                      : theme === 'pixel'
-                      ? 'border-pixel-border text-pixel-text hover:border-pixel-accent'
-                      : theme === 'fresh'
-                      ? 'border-fresh-border text-fresh-text hover:border-fresh-primary'
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
-                  } ${theme === 'pixel' ? 'font-mono uppercase' : ''}`}
-                >
-                  {freq.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 开始日期和持续时间 */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={`block text-sm font-medium mb-1 ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-            }`}>
-              {theme === 'pixel' ? 'START_DATE *' : '开始日期 *'}
-            </label>
-            <input
+          {/* 循环开始日期（必填） */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'REPEAT_START_DATE' : theme === 'modern' ? 'Repeat Start Date' : '循环开始日期'}
+            required
+            description={theme === 'pixel' ? 'WHEN_TO_START_REPEATING' : theme === 'modern' ? 'When should this recurring task start' : '重复任务从哪天开始循环'}
+          >
+            <ThemeInput
               type="date"
-              value={newTask.startDate}
-              onChange={(e) => {
-                const startDate = e.target.value;
-                  setNewTask(prev => ({
-                    ...prev,
-                  startDate,
-                    endDate: calculateEndDate(startDate, selectedDuration)
-                  }));
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  theme === 'pixel' 
-                    ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                    : theme === 'fresh'
-                    ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                    : 'border-gray-300 focus:ring-blue-500'
-              }`}
+              value={newTask.repeatStartDate}
+              onChange={(e) => setNewTask(prev => ({ ...prev, repeatStartDate: e.target.value }))}
               min={new Date().toISOString().split('T')[0]}
             />
-          </div>
+          </ThemeFormField>
 
-            <div>
-              <label className={`block text-sm font-medium mb-1 ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-              }`}>
-                {theme === 'pixel' ? 'DURATION *' : '持续时间 *'}
-            </label>
-              <select
-                value={selectedDuration}
-                onChange={(e) => {
-                  const duration = e.target.value as '21days' | '1month' | '6months' | '1year';
-                  setSelectedDuration(duration);
-                  setNewTask(prev => ({
-                    ...prev,
-                    endDate: prev.startDate ? calculateEndDate(prev.startDate, duration) : ''
-                  }));
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
-                    ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                    : theme === 'fresh'
-                    ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                    : 'border-gray-300 focus:ring-blue-500'
-                }`}
-              >
-                <option value="21days">{theme === 'pixel' ? '21_DAYS' : '21天'}</option>
-                <option value="1month">{theme === 'pixel' ? '1_MONTH' : '1个月'}</option>
-                <option value="6months">{theme === 'pixel' ? '6_MONTHS' : '6个月'}</option>
-                <option value="1year">{theme === 'pixel' ? '1_YEAR' : '1年'}</option>
-              </select>
-            </div>
-          </div>
+          {/* 结束重复设置 */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'END_REPEAT' : theme === 'modern' ? 'End Repeat' : '结束重复'}
+            required
+          >
+            <ThemeSelect
+              value={newTask.endRepeat}
+              onChange={(e) => setNewTask(prev => ({ ...prev, endRepeat: e.target.value as 'never' | 'on_date' }))}
+            >
+              <option value="never">{theme === 'pixel' ? 'NEVER' : theme === 'modern' ? 'Never' : '从不结束'}</option>
+              <option value="on_date">{theme === 'pixel' ? 'ON_DATE' : theme === 'modern' ? 'On Date' : '在指定日期'}</option>
+            </ThemeSelect>
+          </ThemeFormField>
 
-          {/* 结束日期（只读，自动计算） */}
-          {newTask.endDate && (
-            <div>
-              <label className={`block text-sm font-medium mb-1 ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-            }`}>
-              {theme === 'pixel' ? 'END_DATE' : '结束日期'}
-            </label>
-            <input
-              type="date"
-              value={newTask.endDate}
-                readOnly
-                className={`w-full px-3 py-2 border rounded-md bg-gray-100 text-gray-600 ${
-                  theme === 'pixel' ? 'font-mono' : ''
-                }`}
-            />
-            <p className={`text-xs mt-1 ${
-                theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
-            }`}>
-                {theme === 'pixel' ? 'AUTO_CALCULATED' : '根据开始日期和持续时间自动计算'}
-            </p>
-          </div>
+          {/* 结束日期选择（当选择"在指定日期"时显示） */}
+          {newTask.endRepeat === 'on_date' && (
+            <ThemeFormField
+              label={theme === 'pixel' ? 'END_DATE' : theme === 'modern' ? 'End Date' : '结束日期'}
+              required
+            >
+              <ThemeInput
+                type="date"
+                value={newTask.endRepeatDate}
+                onChange={(e) => setNewTask(prev => ({ ...prev, endRepeatDate: e.target.value }))}
+                min={newTask.repeatStartDate || new Date().toISOString().split('T')[0]}
+              />
+            </ThemeFormField>
           )}
 
-          {/* 是否指定时间 */}
-          <div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="repeatHasSpecificTime"
-                checked={repeatHasSpecificTime}
-                onChange={(e) => setRepeatHasSpecificTime(e.target.checked)}
-                className={`mr-3 ${
-                  theme === 'pixel' ? 'text-pixel-accent' : theme === 'fresh' ? 'text-fresh-primary' : 'text-blue-500'
-                }`}
-              />
-              <label htmlFor="repeatHasSpecificTime" className={`text-sm ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-              }`}>
-                {theme === 'pixel' ? 'SPECIFIC_TIME' : '指定时间'}
-              </label>
-            </div>
-          </div>
-
-          {/* 指定时间字段 */}
-          {repeatHasSpecificTime && (
-            <div className="space-y-4">
-              {/* 重复时间 */}
+          {/* 指定任务时间段（可选） */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'TASK_TIME_PERIOD' : theme === 'modern' ? 'Task Time Period' : '指定任务时间'}
+            description={theme === 'pixel' ? 'OPTIONAL_ANY_TIME_IF_EMPTY' : theme === 'modern' ? 'Optional: Leave empty if task can be completed anytime during the day' : '可选：留空表示任务可以在当天任意时间提交'}
+          >
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'REPEAT_TIME' : '重复时间'}
-            </label>
-            <input
+                <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
+                  {theme === 'pixel' ? 'FROM' : theme === 'modern' ? 'From' : '开始时间'}
+                </label>
+                <ThemeInput
                   type="time"
-                  value={newTask.repeatTime}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, repeatTime: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
+                  value={newTask.taskTimeStart}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, taskTimeStart: e.target.value }))}
                 />
-              <p className={`text-xs mt-1 ${
-                  theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
-              }`}>
-                  {theme === 'pixel' ? 'OPTIONAL' : '可选：如不设置，任务可在当天任意时间完成'}
-              </p>
-          </div>
+              </div>
+              <div>
+                <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
+                  {theme === 'pixel' ? 'TO' : theme === 'modern' ? 'To' : '结束时间'}
+                </label>
+                <ThemeInput
+                  type="time"
+                  value={newTask.taskTimeEnd}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, taskTimeEnd: e.target.value }))}
+                />
+              </div>
+            </div>
+          </ThemeFormField>
+        </div>
+      );
+    }
+  };
 
-              {/* 周日选择器（仅当重复频率为每周且指定时间时显示） */}
-              {newTask.repeatFrequency === 'weekly' && repeatHasSpecificTime && (
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                    theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'SELECT_WEEKDAYS *' : '选择每周重复的日期 *'}
-                  </label>
-                  <div className="grid grid-cols-7 gap-2">
-                    {[
-                      { value: 0, label: theme === 'pixel' ? 'SUN' : '日' },
-                      { value: 1, label: theme === 'pixel' ? 'MON' : '一' },
-                      { value: 2, label: theme === 'pixel' ? 'TUE' : '二' },
-                      { value: 3, label: theme === 'pixel' ? 'WED' : '三' },
-                      { value: 4, label: theme === 'pixel' ? 'THU' : '四' },
-                      { value: 5, label: theme === 'pixel' ? 'FRI' : '五' },
-                      { value: 6, label: theme === 'pixel' ? 'SAT' : '六' }
-                    ].map(day => (
-                      <button
-                        key={day.value}
-                        type="button"
-                        onClick={() => {
-                          const weekdays = newTask.repeatWeekdays || [];
-                          const newWeekdays = weekdays.includes(day.value)
-                            ? weekdays.filter(d => d !== day.value)
-                            : [...weekdays, day.value].sort();
-                          setNewTask(prev => ({ ...prev, repeatWeekdays: newWeekdays }));
-                        }}
-                        className={`py-2 px-1 text-xs transition-all duration-300 rounded-md border-2 ${
-                          newTask.repeatWeekdays?.includes(day.value)
-                            ? theme === 'pixel'
-                              ? 'bg-pixel-accent text-black border-pixel-accent font-mono uppercase'
-                              : theme === 'fresh'
-                              ? 'bg-fresh-primary text-white border-fresh-primary'
-                              : 'bg-blue-500 text-white border-blue-500'
-                            : theme === 'pixel'
-                            ? 'border-pixel-border text-pixel-text hover:border-pixel-accent font-mono uppercase'
-                            : theme === 'fresh'
-                            ? 'border-fresh-border text-fresh-text hover:border-fresh-primary'
-                            : 'border-gray-300 text-gray-600 hover:border-gray-400'
-                        }`}
-                      >
-                        {day.label}
-                      </button>
-                    ))}
-          </div>
-                  <p className={`text-xs mt-1 ${
-                    theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
-                  }`}>
-                    {theme === 'pixel' ? 'SELECT_ONE_OR_MORE_DAYS' : '请选择一个或多个重复日期'}
-                  </p>
-                </div>
-            )}
-          </div>
-                )}
-      </div>
+  // 渲染编辑任务的时间字段（根据repeat类型动态显示）
+  const renderEditTaskTimeFields = () => {
+    if ((editTask.repeat || 'never') === 'never') {
+      // 一次性任务：任务开始时间（可选）+ 任务结束时间（必填）
+      return (
+        <div className="space-y-4">
+          {/* 任务开始时间（可选） */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'TASK_START_TIME' : theme === 'modern' ? 'Task Start Time' : '任务开始时间'}
+            description={theme === 'pixel' ? 'OPTIONAL_ANY_TIME_BEFORE_END' : theme === 'modern' ? 'Optional: Leave empty if task can be completed anytime before end time' : '可选：留空表示在结束时间前任意时间开始都可以'}
+          >
+            <ThemeInput
+              type="datetime-local"
+              value={editTask.taskStartTime || ''}
+              onChange={(e) => setEditTask({...editTask, taskStartTime: e.target.value})}
+              min={new Date().toISOString().slice(0, 16)}
+            />
+          </ThemeFormField>
+
+          {/* 任务结束时间（必填） */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'TASK_END_TIME' : theme === 'modern' ? 'Task End Time' : '任务结束时间'}
+            required
+          >
+            <ThemeInput
+              type="datetime-local"
+              value={editTask.taskEndTime || ''}
+              onChange={(e) => setEditTask({...editTask, taskEndTime: e.target.value})}
+              min={editTask.taskStartTime || new Date().toISOString().slice(0, 16)}
+            />
+          </ThemeFormField>
+        </div>
+      );
+    } else {
+      // 重复任务：循环开始日期（必填）+ 结束重复设置 + 指定任务时间段（可选）
+      return (
+        <div className="space-y-4">
+          {/* 循环开始日期（必填） */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'REPEAT_START_DATE' : theme === 'modern' ? 'Repeat Start Date' : '循环开始日期'}
+            required
+            description={theme === 'pixel' ? 'WHEN_TO_START_REPEATING' : theme === 'modern' ? 'When should this recurring task start' : '重复任务从哪天开始循环'}
+          >
+            <ThemeInput
+              type="date"
+              value={editTask.repeatStartDate || ''}
+              onChange={(e) => setEditTask({...editTask, repeatStartDate: e.target.value})}
+              min={new Date().toISOString().split('T')[0]}
+            />
+          </ThemeFormField>
+
+          {/* 结束重复设置 */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'END_REPEAT' : theme === 'modern' ? 'End Repeat' : '结束重复'}
+            required
+          >
+            <ThemeSelect
+              value={editTask.endRepeat || 'never'}
+              onChange={(e) => setEditTask({...editTask, endRepeat: e.target.value as 'never' | 'on_date'})}
+            >
+              <option value="never">{theme === 'pixel' ? 'NEVER' : theme === 'modern' ? 'Never' : '从不结束'}</option>
+              <option value="on_date">{theme === 'pixel' ? 'ON_DATE' : theme === 'modern' ? 'On Date' : '在指定日期'}</option>
+            </ThemeSelect>
+          </ThemeFormField>
+
+          {/* 结束日期选择（当选择"在指定日期"时显示） */}
+          {editTask.endRepeat === 'on_date' && (
+            <ThemeFormField
+              label={theme === 'pixel' ? 'END_DATE' : theme === 'modern' ? 'End Date' : '结束日期'}
+              required
+            >
+              <ThemeInput
+                type="date"
+                value={editTask.endRepeatDate || ''}
+                onChange={(e) => setEditTask({...editTask, endRepeatDate: e.target.value})}
+                min={editTask.repeatStartDate || new Date().toISOString().split('T')[0]}
+              />
+            </ThemeFormField>
+          )}
+
+          {/* 指定任务时间段（可选） */}
+          <ThemeFormField
+            label={theme === 'pixel' ? 'TASK_TIME_PERIOD' : theme === 'modern' ? 'Task Time Period' : '指定任务时间'}
+            description={theme === 'pixel' ? 'OPTIONAL_ANY_TIME_IF_EMPTY' : theme === 'modern' ? 'Optional: Leave empty if task can be completed anytime during the day' : '可选：留空表示任务可以在当天任意时间提交'}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
+                  {theme === 'pixel' ? 'FROM' : theme === 'modern' ? 'From' : '开始时间'}
+                </label>
+                <ThemeInput
+                  type="time"
+                  value={editTask.taskTimeStart || ''}
+                  onChange={(e) => setEditTask({...editTask, taskTimeStart: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
+                  {theme === 'pixel' ? 'TO' : theme === 'modern' ? 'To' : '结束时间'}
+                </label>
+                <ThemeInput
+                  type="time"
+                  value={editTask.taskTimeEnd || ''}
+                  onChange={(e) => setEditTask({...editTask, taskTimeEnd: e.target.value})}
+                />
+              </div>
+            </div>
+          </ThemeFormField>
+        </div>
       );
     }
   };
@@ -1736,7 +1691,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const canComplete = !selectedTask.requiresProof || hasProof;
 
     return (
-      <ThemeDialog open={true} onOpenChange={() => setSelectedTask(null)}>
+      <ThemeDialog open={true} onOpenChange={handleCloseTaskDetail}>
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle>
@@ -1745,7 +1700,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               {theme === 'modern' ? (
                 <button
                   className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
-                  onClick={() => setSelectedTask(null)}
+                  onClick={handleCloseTaskDetail}
                   aria-label="关闭"
                 >
                   <XMarkIcon className="h-4 w-4" />
@@ -1757,7 +1712,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                       ? 'bg-pixel-card border-2 border-pixel-border hover:bg-pixel-accent text-pixel-text' 
                       : 'bg-white border border-gray-200 hover:bg-gray-100 text-gray-600'
                   }`}
-                  onClick={() => setSelectedTask(null)}
+                  onClick={handleCloseTaskDetail}
                   aria-label="关闭"
                 >
                   <XMarkIcon className="h-4 w-4" />
@@ -1863,109 +1818,26 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   </select>
                 </div>
 
-                {/* 重复类型选择 */}
-          <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'REPEAT_TYPE *' : '重复类型 *'}
-                  </label>
-                  <select
-                    value={editTask.repeatType || 'once'}
-                    onChange={(e) => setEditTask({...editTask, repeatType: e.target.value as Task['repeatType']})}
-                    className={`w-full px-3 py-2 ${
-                      theme === 'pixel'
-                        ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
-                        : 'border border-gray-300 rounded-lg'
-                    }`}
+                {/* 重复频率 */}
+                <ThemeFormField
+                  label={theme === 'pixel' ? 'REPEAT_FREQUENCY' : theme === 'modern' ? 'Repeat Frequency' : '重复频率'}
+                  required
+                >
+                  <ThemeSelect
+                    value={editTask.repeat || 'never'}
+                    onChange={(e) => setEditTask({...editTask, repeat: e.target.value as 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'})}
                   >
-                    <option value="once">{theme === 'pixel' ? 'ONCE' : '一次性任务'}</option>
-                    <option value="repeat">{theme === 'pixel' ? 'REPEAT' : '重复性任务'}</option>
-                  </select>
-          </div>
+                    <option value="never">{theme === 'pixel' ? 'NEVER' : theme === 'modern' ? 'Never' : '从不重复'}</option>
+                    <option value="daily">{theme === 'pixel' ? 'DAILY' : theme === 'modern' ? 'Daily' : '每天'}</option>
+                    <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : theme === 'modern' ? 'Weekly' : '每周'}</option>
+                    <option value="biweekly">{theme === 'pixel' ? 'BIWEEKLY' : theme === 'modern' ? 'Biweekly' : '每两周'}</option>
+                    <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : theme === 'modern' ? 'Monthly' : '每月'}</option>
+                    <option value="yearly">{theme === 'pixel' ? 'YEARLY' : theme === 'modern' ? 'Yearly' : '每年'}</option>
+                  </ThemeSelect>
+                </ThemeFormField>
 
-                {/* 截止时间/开始时间 */}
-                {editTask.repeatType === 'once' ? (
-          <div>
-                    <label className={`block text-sm font-medium mb-2 ${
-                      theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
-                    }`}>
-                      {theme === 'pixel' ? 'DEADLINE *' : '截止时间 *'}
-                    </label>
-                    <input
-                      type="date"
-                      value={editTask.deadline ? editTask.deadline.split('T')[0] : ''}
-                      onChange={(e) => setEditTask({...editTask, deadline: e.target.value ? new Date(e.target.value).toISOString() : ''})}
-                      className={`w-full px-3 py-2 ${
-                        theme === 'pixel'
-                          ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
-                          : 'border border-gray-300 rounded-lg'
-                      }`}
-                    />
-          </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-          <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
-                      }`}>
-                        {theme === 'pixel' ? 'START_DATE *' : '开始日期 *'}
-                      </label>
-                      <input
-                        type="date"
-                        value={editTask.startDate || ''}
-                        onChange={(e) => setEditTask({...editTask, startDate: e.target.value})}
-                        className={`w-full px-3 py-2 ${
-                          theme === 'pixel'
-                            ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
-                            : 'border border-gray-300 rounded-lg'
-                        }`}
-                      />
-          </div>
-          <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
-                      }`}>
-                        {theme === 'pixel' ? 'END_DATE *' : '结束日期 *'}
-                      </label>
-                      <input
-                        type="date"
-                        value={editTask.endDate || ''}
-                        onChange={(e) => setEditTask({...editTask, endDate: e.target.value})}
-                        className={`w-full px-3 py-2 ${
-                          theme === 'pixel'
-                            ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
-                            : 'border border-gray-300 rounded-lg'
-                        }`}
-                      />
-          </div>
-        </div>
-                )}
-
-                {/* 重复性任务的重复频率 */}
-                {editTask.repeatType === 'repeat' && (
-          <div>
-                    <label className={`block text-sm font-medium mb-2 ${
-                      theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
-                    }`}>
-                      {theme === 'pixel' ? 'REPEAT_FREQ *' : '重复频率 *'}
-                    </label>
-                    <select
-                      value={editTask.repeatFrequency || 'daily'}
-                      onChange={(e) => setEditTask({...editTask, repeatFrequency: e.target.value as Task['repeatFrequency']})}
-                      className={`w-full px-3 py-2 ${
-                        theme === 'pixel'
-                          ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
-                          : 'border border-gray-300 rounded-lg'
-                      }`}
-                    >
-                      <option value="daily">{theme === 'pixel' ? 'DAILY' : '每日'}</option>
-                      <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : '每周'}</option>
-                      <option value="biweekly">{theme === 'pixel' ? 'BIWEEKLY' : '双周'}</option>
-                      <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : '每月'}</option>
-                    </select>
-          </div>
-                )}
+                {/* 任务时间字段（动态显示） */}
+                {renderEditTaskTimeFields()}
 
                 {/* 积分输入 */}
           <div>
@@ -1986,7 +1858,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                         : 'border border-gray-300 rounded-lg'
                     }`}
                   />
-                  {editTask.repeatType === 'repeat' && (
+                  {editTask.repeat !== 'never' && (
                     <p className={`text-sm mt-1 ${
                       theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
                     }`}>
@@ -2289,7 +2161,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                               onClick={async () => {
                                 try {
                                   await handleAcceptTask(selectedTask.id);
-                        setSelectedTask(null);
+                        handleCloseTaskDetail();
                                 } catch (error) {
                                   console.error('❌ 领取任务按钮处理失败:', error);
                                 }
@@ -2307,7 +2179,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 onClick={async () => {
                                   try {
                                     await handleStartTask(selectedTask.id);
-                        setSelectedTask(null);
+                        handleCloseTaskDetail();
                                   } catch (error) {
                                     console.error('❌ 按钮点击处理失败:', error);
                                   }
@@ -2319,7 +2191,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 variant="danger"
                                 onClick={async () => {
                                   await handleAbandonTask(selectedTask.id);
-                                  setSelectedTask(null);
+                                  handleCloseTaskDetail();
                                 }}
                               >
                                 {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : '放弃'}
@@ -2333,7 +2205,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                               variant="primary"
                   onClick={() => {
                                 handleCompleteTask(selectedTask.id);
-                    setSelectedTask(null);
+                    handleCloseTaskDetail();
                   }}
                 >
                               {theme === 'pixel' ? 'COMPLETE_TASK' : theme === 'modern' ? 'Complete Task' : '完成任务'}
@@ -2347,7 +2219,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 variant="primary"
                     onClick={() => {
                                   handleReviewTask(selectedTask.id, true);
-                      setSelectedTask(null);
+                      handleCloseTaskDetail();
                     }}
                               >
                                 {theme === 'pixel' ? 'APPROVE' : theme === 'modern' ? 'Approve' : '通过'}
@@ -2356,7 +2228,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 variant="danger"
                     onClick={() => {
                                   handleReviewTask(selectedTask.id, false);
-                        setSelectedTask(null);
+                        handleCloseTaskDetail();
                     }}
                   >
                                 {theme === 'pixel' ? 'REJECT' : theme === 'modern' ? 'Reject' : '拒绝'}
@@ -2370,7 +2242,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                               variant="primary"
                               onClick={async () => {
                                 await handleRepublishTask(selectedTask.id);
-                    setSelectedTask(null);
+                    handleCloseTaskDetail();
                   }}
                             >
                               {theme === 'pixel' ? 'REPUBLISH' : theme === 'modern' ? 'Republish' : '重新发布'}
@@ -2380,7 +2252,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                           {/* 关闭按钮 - 始终显示 */}
                           <ThemeButton
                             variant="secondary"
-                            onClick={() => setSelectedTask(null)}
+                            onClick={handleCloseTaskDetail}
                           >
                             {theme === 'pixel' ? 'CLOSE' : theme === 'modern' ? 'Close' : '关闭'}
                           </ThemeButton>
@@ -2782,23 +2654,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             setNewTask({
               title: '',
               description: '',
-              deadline: '',
-              time: '',
+              taskStartTime: '',
+              taskEndTime: '',
               points: 50,
               requiresProof: false,
               taskType: 'daily',
-              repeatType: 'once',
-              repeatFrequency: 'daily',
-              startDate: '',
-              endDate: '',
-              repeatTime: '',
-              repeatWeekdays: [],
-              taskStartTime: '',
-              taskEndTime: ''
+              repeat: 'never',
+              repeatStartDate: '',
+              endRepeat: 'never',
+              endRepeatDate: '',
+              taskTimeStart: '',
+              taskTimeEnd: ''
             });
-            setUseTimeRange(false);
-            setSelectedDuration('21days');
-            setRepeatHasSpecificTime(false);
           }
         }}
       >
@@ -2851,17 +2718,21 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 </ThemeSelect>
               </ThemeFormField>
 
-              {/* 重复类型 */}
+              {/* 重复频率 */}
               <ThemeFormField
-                label={theme === 'pixel' ? 'REPEAT_TYPE' : theme === 'modern' ? 'Repeat Type' : '重复类型'}
+                label={theme === 'pixel' ? 'REPEAT_FREQUENCY' : theme === 'modern' ? 'Repeat Frequency' : '重复频率'}
                 required
               >
                 <ThemeSelect
-                  value={newTask.repeatType}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, repeatType: e.target.value as 'once' | 'repeat' }))}
+                  value={newTask.repeat}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, repeat: e.target.value as 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' }))}
                 >
-                  <option value="once">{theme === 'pixel' ? 'ONE_TIME' : theme === 'modern' ? 'One Time' : '一次性任务'}</option>
-                  <option value="repeat">{theme === 'pixel' ? 'REPEATING' : theme === 'modern' ? 'Repeating' : '重复任务'}</option>
+                  <option value="never">{theme === 'pixel' ? 'NEVER' : theme === 'modern' ? 'Never' : '从不重复'}</option>
+                  <option value="daily">{theme === 'pixel' ? 'DAILY' : theme === 'modern' ? 'Daily' : '每天'}</option>
+                  <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : theme === 'modern' ? 'Weekly' : '每周'}</option>
+                  <option value="biweekly">{theme === 'pixel' ? 'BIWEEKLY' : theme === 'modern' ? 'Biweekly' : '每两周'}</option>
+                  <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : theme === 'modern' ? 'Monthly' : '每月'}</option>
+                  <option value="yearly">{theme === 'pixel' ? 'YEARLY' : theme === 'modern' ? 'Yearly' : '每年'}</option>
                 </ThemeSelect>
               </ThemeFormField>
 
@@ -2872,7 +2743,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               <ThemeFormField
                 label={theme === 'pixel' ? 'POINTS_REWARD' : theme === 'modern' ? 'Points Reward' : '积分奖励'}
                 required
-                description={newTask.repeatType === 'repeat' 
+                description={newTask.repeat !== 'never' 
                   ? (theme === 'modern' ? 'Repeating task: earn this reward for each completion' : '重复性任务：每次完成都可获得此积分奖励')
                   : (theme === 'modern' ? 'One-time task: earn this reward upon completion' : '一次性任务：完成后获得此积分奖励')
                 }
@@ -2905,23 +2776,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               setNewTask({
                 title: '',
                 description: '',
-                deadline: '',
-                time: '',
+                taskStartTime: '',
+                taskEndTime: '',
                 points: 50,
                 requiresProof: false,
                 taskType: 'daily',
-                repeatType: 'once',
-                repeatFrequency: 'daily',
-                startDate: '',
-                endDate: '',
-                repeatTime: '',
-                repeatWeekdays: [],
-                taskStartTime: '',
-                taskEndTime: ''
+                repeat: 'never',
+                repeatStartDate: '',
+                endRepeat: 'never',
+                endRepeatDate: '',
+                taskTimeStart: '',
+                taskTimeEnd: ''
               });
-              setUseTimeRange(false);
-              setSelectedDuration('21days');
-              setRepeatHasSpecificTime(false);
             }}
           >
             {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : '取消'}
