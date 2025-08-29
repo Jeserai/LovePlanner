@@ -42,8 +42,8 @@ class RealtimeSyncService {
           console.log('📋 收到任务变化通知:', payload);
           
           // 检查是否是其他用户的操作
-          const isOtherUser = payload.new?.creator_id !== userId || 
-                             payload.old?.creator_id !== userId;
+          const isOtherUser = (payload.new as any)?.creator_id !== userId || 
+                             (payload.old as any)?.creator_id !== userId;
           
           if (isOtherUser) {
             console.log('👥 其他用户更新了任务，发布同步事件');
@@ -72,8 +72,8 @@ class RealtimeSyncService {
           console.log('📅 收到事件变化通知:', payload);
           
           // 检查是否是其他用户的操作
-          const isOtherUser = payload.new?.created_by !== userId || 
-                             payload.old?.created_by !== userId;
+          const isOtherUser = (payload.new as any)?.created_by !== userId || 
+                             (payload.old as any)?.created_by !== userId;
           
           if (isOtherUser) {
             console.log('👥 其他用户更新了事件，发布同步事件');

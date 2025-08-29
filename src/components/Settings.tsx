@@ -39,6 +39,14 @@ const Settings: React.FC = () => {
       icon: CommandLineIcon,
       preview: 'bg-gradient-to-br from-pixel-accent to-pixel-purple',
       color: 'text-pixel-accent'
+    },
+    {
+      id: 'modern' as const,
+      name: '现代主题',
+      description: '基于shadcn/ui的现代设计系统，简洁优雅的界面风格',
+      icon: PaintBrushIcon,
+      preview: 'bg-gradient-to-br from-gray-500 to-slate-600',
+      color: 'text-gray-600'
     }
   ];
 

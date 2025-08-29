@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext';
 import { getUserDisplayInfo } from '../services/authService';
 import { HeartIcon, CalendarDaysIcon, ListBulletIcon, ShoppingBagIcon, Cog6ToothIcon, UserIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
+import { ThemeButton } from './ui/Components';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,10 +19,26 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
   const { userProfile, loading } = useUser();
   
   const tabs = [
-    { id: 'calendar', name: 'CALENDAR', icon: CalendarDaysIcon },
-    { id: 'tasks', name: 'TASKS', icon: ListBulletIcon },
-    { id: 'shop', name: 'SHOP', icon: ShoppingBagIcon },
-    { id: 'settings', name: 'SETTINGS', icon: Cog6ToothIcon },
+    { 
+      id: 'calendar', 
+      name: theme === 'pixel' ? 'CALENDAR' : theme === 'modern' ? 'Calendar' : 'CALENDAR', 
+      icon: CalendarDaysIcon 
+    },
+    { 
+      id: 'tasks', 
+      name: theme === 'pixel' ? 'TASKS' : theme === 'modern' ? 'Tasks' : 'TASKS', 
+      icon: ListBulletIcon 
+    },
+    { 
+      id: 'shop', 
+      name: theme === 'pixel' ? 'SHOP' : theme === 'modern' ? 'Shop' : 'SHOP', 
+      icon: ShoppingBagIcon 
+    },
+    { 
+      id: 'settings', 
+      name: theme === 'pixel' ? 'SETTINGS' : theme === 'modern' ? 'Settings' : 'SETTINGS', 
+      icon: Cog6ToothIcon 
+    },
   ];
 
 
@@ -45,15 +62,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
       return { 
         icon: 'user',
         name: theme === 'pixel' ? displayName.toUpperCase() : displayName, 
-        color: theme === 'fresh' ? 'cat' : 'primary',
-        emoji: '🐱'
+        color: theme === 'fresh' ? 'cat' : theme === 'modern' ? 'purple' : 'primary',
+        emoji: theme === 'modern' ? '' : '🐱'
       };
     } else if (uiTheme === 'cow') {
       return { 
         icon: 'user',
         name: theme === 'pixel' ? displayName.toUpperCase() : displayName, 
-        color: theme === 'fresh' ? 'cow' : 'blue',
-        emoji: '🐮'
+        color: theme === 'fresh' ? 'cow' : theme === 'modern' ? 'blue' : 'blue',
+        emoji: theme === 'modern' ? '' : '🐮'
       };
     } else {
       return { 
@@ -71,6 +88,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
     <div className={`min-h-screen ${
       theme === 'pixel' ? 'bg-pixel-bg' : 
       theme === 'fresh' ? 'bg-fresh-bg' :
+      theme === 'modern' ? 'bg-background' :
       'bg-fresh-bg'
     }`}>
       {/* Header */}
@@ -79,36 +97,52 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
           ? 'bg-pixel-panel border-b-2 border-pixel-border' 
           : theme === 'fresh'
           ? 'bg-fresh-panel border-b border-fresh-border shadow-fresh-sm backdrop-blur-sm'
+          : theme === 'modern'
+          ? 'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border'
           : 'bg-pixel-panel border-b-2 border-pixel-border'
       }`}>
-        <div className="max-w-8xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className={`mx-auto px-4 sm:px-6 lg:px-8 ${
+          theme === 'modern' ? 'max-w-7xl' : 'max-w-8xl'
+        }`}>
+          <div className={`flex items-center justify-between ${
+            theme === 'modern' ? 'h-16' : 'py-4'
+          }`}>
+            {/* Logo and Brand */}
             <div className="flex items-center space-x-3">
               {theme === 'pixel' ? (
                 <PixelIcon name="heart" className="text-pixel-accent" size="lg" glow />
               ) : theme === 'fresh' ? (
                 <span className="text-3xl animate-fresh-breathe">💚</span>
+              ) : theme === 'modern' ? (
+                <div className="flex items-center space-x-2">
+                  <HeartIcon className="h-6 w-6 text-primary" />
+                  <span className="font-semibold text-lg text-foreground">Love Planner</span>
+                </div>
               ) : (
                 <HeartIcon className="w-8 h-8 text-secondary-500" />
               )}
-              <h1 className={`text-2xl font-bold ${
-                theme === 'pixel' 
-                  ? 'font-retro text-pixel-text tracking-wider' 
-                  : theme === 'fresh'
-                  ? 'font-display text-fresh-text fresh-gradient-text'
-                  : 'font-display bg-water-lily bg-clip-text text-transparent'
-              }`}>
-                {theme === 'pixel' ? 'LOVE_PLANNER.EXE' : theme === 'fresh' ? 'Love Planner' : '爱情规划师'}
-              </h1>
+              {theme !== 'modern' && (
+                <h1 className={`text-2xl font-bold ${
+                  theme === 'pixel' 
+                    ? 'font-retro text-pixel-text tracking-wider' 
+                    : theme === 'fresh'
+                    ? 'font-display text-fresh-text fresh-gradient-text'
+                    : 'font-display bg-water-lily bg-clip-text text-transparent'
+                }`}>
+                  {theme === 'pixel' ? 'LOVE_PLANNER.EXE' : theme === 'fresh' ? 'Love Planner' : '爱情规划师'}
+                </h1>
+              )}
             </div>
             
             {/* Navigation */}
-            <nav className={`flex space-x-1 p-1 ${
+            <nav className={`flex items-center space-x-1 ${
               theme === 'pixel' 
-                ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel' 
+                ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel p-1' 
                 : theme === 'fresh'
-                ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh backdrop-blur-sm'
-                : 'bg-white/40 backdrop-blur-md rounded-2xl shadow-dream'
+                ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh backdrop-blur-sm p-1'
+                : theme === 'modern'
+                ? 'bg-muted/50 rounded-lg p-1'
+                : 'bg-white/40 backdrop-blur-md rounded-2xl shadow-dream p-1'
             }`}>
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -116,20 +150,26 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                   <button
                     key={tab.id}
                     onClick={() => onTabChange(tab.id)}
-                    className={`flex items-center space-x-2 px-4 py-2 transition-all duration-300 ${
+                    className={`flex items-center space-x-2 transition-all duration-200 ${
                       theme === 'pixel' 
-                        ? `rounded-pixel font-mono text-sm uppercase ${
+                        ? `rounded-pixel font-mono text-sm uppercase px-4 py-2 ${
                             activeTab === tab.id
                               ? 'bg-pixel-accent text-black font-bold shadow-pixel border border-black'
                               : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
                           }`
                         : theme === 'fresh'
-                        ? `rounded-fresh font-medium text-sm ${
+                        ? `rounded-fresh font-medium text-sm px-4 py-2 ${
                             activeTab === tab.id
                               ? 'bg-fresh-accent text-white shadow-fresh-sm'
                               : 'text-fresh-text hover:bg-fresh-primary hover:text-fresh-accent'
                           }`
-                        : `rounded-xl ${
+                        : theme === 'modern'
+                        ? `inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                            activeTab === tab.id
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`
+                        : `rounded-xl px-4 py-2 ${
                             activeTab === tab.id
                               ? 'bg-water-lily text-white shadow-dream'
                               : 'text-secondary-600 hover:bg-white/50 hover:text-secondary-700'
@@ -164,6 +204,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                           ? 'border-cyan-400 bg-cyan-50'
                           : 'border-fresh-border bg-fresh-card'
                       }`
+                    : theme === 'modern'
+                    ? `inline-flex items-center rounded-md border px-2.5 py-1.5 text-sm font-medium shadow-sm ${
+                        userInfo?.color === 'purple'
+                          ? 'border-purple-200 bg-purple-50 text-purple-700'
+                          : userInfo?.color === 'blue'
+                          ? 'border-blue-200 bg-blue-50 text-blue-700'
+                          : 'border-border bg-background text-foreground'
+                      }`
                     : `rounded-xl backdrop-blur-md ${
                         userInfo?.color === 'blue' 
                           ? 'bg-blue-100/50 border border-blue-200/40' 
@@ -193,6 +241,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                     >
                       {userInfo?.emoji || '👤'}
                     </div>
+                  ) : theme === 'modern' ? (
+                    <UserIcon className={`w-4 h-4 ${
+                      userInfo?.color === 'purple' ? 'text-purple-600' :
+                      userInfo?.color === 'blue' ? 'text-blue-600' :
+                      'text-muted-foreground'
+                    }`} />
                   ) : (
                     <UserIcon className={`w-4 h-4 ${
                       userInfo?.color === 'blue' ? 'text-blue-600' :
@@ -205,6 +259,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                       ? 'text-pixel-text font-mono'
                       : theme === 'fresh'
                       ? 'text-fresh-text'
+                      : theme === 'modern'
+                      ? 'text-foreground'
                       : userInfo?.color === 'blue' 
                         ? 'text-blue-700' 
                         : userInfo?.color === 'primary'
@@ -241,7 +297,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
       </header>
 
       {/* Main Content */}
-      <main className="max-w-8xl mx-auto px-6 py-8">
+      <main className={`mx-auto px-4 sm:px-6 lg:px-8 ${
+        theme === 'modern' 
+          ? 'max-w-7xl py-6 sm:py-8' 
+          : 'max-w-8xl px-6 py-8'
+      }`}>
         {children}
       </main>
     </div>

@@ -2,11 +2,27 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { PlusIcon, UserIcon, ArrowPathIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, CalendarDaysIcon, HeartIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
+import LoadingSpinner from './ui/LoadingSpinner';
 import Button from './ui/Button';
 import NavigationButton from './ui/NavigationButton';
-import LoadingSpinner from './ui/LoadingSpinner';
-import Card from './ui/Card';
-import ConfirmDialog from './ConfirmDialog';
+import DetailField from './ui/DetailField';
+import { 
+  ThemeCard, 
+  ThemeDialog, 
+  ThemeFormField, 
+  ThemeInput, 
+  ThemeTextarea, 
+  ThemeSelect, 
+  ThemeCheckbox, 
+  ThemeButton,
+  DialogHeader,
+  DialogTitle,
+  DialogContent,
+  DialogFooter,
+  DialogClose,
+  ConfirmDialog,
+  RecurringEventActionDialog
+} from './ui/Components';
 import { format, subMonths, addMonths, isSameDay, isSameMonth } from 'date-fns';
 import { userService, taskService } from '../services/database';
 import { simplifiedEventService, type SimplifiedEvent } from '../services/simplifiedEventService';
@@ -346,7 +362,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   };
 
   // 简化数据库事件转换为前端Event格式
-  const convertSimplifiedEventToEvent = (dbEvent: SimplifiedEvent): Event => {
+  const convertSimplifiedEventToEvent = (dbEvent: SimplifiedEvent & { excluded_dates?: string[]; modified_instances?: Record<string, any> }): Event & { excludedDates?: string[]; modifiedInstances?: Record<string, any> } => {
     const participants: string[] = [];
     
     if (!coupleUsers) {
@@ -360,7 +376,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         isRecurring: dbEvent.is_recurring,
         recurrenceType: dbEvent.recurrence_type || undefined,
         recurrenceEnd: dbEvent.recurrence_end || undefined,
-        originalDate: dbEvent.original_date || undefined
+        originalDate: dbEvent.original_date || undefined,
+        excludedDates: dbEvent.excluded_dates || undefined,
+        modifiedInstances: dbEvent.modified_instances || undefined
       };
     }
     
@@ -378,12 +396,14 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       isRecurring: dbEvent.is_recurring,
       recurrenceType: dbEvent.recurrence_type || undefined,
       recurrenceEnd: dbEvent.recurrence_end || undefined,
-      originalDate: dbEvent.original_date || undefined
+      originalDate: dbEvent.original_date || undefined,
+      excludedDates: dbEvent.excluded_dates || undefined,
+      modifiedInstances: dbEvent.modified_instances || undefined
     };
   };
 
   // 前端Event转换为简化数据库格式的参数
-  const convertEventToCreateParams = (event: Event, coupleId: string, createdBy: string): {
+  const convertEventToCreateParams = (event: Event, coupleId: string, createdBy: string, originalStartDateTime?: string, originalEndDateTime?: string, originalLocation?: string): {
     coupleId: string;
     title: string;
     eventDate: string;
@@ -398,6 +418,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     isRecurring?: boolean;
     recurrenceType?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null;
     recurrenceEnd?: string | null;
+    originalDate?: string | null;
   } => {
     if (!coupleUsers) {
       throw new Error('用户信息未加载，无法创建事件');
@@ -407,6 +428,20 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const includesUser1 = event.participants.includes(coupleUsers.user1.id);
     const includesUser2 = event.participants.includes(coupleUsers.user2.id);
     
+    // 从原始的datetime-local格式中提取时间
+    let startTime = null;
+    let endTime = null;
+    
+    if (originalStartDateTime) {
+      // 从 "2024-01-15T14:30" 中提取 "14:30"
+      startTime = originalStartDateTime.split('T')[1] || null;
+    }
+    
+    if (originalEndDateTime) {
+      // 从 "2024-01-15T16:30" 中提取 "16:30"  
+      endTime = originalEndDateTime.split('T')[1] || null;
+    }
+    
     return {
       coupleId,
       title: event.title,
@@ -414,14 +449,15 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       createdBy,
       includesUser1,
       includesUser2,
-      startTime: event.time || null,
-      endTime: null,
+      startTime,
+      endTime,
       description: null,
-      isAllDay: !event.time,
-      location: null,
+      isAllDay: !startTime && !endTime,
+      location: originalLocation || null,
       isRecurring: event.isRecurring,
       recurrenceType: event.recurrenceType || null,
-      recurrenceEnd: event.recurrenceEnd || null
+      recurrenceEnd: event.recurrenceEnd || null,
+      originalDate: event.isRecurring ? event.date : null
     };
   };
 
@@ -602,26 +638,49 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editEvent, setEditEvent] = useState<Partial<Event>>({});
+  // 编辑事件的表单数据结构
+  interface EditEventForm {
+    title?: string;
+    location?: string;
+    startDateTime?: string;
+    endDateTime?: string;
+    repeat?: 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'custom';
+    endRepeat?: 'never' | 'on_date';
+    endRepeatDate?: string;
+    isJointActivity?: boolean;
+  }
+  
+  const [editEvent, setEditEvent] = useState<EditEventForm>({});
   
   const [newEvent, setNewEvent] = useState({
     title: '',
-    isRecurring: false,
-    recurrenceType: 'weekly' as 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly',
-    date: '', // 起始日期
-    recurrenceEnd: '', // 结束日期（非必填）
-    time: '', // 时间（非必填）
-    participants: [] as string[]
+    location: '', // 地点（非必填）
+    startDateTime: '', // 开始日期时间（年月日+时分）
+    endDateTime: '', // 结束日期时间（年月日+时分）
+    repeat: 'never' as 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'custom',
+    endRepeat: 'never' as 'never' | 'on_date', // 结束重复设置
+    endRepeatDate: '', // 结束重复日期
+    isJointActivity: false // 是否是双人活动
   });
 
   // 确认弹窗状态
   const [confirmDialog, setConfirmDialog] = useState({
-    isOpen: false,
+    open: false,
     title: '',
-    message: '',
-    type: 'warning' as 'warning' | 'danger' | 'info',
+    description: '',
+    variant: 'default' as 'default' | 'destructive',
     onConfirm: () => {}
   });
+
+  const [recurringActionDialog, setRecurringActionDialog] = useState({
+    open: false,
+    actionType: 'delete' as 'edit' | 'delete',
+    onThisOnly: () => {},
+    onThisAndFuture: () => {},
+    onAllEvents: () => {}
+  });
+
+
 
   // 检查用户是否有编辑权限
   const canEditEvent = (event: Event): boolean => {
@@ -643,24 +702,61 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   };
 
   // 生成重复事件的实例
-  const generateRecurringEvents = (event: Event): Event[] => {
-    if (!event.isRecurring || !event.recurrenceType || !event.originalDate) {
+  const generateRecurringEvents = (event: Event & { excludedDates?: string[]; modifiedInstances?: Record<string, any> }): Event[] => {
+    if (!event.isRecurring || !event.recurrenceType) {
       return [event];
     }
 
     const events: Event[] = [];
-    const startDate = new Date(event.originalDate);
-    const endDate = event.recurrenceEnd ? new Date(event.recurrenceEnd) : new Date();
-    endDate.setFullYear(endDate.getFullYear() + 1); // 默认显示一年内的重复事件
+    const excludedDates = event.excludedDates || [];
+    const modifiedInstances = event.modifiedInstances || {};
+    
+    // 如果没有originalDate，使用event.date作为开始日期
+    const startDate = new Date(event.originalDate || event.date);
+    
+    // 修复结束日期逻辑：如果没有设置结束日期，从开始日期+1年
+    const endDate = event.recurrenceEnd 
+      ? new Date(event.recurrenceEnd) 
+      : new Date(startDate.getTime()); // 从开始日期复制
+    
+    if (!event.recurrenceEnd) {
+      endDate.setFullYear(endDate.getFullYear() + 1); // 开始日期+1年
+    }
 
     let currentDate = new Date(startDate);
+    const maxEvents = 100; // 防止无限循环，最多生成100个重复事件
+    let eventCount = 0;
 
-    while (currentDate <= endDate) {
-      events.push({
-        ...event,
-        id: `${event.id}-${currentDate.toISOString().split('T')[0]}`,
-        date: currentDate.toISOString().split('T')[0]
-      });
+    while (currentDate <= endDate && eventCount < maxEvents) {
+      const dateString = currentDate.toISOString().split('T')[0];
+      
+      // 检查这个日期是否在排除列表中
+      if (!excludedDates.includes(dateString)) {
+        // 基础事件实例
+        let eventInstance: Event = {
+          ...event,
+          id: `${event.id}-${dateString}`,
+          date: dateString
+        };
+
+        // 检查是否有修改的实例数据
+        if (modifiedInstances[dateString]) {
+          const modification = modifiedInstances[dateString];
+          
+          // 应用修改
+          if (modification.title) {
+            eventInstance.title = modification.title;
+          }
+          if (modification.start_time) {
+            eventInstance.time = modification.start_time;
+          }
+          // 可以根据需要添加更多字段的修改逻辑
+        }
+
+        events.push(eventInstance);
+      }
+
+      eventCount++;
 
       // 根据重复类型计算下一个日期
       switch (event.recurrenceType) {
@@ -682,6 +778,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }
     }
 
+    console.log(`🔄 重复事件 "${event.title}" 生成了 ${events.length} 个实例（排除了 ${excludedDates.length} 个日期，修改了 ${Object.keys(modifiedInstances).length} 个实例），从 ${startDate.toISOString().split('T')[0]} 到 ${endDate.toISOString().split('T')[0]}`);
     return events;
   };
 
@@ -720,7 +817,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 获取所有事件（包括重复事件的实例和任务事件）
   const getAllEvents = useMemo((): Event[] => {
-    console.log('📅 getAllEvents 被调用 (useMemo), forceRefresh:', forceRefresh);
     const baseEvents: Event[] = [];
     
     // 添加常规事件
@@ -731,14 +827,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         baseEvents.push(event);
       }
     });
-    console.log('📅 常规事件数量:', baseEvents.length);
     
     // 添加任务事件
     const taskEvents = readTaskEvents();
-    console.log('📋 任务事件数量:', taskEvents.length);
     baseEvents.push(...taskEvents);
-    
-    console.log('📅 总事件数量:', baseEvents.length);
     return baseEvents;
   }, [events, forceRefresh]); // 依赖于events和forceRefresh
 
@@ -788,10 +880,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       case 'my':
         // 我的日历：显示所有当前登录用户参与的事件（包括共同参与的）
         filteredEvents = allEvents.filter(event => {
-          const included = eventIncludesUser(event, currentUserIdForFiltering);
-          console.log(`🔍 检查事件 "${event.title}" 是否包含用户 ${currentUserIdForFiltering}:`, included);
-          console.log('   事件参与者:', event.participants);
-          return included;
+          return eventIncludesUser(event, currentUserIdForFiltering);
         });
         break;
       case 'partner':
@@ -807,8 +896,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       default:
         filteredEvents = allEvents;
     }
-    
-    console.log('✅ 过滤后的事件:', filteredEvents);
     
     return filteredEvents;
   };
@@ -831,32 +918,57 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       : event;
     
     setSelectedEvent(originalEvent);
-    setEditEvent({
-      ...originalEvent,
-      date: originalEvent.originalDate || originalEvent.date,
-      recurrenceEnd: originalEvent.recurrenceEnd || ''
-    });
+    // 重置编辑表单（显示详情时不预填充，只有点击编辑按钮时才预填充）
+    setEditEvent({});
     setIsEditing(false);
     setShowDetailModal(true);
   };
 
   const handleAddEvent = async () => {
-    if (!newEvent.title || !newEvent.date || newEvent.participants.length === 0) {
+    if (!newEvent.title || !newEvent.startDateTime || !newEvent.endDateTime) {
       return;
     }
 
+    // 根据isJointActivity确定参与者
+    const participants = newEvent.isJointActivity && coupleUsers 
+      ? [coupleUsers.user1.id, coupleUsers.user2.id]
+      : user ? [user.id] : [];
+
+    if (participants.length === 0) {
+      return;
+    }
+
+    // 从startDateTime提取日期部分作为主要日期
+    const startDate = newEvent.startDateTime.split('T')[0];
+    
+    // 格式化时间显示（如果是同一天显示时间范围，如果跨天显示完整日期时间）
+    const startDateObj = new Date(newEvent.startDateTime);
+    const endDateObj = new Date(newEvent.endDateTime);
+    const isSameDay = startDate === newEvent.endDateTime.split('T')[0];
+    
+    const timeDisplay = isSameDay 
+      ? `${startDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
+      : `${startDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}`;
+
       const event: Event = {
         id: Date.now().toString(),
-        ...newEvent,
-        color: getEventColor(newEvent.participants),
-        originalDate: newEvent.isRecurring ? newEvent.date : undefined,
-        time: newEvent.time || undefined
-      };
+      title: newEvent.title,
+      date: startDate,
+      time: timeDisplay,
+      participants: participants,
+      isRecurring: newEvent.repeat !== 'never',
+      recurrenceType: newEvent.repeat === 'never' ? undefined : 
+                     newEvent.repeat === 'custom' ? 'weekly' : // 自定义暂时默认为weekly
+                     newEvent.repeat as any,
+      recurrenceEnd: newEvent.endRepeat === 'on_date' ? newEvent.endRepeatDate : undefined,
+      color: getEventColor(participants),
+      originalDate: newEvent.repeat !== 'never' ? startDate : undefined
+    };
 
     try {
       if (user && coupleId) {
         // 保存到数据库
-        const createParams = convertEventToCreateParams(event, coupleId, user.id);
+        const createParams = convertEventToCreateParams(event, coupleId, user.id, newEvent.startDateTime, newEvent.endDateTime, newEvent.location);
         const savedEvent = await simplifiedEventService.createEvent(
           createParams.coupleId,
           createParams.title,
@@ -871,7 +983,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           createParams.location,
           createParams.isRecurring,
           createParams.recurrenceType,
-          createParams.recurrenceEnd
+          createParams.recurrenceEnd,
+          createParams.originalDate
         );
         
         if (savedEvent) {
@@ -889,60 +1002,143 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       // 重置表单
       setNewEvent({ 
         title: '',
-        isRecurring: false,
-        recurrenceType: 'weekly',
-        date: '',
-        recurrenceEnd: '',
-        time: '',
-        participants: []
+        location: '',
+        startDateTime: '',
+        endDateTime: '',
+        repeat: 'never',
+        endRepeat: 'never',
+        endRepeatDate: '',
+        isJointActivity: false
       });
       setShowAddForm(false);
     } catch (error) {
       console.error('添加事件失败:', error);
-      alert('添加事件失败，请重试');
+      console.error('事件数据:', {
+        event,
+        newEvent
+      });
+      try {
+        if (coupleId && user?.id) {
+          const debugParams = convertEventToCreateParams(event, coupleId, user.id, newEvent.startDateTime, newEvent.endDateTime, newEvent.location);
+          console.error('转换参数:', debugParams);
+        }
+      } catch (conversionError) {
+        console.error('参数转换失败:', conversionError);
+      }
+      alert(`添加事件失败：${error instanceof Error ? error.message : '未知错误'}，请重试`);
     }
   };
 
   // 更新事件
   const handleUpdateEvent = () => {
-    if (!selectedEvent || !editEvent.title || !editEvent.date || !editEvent.participants?.length) {
+    if (!selectedEvent || !editEvent.title || !editEvent.startDateTime || !editEvent.endDateTime) {
       return;
     }
 
     // 检查权限
     if (!canEditEvent(selectedEvent)) {
       setConfirmDialog({
-        isOpen: true,
-        title: theme === 'pixel' ? 'ACCESS_DENIED' : '权限不足',
-        message: theme === 'pixel' ? 'NO_PERMISSION_TO_EDIT_THIS_EVENT' : '你没有权限编辑这个事件！',
-        type: 'warning',
-        onConfirm: () => setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+        open: true,
+        title: theme === 'pixel' ? 'ACCESS_DENIED' : theme === 'modern' ? 'Access Denied' : '权限不足',
+        description: theme === 'pixel' ? 'NO_PERMISSION_TO_EDIT_THIS_EVENT' : theme === 'modern' ? 'You do not have permission to edit this event!' : '你没有权限编辑这个事件！',
+        variant: 'default',
+        onConfirm: () => setConfirmDialog(prev => ({ ...prev, open: false }))
       });
       return;
     }
 
-    const updatedEvent: Event = {
-      ...selectedEvent,
-      title: editEvent.title,
-      date: editEvent.date,
-      time: editEvent.time || undefined,
-      participants: editEvent.participants,
-      isRecurring: editEvent.isRecurring || false,
-      recurrenceType: editEvent.recurrenceType,
-      recurrenceEnd: editEvent.recurrenceEnd || undefined,
-      originalDate: editEvent.isRecurring ? editEvent.date : undefined,
-      color: getEventColor(editEvent.participants)
-    };
+    // 如果是重复事件，询问影响范围
+    if (selectedEvent.isRecurring) {
+      setRecurringActionDialog({
+        open: true,
+        actionType: 'edit',
+        onThisOnly: async () => {
+          await performEventUpdate('this_only');
+        },
+        onThisAndFuture: async () => {
+          await performEventUpdate('this_and_future');
+        },
+        onAllEvents: async () => {
+          await performEventUpdate('all_events');
+        }
+      });
+    } else {
+      // 非重复事件，直接更新
+      performEventUpdate('this_only');
+    }
+  };
 
-    const updateEvent = async () => {
-      try {
-        if (user && coupleId && coupleUsers) {
-          // 更新数据库
-          // 确定参与者
-          const includesUser1 = updatedEvent.participants.includes(coupleUsers.user1.id);
-          const includesUser2 = updatedEvent.participants.includes(coupleUsers.user2.id);
-          
-          const success = await simplifiedEventService.updateEvent(selectedEvent.id, {
+  // 执行事件更新的实际逻辑
+  const performEventUpdate = async (scope: 'this_only' | 'this_and_future' | 'all_events') => {
+    if (!selectedEvent || !editEvent.title || !editEvent.startDateTime || !editEvent.endDateTime) {
+      return;
+    }
+
+    try {
+      // 根据isJointActivity确定参与者
+      const participants = editEvent.isJointActivity && coupleUsers 
+        ? [coupleUsers.user1.id, coupleUsers.user2.id]
+        : user ? [user.id] : [];
+
+      if (participants.length === 0) {
+        return;
+      }
+
+      // 从startDateTime提取日期部分作为主要日期
+      const startDate = editEvent.startDateTime.split('T')[0];
+      
+      // 格式化时间显示（如果是同一天显示时间范围，如果跨天显示完整日期时间）
+      const startDateObj = new Date(editEvent.startDateTime);
+      const endDateObj = new Date(editEvent.endDateTime);
+      const isSameDay = startDate === editEvent.endDateTime.split('T')[0];
+      
+      const timeDisplay = isSameDay 
+        ? `${startDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
+        : `${startDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}`;
+
+      const updatedEvent: Event = {
+        ...selectedEvent,
+        title: editEvent.title,
+        date: startDate,
+        time: timeDisplay,
+        participants: participants,
+        isRecurring: editEvent.repeat !== 'never',
+        recurrenceType: editEvent.repeat === 'never' ? undefined : 
+                       editEvent.repeat === 'custom' ? 'weekly' : // 自定义暂时默认为weekly
+                       editEvent.repeat as any,
+        recurrenceEnd: editEvent.endRepeat === 'on_date' ? editEvent.endRepeatDate : undefined,
+        originalDate: editEvent.repeat !== 'never' ? startDate : undefined,
+        color: getEventColor(participants)
+      };
+
+      if (user && coupleId && coupleUsers) {
+        // 确定参与者
+        const includesUser1 = updatedEvent.participants.includes(coupleUsers.user1.id);
+        const includesUser2 = updatedEvent.participants.includes(coupleUsers.user2.id);
+        
+        // 根据范围决定更新策略
+        let success = false;
+        const originalEventId = extractOriginalEventId(selectedEvent.id);
+        
+        if (selectedEvent.isRecurring) {
+          // 重复事件 - 使用智能更新策略
+          const updateData = {
+            title: updatedEvent.title,
+            start_time: updatedEvent.time || undefined,
+            location: editEvent.location || undefined,
+            includes_user1: includesUser1,
+            includes_user2: includesUser2,
+          };
+
+          success = await simplifiedEventService.updateRecurringEventInstances(
+            originalEventId,
+            scope,
+            selectedEvent.date,
+            updateData
+          );
+        } else {
+          // 非重复事件 - 直接更新
+          success = await simplifiedEventService.updateEvent(originalEventId, {
             title: updatedEvent.title,
             event_date: updatedEvent.date,
             start_time: updatedEvent.time || undefined,
@@ -953,28 +1149,27 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             recurrence_end: updatedEvent.recurrenceEnd || undefined,
             is_all_day: !updatedEvent.time
           });
-          
-          if (success) {
-    setEvents(events.map(event => 
-      event.id === selectedEvent.id ? updatedEvent : event
-    ));
-          } else {
-            throw new Error('更新失败');
-          }
-        } else {
-          throw new Error('用户未登录或缺少必要信息');
         }
-    
-    setShowDetailModal(false);
-    setIsEditing(false);
-    setSelectedEvent(null);
-      } catch (error) {
-        console.error('更新事件失败:', error);
-        alert('更新事件失败，请重试');
+        
+        if (success) {
+          // 刷新事件列表
+          await handleRefresh();
+          setShowDetailModal(false);
+          setIsEditing(false);
+          setSelectedEvent(null);
+        } else {
+          throw new Error('更新失败');
+        }
+      } else {
+        throw new Error('用户未登录或缺少必要信息');
       }
-    };
-
-    updateEvent();
+    } catch (error) {
+      console.error('更新事件失败:', error);
+      alert('更新事件失败，请重试');
+    }
+    
+    // 关闭重复事件操作对话框
+    setRecurringActionDialog(prev => ({ ...prev, open: false }));
   };
 
   // 删除事件
@@ -984,45 +1179,160 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     // 检查权限
     if (!canEditEvent(selectedEvent)) {
       setConfirmDialog({
-        isOpen: true,
-        title: theme === 'pixel' ? 'ACCESS_DENIED' : '权限不足',
-        message: theme === 'pixel' ? 'NO_PERMISSION_TO_DELETE_THIS_EVENT' : '你没有权限删除这个事件！',
-        type: 'warning',
-        onConfirm: () => setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+        open: true,
+        title: theme === 'pixel' ? 'ACCESS_DENIED' : theme === 'modern' ? 'Access Denied' : '权限不足',
+        description: theme === 'pixel' ? 'NO_PERMISSION_TO_DELETE_THIS_EVENT' : theme === 'modern' ? 'You do not have permission to delete this event!' : '你没有权限删除这个事件！',
+        variant: 'default',
+        onConfirm: () => setConfirmDialog(prev => ({ ...prev, open: false }))
       });
       return;
     }
     
-    setConfirmDialog({
-      isOpen: true,
-      title: theme === 'pixel' ? 'DELETE_EVENT' : '删除事件',
-      message: theme === 'pixel' ? 'ARE_YOU_SURE_TO_DELETE_THIS_EVENT' : '确定要删除这个事件吗？',
-      type: 'danger',
-      onConfirm: async () => {
-        try {
-          if (user && coupleId) {
-            // 从数据库删除
-            const success = await simplifiedEventService.deleteEvent(selectedEvent.id);
-            
-            if (success) {
-        setEvents(events.filter(event => event.id !== selectedEvent.id));
-            } else {
-              throw new Error('删除失败');
-            }
-          } else {
-            throw new Error('用户未登录或缺少情侣关系信息');
-          }
-          
-        setShowDetailModal(false);
-        setSelectedEvent(null);
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-        } catch (error) {
-          console.error('删除事件失败:', error);
-          alert('删除事件失败，请重试');
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+    // 如果是重复事件，显示重复事件操作对话框
+    if (selectedEvent.isRecurring) {
+      setRecurringActionDialog({
+        open: true,
+        actionType: 'delete',
+        onThisOnly: async () => {
+          await deleteEventWithScope('this_only');
+        },
+        onThisAndFuture: async () => {
+          await deleteEventWithScope('this_and_future');
+        },
+        onAllEvents: async () => {
+          await deleteEventWithScope('all_events');
+        }
+      });
+    } else {
+      // 非重复事件，使用普通确认对话框
+      setConfirmDialog({
+        open: true,
+        title: theme === 'pixel' ? 'DELETE_EVENT' : theme === 'modern' ? 'Delete Event' : '删除事件',
+        description: theme === 'pixel' ? 'ARE_YOU_SURE_TO_DELETE_THIS_EVENT' : theme === 'modern' ? 'Are you sure you want to delete this event?' : '确定要删除这个事件吗？',
+        variant: 'destructive',
+        onConfirm: async () => {
+          await deleteEventWithScope('this_only');
+        }
+      });
+    }
+  };
+
+  // 从重复事件ID中提取原始UUID
+  const extractOriginalEventId = (eventId: string): string => {
+    // 如果ID包含日期后缀 (格式: uuid-YYYY-MM-DD)，提取原始UUID
+    const parts = eventId.split('-');
+    if (parts.length >= 6) {
+      // UUID格式: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (5个部分)
+      // 加上日期: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx-YYYY-MM-DD (8个部分)
+      return parts.slice(0, 5).join('-');
+    }
+    return eventId;
+  };
+
+  // 执行删除操作的辅助函数
+  const deleteEventWithScope = async (scope: 'this_only' | 'this_and_future' | 'all_events') => {
+    if (!selectedEvent || !user || !coupleId) return;
+    
+    try {
+      let success: boolean;
+      const originalEventId = extractOriginalEventId(selectedEvent.id);
+      
+      if (selectedEvent.isRecurring && scope !== 'this_only') {
+        // 重复事件的批量删除
+        success = await simplifiedEventService.deleteRecurringEventInstances(
+          originalEventId,
+          scope,
+          selectedEvent.date
+        );
+      } else {
+        // 单个事件删除
+        if (selectedEvent.isRecurring && scope === 'this_only') {
+          // 重复事件的单个实例删除 - 添加到排除日期列表
+          success = await simplifiedEventService.deleteRecurringEventInstances(
+            originalEventId,
+            'this_only',
+            selectedEvent.date
+          );
+        } else {
+          // 非重复事件
+          success = await simplifiedEventService.deleteEvent(originalEventId);
         }
       }
+      
+      if (success) {
+        // 刷新事件列表
+        await handleRefresh();
+        setShowDetailModal(false);
+        setSelectedEvent(null);
+      } else {
+        throw new Error('删除失败');
+      }
+    } catch (error) {
+      console.error('删除事件失败:', error);
+      alert('删除事件失败，请重试');
+    }
+    
+    // 关闭对话框
+    setConfirmDialog(prev => ({ ...prev, open: false }));
+    setRecurringActionDialog(prev => ({ ...prev, open: false }));
+  };
+
+  // 开始编辑操作的辅助函数
+  const startEditWithScope = async (scope: 'this_only' | 'this_and_future' | 'all_events') => {
+    if (!selectedEvent) return;
+    
+    // 预填充编辑表单数据
+    const event = selectedEvent;
+    
+    // 将现有的时间格式转换为datetime-local格式
+    let startDateTime = '';
+    let endDateTime = '';
+    
+    if (event.time) {
+      // 解析时间显示格式
+      const timeStr = event.time;
+      if (timeStr.includes(' - ')) {
+        const [startPart, endPart] = timeStr.split(' - ');
+        
+        if (startPart.includes(':') && !startPart.includes('-')) {
+          // 同一天的时间格式 "14:30 - 16:30"
+          startDateTime = `${event.date}T${startPart}`;
+          endDateTime = `${event.date}T${endPart}`;
+        } else {
+          // 跨天的时间格式 "01-15 14:30 - 01-16 09:00"
+          const year = new Date().getFullYear();
+          const [startMonth, startDayTime] = startPart.split(' ');
+          const [endMonth, endDayTime] = endPart.split(' ');
+          startDateTime = `${year}-${startMonth.replace('-', '-')}T${startDayTime}`;
+          endDateTime = `${year}-${endMonth.replace('-', '-')}T${endDayTime}`;
+        }
+      }
+    }
+    
+    // 默认值，如果解析失败
+    if (!startDateTime) {
+      startDateTime = `${event.date}T09:00`;
+      endDateTime = `${event.date}T10:00`;
+    }
+    
+    setEditEvent({
+      title: event.title,
+      location: '', // 暂时设为空，因为旧事件可能没有这个字段
+      startDateTime: startDateTime,
+      endDateTime: endDateTime,
+      repeat: event.isRecurring ? 
+        (event.recurrenceType === 'daily' ? 'daily' :
+         event.recurrenceType === 'weekly' ? 'weekly' :
+         event.recurrenceType === 'biweekly' ? 'biweekly' :
+         event.recurrenceType === 'monthly' ? 'monthly' :
+         event.recurrenceType === 'yearly' ? 'yearly' : 'weekly') : 'never',
+      endRepeat: event.recurrenceEnd ? 'on_date' : 'never',
+      endRepeatDate: event.recurrenceEnd || '',
+      isJointActivity: event.participants.length > 1
     });
+
+    // 直接进入编辑模式，不需要记录范围（范围在保存时决定）
+    setIsEditing(true);
   };
 
   // 获取当前用户的颜色（基于登录用户身份和数据库配置）
@@ -1055,13 +1365,20 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     };
   };
 
-  // 为清新主题获取内联样式背景色
+  // 为清新主题和现代主题获取内联样式背景色
   const getEventBackgroundStyle = (participants: (string | 'cat' | 'cow')[]): React.CSSProperties | undefined => {
-    if (theme !== 'fresh') return undefined;
+    if (theme === 'pixel') return undefined; // 像素主题使用CSS类
     
     // 检查是否有用户信息和颜色配置
     if (!coupleUsers || !user || !coupleColors) {
-      return { backgroundColor: '#64748b' }; // 默认灰色
+      if (theme === 'modern') {
+        return { 
+          backgroundColor: 'hsl(var(--muted))', 
+          color: 'hsl(var(--muted-foreground))',
+          borderColor: 'hsl(var(--border))'
+        };
+      }
+      return { backgroundColor: '#64748b' }; // fresh主题默认灰色
     }
     
     // 获取用户ID
@@ -1074,7 +1391,36 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     
 
     
-    // 使用简化的颜色配置：
+    if (theme === 'modern') {
+      // 现代主题使用更简洁的颜色方案
+      if (hasUser1 && hasUser2) {
+        return { 
+          backgroundColor: 'hsl(var(--primary))', 
+          color: 'hsl(var(--primary-foreground))',
+          borderColor: 'hsl(var(--primary))'
+        };
+      } else if (hasUser1) {
+        return { 
+          backgroundColor: 'hsl(var(--primary) / 0.8)', 
+          color: 'hsl(var(--primary-foreground))',
+          borderColor: 'hsl(var(--primary))'
+        };
+      } else if (hasUser2) {
+        return { 
+          backgroundColor: 'hsl(var(--secondary))', 
+          color: 'hsl(var(--secondary-foreground))',
+          borderColor: 'hsl(var(--border))'
+        };
+    } else {
+        return { 
+          backgroundColor: 'hsl(var(--muted))', 
+          color: 'hsl(var(--muted-foreground))',
+          borderColor: 'hsl(var(--border))'
+        };
+      }
+    }
+    
+    // fresh主题使用原有的颜色配置：
     const eventColor = minimalColorService.getEventColor(
       participants,
       user1Id,
@@ -1109,38 +1455,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   };
 
   // 切换参与者选择（新建事件）
-  const toggleParticipant = (userId: string) => {
-    const currentParticipants = newEvent.participants;
-    
-    if (currentParticipants.includes(userId)) {
-      setNewEvent({
-        ...newEvent,
-        participants: currentParticipants.filter(p => p !== userId)
-      });
-    } else {
-      setNewEvent({
-        ...newEvent,
-        participants: [...currentParticipants, userId]
-      });
-    }
-  };
+
 
   // 切换参与者选择（编辑事件）
-  const toggleEditParticipant = (userId: string) => {
-    const currentParticipants = editEvent.participants || [];
-    
-    if (currentParticipants.includes(userId)) {
-      setEditEvent({
-        ...editEvent,
-        participants: currentParticipants.filter(p => p !== userId)
-      });
-    } else {
-      setEditEvent({
-        ...editEvent,
-        participants: [...currentParticipants, userId]
-      });
-    }
-  };
+
 
   // 使用useMemo优化日历计算，确保渲染稳定性
   const calendarData = useMemo(() => {
@@ -1418,9 +1736,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               ? 'font-retro text-pixel-text uppercase tracking-wider' 
               : theme === 'fresh'
               ? 'font-display text-fresh-text fresh-gradient-text'
+              : theme === 'modern'
+              ? 'text-foreground font-semibold'
               : 'font-display text-gray-700'
           }`}>
-            {theme === 'pixel' ? 'CALENDAR.EXE' : '日程安排'}
+            {theme === 'pixel' ? 'CALENDAR.EXE' : theme === 'modern' ? 'Calendar' : '日程安排'}
           </h2>
           
           {/* View Switcher */}
@@ -1429,6 +1749,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               ? 'border-4 border-pixel-border bg-pixel-card shadow-pixel' 
               : theme === 'fresh'
               ? 'border border-fresh-border bg-fresh-card shadow-fresh rounded-fresh-lg'
+              : theme === 'modern'
+              ? 'inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground'
               : 'border border-gray-200 rounded-lg'
           }`}>
             <button
@@ -1447,6 +1769,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       currentView === 'my'
                         ? 'text-white shadow-fresh-sm'
                         : 'text-fresh-text hover:bg-fresh-primary'
+                    }`
+                  : theme === 'modern'
+                  ? `inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                      currentView === 'my'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
                     }`
                   : `${
                       currentView === 'my'
@@ -1478,6 +1806,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         ? 'text-white shadow-fresh-sm'
                         : 'text-fresh-text hover:bg-fresh-primary'
                     }`
+                  : theme === 'modern'
+                  ? `inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                      currentView === 'partner'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`
                   : `${
                       currentView === 'partner'
                         ? `${getPartnerColor().default} text-white`
@@ -1508,6 +1842,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         ? 'bg-fresh-accent text-white shadow-fresh-sm' // 共同日历颜色：绿色
                         : 'text-fresh-text hover:bg-fresh-primary'
                     }`
+                  : theme === 'modern'
+                  ? `inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                      currentView === 'shared'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`
                   : `${
                       currentView === 'shared'
                         ? 'bg-purple-500 text-white' // 共同日历颜色：紫色
@@ -1517,7 +1857,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               style={theme === 'fresh' && currentView === 'shared' ? { backgroundColor: '#10b981' } : undefined}
             >
               <span className="mr-1 flex-shrink-0">
-                {getHeartIcon('sm')}
+              {getHeartIcon('sm')}
               </span>
               <span className="font-medium whitespace-nowrap">
                 {theme === 'pixel' ? 'SHARED_CALENDAR' : '共同日历'}
@@ -1538,7 +1878,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             {theme === 'pixel' ? 'REFRESH' : '刷新'}
           </Button>
           <Button
-            onClick={() => setShowAddForm(true)}
+          onClick={() => {
+            setShowAddForm(true);
+          }}
             variant="primary"
             size="lg"
             icon="plus"
@@ -1553,6 +1895,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       <div className={`${
         theme === 'pixel' 
           ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel p-4'
+          : theme === 'fresh'
+          ? 'bg-white rounded-xl shadow-soft p-4'
+          : theme === 'modern'
+          ? 'bg-card border border-border rounded-lg shadow-sm p-4'
           : 'bg-white rounded-xl shadow-soft p-4'
       }`}>
         <div className="flex items-center justify-between">
@@ -1563,7 +1909,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               aria-label="上一个月"
             />
             <h2 className={`text-lg font-bold ${
-              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+              theme === 'pixel' 
+                ? 'text-pixel-text font-mono uppercase' 
+                : theme === 'fresh'
+                ? 'text-gray-800'
+                : theme === 'modern'
+                ? 'text-foreground'
+                : 'text-gray-800'
             }`}>
               {theme === 'pixel' 
                 ? `${monthNames[currentMonth].toUpperCase()} ${currentYear}`
@@ -1583,6 +1935,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
               theme === 'pixel'
                 ? 'bg-pixel-accent text-pixel-text hover:bg-pixel-accent/80 font-mono uppercase'
+                : theme === 'fresh'
+                ? 'bg-primary-500 text-white hover:bg-primary-600'
+                : theme === 'modern'
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90 rounded-md'
                 : 'bg-primary-500 text-white hover:bg-primary-600'
             }`}
           >
@@ -1598,6 +1954,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           <div className={`p-6 ${
             theme === 'pixel' 
               ? 'bg-pixel-panel border-4 border-black shadow-pixel-lg neon-border' 
+              : theme === 'fresh'
+              ? 'card-cutesy'
+              : theme === 'modern'
+              ? 'bg-card border border-border rounded-lg shadow-sm'
               : 'card-cutesy'
           }`}>
             {/* Day headers */}
@@ -1606,6 +1966,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 <div key={day} className={`text-center font-medium py-2 ${
                   theme === 'pixel'
                     ? 'text-pixel-text font-mono uppercase bg-pixel-card border-2 border-pixel-border rounded-xl neon-text' 
+                    : theme === 'fresh'
+                    ? 'text-gray-500'
+                    : theme === 'modern'
+                    ? 'text-muted-foreground bg-muted/50 rounded-md'
                     : 'text-gray-500'
                 }`}>
                   {theme === 'pixel' ? day.toUpperCase() : day}
@@ -1657,20 +2021,40 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       theme === 'pixel'
                         ? `border-2 rounded-xl hover:shadow-pixel neon-border ${
                             isSelected
-                              ? 'bg-pixel-accent border-white shadow-pixel-neon animate-neon-glow' // 选中日期使用今天的样式
+                              ? 'bg-pixel-accent border-white shadow-pixel-neon animate-neon-glow' 
                               : isToday && !selectedDate
-                                ? 'bg-pixel-accent border-white shadow-pixel-neon animate-neon-glow' // 没有选中其他日期时，今天使用完整高亮
+                                ? 'bg-pixel-accent border-white shadow-pixel-neon animate-neon-glow'
                                 : isToday
-                                  ? 'bg-pixel-panel border-pixel-accent shadow-pixel border-2' // 有其他选中日期时，今天只突出边框，调整为border-2
+                                  ? 'bg-pixel-panel border-pixel-accent shadow-pixel border-2'
                                   : 'bg-pixel-card hover:bg-pixel-panel border-pixel-border'
+                          }`
+                        : theme === 'fresh'
+                        ? `border rounded-2xl hover:shadow-soft ${
+                            isSelected
+                              ? 'bg-gradient-to-br from-primary-100/60 to-secondary-100/60 border-primary-300/50'
+                              : isToday && !selectedDate
+                                ? 'bg-gradient-to-br from-primary-100/60 to-secondary-100/60 border-primary-300/50'
+                                : isToday
+                                  ? 'bg-white/60 border-primary-400 border-2'
+                                  : 'bg-white/40 border-gray-200/60 hover:bg-white/60'
+                          }`
+                        : theme === 'modern'
+                        ? `border border-border rounded-lg hover:shadow-sm hover:bg-accent/5 ${
+                            isSelected
+                              ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20'
+                              : isToday && !selectedDate
+                                ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20'
+                                : isToday
+                                  ? 'bg-card border-primary'
+                                  : 'bg-card hover:bg-accent/5'
                           }`
                         : `border rounded-2xl hover:shadow-soft ${
                             isSelected
-                              ? 'bg-gradient-to-br from-primary-100/60 to-secondary-100/60 border-primary-300/50' // 选中日期使用今天的样式
+                              ? 'bg-gradient-to-br from-primary-100/60 to-secondary-100/60 border-primary-300/50' 
                               : isToday && !selectedDate
-                                ? 'bg-gradient-to-br from-primary-100/60 to-secondary-100/60 border-primary-300/50' // 没有选中其他日期时，今天使用完整高亮
+                                ? 'bg-gradient-to-br from-primary-100/60 to-secondary-100/60 border-primary-300/50'
                                 : isToday
-                                  ? 'bg-white/60 border-primary-400 border-2' // 有其他选中日期时，今天只突出边框
+                                  ? 'bg-white/60 border-primary-400 border-2'
                               : 'bg-white/40 border-gray-200/60 hover:bg-white/60'
                           }`
                     }`}
@@ -1679,19 +2063,35 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                       theme === 'pixel' 
                         ? `font-mono ${
                             isSelected
-                              ? 'text-white font-bold neon-text' // 选中日期使用今天的文字样式
+                              ? 'text-white font-bold neon-text'
                               : isToday && !selectedDate
-                                ? 'text-white font-bold neon-text' // 没有选中其他日期时，今天使用完整高亮文字
+                                ? 'text-white font-bold neon-text'
                                 : isToday
-                                  ? 'text-pixel-accent font-bold' // 有其他选中日期时，今天使用突出色文字
+                                  ? 'text-pixel-accent font-bold'
                                   : 'text-pixel-text'
                           }`
-                        : isSelected
-                          ? 'text-primary-600 font-bold' // 选中日期使用今天的文字样式
+                        : theme === 'fresh'
+                        ? isSelected
+                          ? 'text-primary-600 font-bold'
                           : isToday && !selectedDate
-                            ? 'text-primary-600 font-bold' // 没有选中其他日期时，今天使用完整高亮文字
+                            ? 'text-primary-600 font-bold'
                             : isToday
-                              ? 'text-primary-500 font-bold' // 有其他选中日期时，今天使用突出色文字
+                              ? 'text-primary-500 font-bold'
+                              : 'text-gray-600'
+                        : theme === 'modern'
+                        ? isSelected
+                          ? 'text-primary font-semibold'
+                          : isToday && !selectedDate
+                            ? 'text-primary font-semibold'
+                            : isToday
+                              ? 'text-primary font-semibold'
+                              : 'text-foreground'
+                        : isSelected
+                          ? 'text-primary-600 font-bold'
+                          : isToday && !selectedDate
+                            ? 'text-primary-600 font-bold'
+                            : isToday
+                              ? 'text-primary-500 font-bold'
                               : 'text-gray-600'
                     }`}>
                       {theme === 'pixel' ? String(day).padStart(2, '0') : day}
@@ -1715,6 +2115,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                     hasEditPermission 
                                       ? 'hover:opacity-80 hover:shadow-fresh-sm' 
                                       : 'opacity-75 hover:opacity-90'
+                                  }`
+                                : theme === 'modern'
+                                ? `rounded-md border border-border/20 shadow-sm font-medium text-xs ${
+                                    hasEditPermission 
+                                      ? 'hover:opacity-90 hover:shadow-md' 
+                                      : 'opacity-90 hover:opacity-100'
                                   }`
                                 : `rounded-lg text-white ${
                                     hasEditPermission 
@@ -1764,17 +2170,25 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
         {/* Today's Events List - Right Side */}
         <div className="xl:col-span-1">
-          <div className={`p-6 h-fit sticky top-24 ${theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg neon-border' : 'card-cutesy'}`}>
+          <ThemeCard variant="elevated" className="h-fit sticky top-24">
             <div className="flex items-center space-x-2 mb-4">
               {theme === 'pixel' ? (
                 <PixelIcon name="calendar" className="text-pixel-accent" size="lg" glow />
+              ) : theme === 'fresh' ? (
+                <CalendarDaysIcon className="w-6 h-6 text-primary-600" />
+              ) : theme === 'modern' ? (
+                <CalendarDaysIcon className="h-5 w-5 text-primary" />
               ) : (
                 <CalendarDaysIcon className="w-6 h-6 text-primary-600" />
               )}
-              <h3 className={`text-xl font-bold ${
+              <h3 className={`font-bold ${
                 theme === 'pixel' 
-                  ? 'font-retro text-pixel-text uppercase tracking-wide neon-text'
-                  : 'font-display text-gray-800'
+                  ? 'text-xl font-retro text-pixel-text uppercase tracking-wide neon-text'
+                  : theme === 'fresh'
+                  ? 'text-xl font-display text-gray-800'
+                  : theme === 'modern'
+                  ? 'text-lg text-foreground'
+                  : 'text-xl font-display text-gray-800'
               }`}>
                 {getViewDisplayName(currentView)}
               </h3>
@@ -1783,6 +2197,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             <div className={`text-sm mb-4 ${
               theme === 'pixel' 
                 ? 'text-pixel-cyan font-mono bg-pixel-card border-2 border-pixel-border rounded-pixel p-2 neon-text'
+                : theme === 'fresh'
+                ? 'text-gray-600'
+                : theme === 'modern'
+                ? 'text-muted-foreground'
                 : 'text-gray-600'
             }`}>
               {theme === 'pixel' 
@@ -1793,18 +2211,40 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
             {panelEvents.length === 0 ? (
               <div className="text-center py-8">
-                <div className={`mb-2 ${theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-400'}`}>
+                <div className={`mb-2 ${
+                  theme === 'pixel' 
+                    ? 'text-pixel-textMuted' 
+                    : theme === 'fresh'
+                    ? 'text-gray-400'
+                    : theme === 'modern'
+                    ? 'text-muted-foreground'
+                    : 'text-gray-400'
+                }`}>
                   {theme === 'pixel' ? (
                     <PixelIcon name="calendar" size="xl" className="mx-auto opacity-50 text-pixel-textMuted" />
+                  ) : theme === 'modern' ? (
+                    <CalendarDaysIcon className="h-10 w-10 mx-auto opacity-50" />
                   ) : (
                     <CalendarDaysIcon className="w-12 h-12 mx-auto opacity-50" />
                   )}
                 </div>
-                <p className={`${theme === 'pixel' ? 'text-pixel-textMuted font-mono uppercase' : 'text-gray-500'}`}>
+                <p className={`${
+                  theme === 'pixel' 
+                    ? 'text-pixel-textMuted font-mono uppercase' 
+                    : theme === 'fresh'
+                    ? 'text-gray-500'
+                    : theme === 'modern'
+                    ? 'text-muted-foreground text-sm'
+                    : 'text-gray-500'
+                }`}>
                   {theme === 'pixel' 
                      ? (currentView === 'my' ? 'NO_EVENTS_FOR_YOU' : 
                         currentView === 'partner' ? 'NO_PARTNER_EVENTS' : 
                        'NO_SHARED_EVENTS')
+                     : theme === 'modern'
+                     ? (currentView === 'my' ? 'No events for you on this day' : 
+                        currentView === 'partner' ? 'No partner events on this day' : 
+                        'No shared events on this day')
                      : (currentView === 'my' ? '该日没有您的日程安排' : 
                         currentView === 'partner' ? '该日没有伴侣日程安排' : 
                         '该日没有共同日程')
@@ -1922,10 +2362,22 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               <button
                 onClick={() => {
                   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                  setNewEvent({
-                    ...newEvent,
-                    date: todayStr
-                  });
+                  const currentTime = new Date();
+                  const currentHour = currentTime.getHours().toString().padStart(2, '0');
+                  const currentMinute = currentTime.getMinutes().toString().padStart(2, '0');
+                  const startDateTime = `${todayStr}T${currentHour}:${currentMinute}`;
+                  
+                  // 默认结束时间为开始时间后1小时
+                  const endTime = new Date(currentTime.getTime() + 60 * 60 * 1000);
+                  const endHour = endTime.getHours().toString().padStart(2, '0');
+                  const endMinute = endTime.getMinutes().toString().padStart(2, '0');
+                  const endDateTime = `${todayStr}T${endHour}:${endMinute}`;
+                  
+                  setNewEvent(prev => ({
+                    ...prev,
+                    startDateTime: startDateTime,
+                    endDateTime: endDateTime
+                  }));
                   setShowAddForm(true);
                 }}
                 className={`w-full py-2 px-4 transition-all duration-300 flex items-center justify-center space-x-2 ${
@@ -1942,77 +2394,79 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 <span>{theme === 'pixel' ? 'ADD_TODAY' : '为今天添加日程'}</span>
               </button>
             </div>
-          </div>
+          </ThemeCard>
         </div>
       </div>
 
       {/* Event Detail/Edit Modal */}
-      {showDetailModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className={`p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto ${
-            theme === 'pixel' 
-              ? 'bg-pixel-panel pixel-container rounded-pixel shadow-pixel-lg neon-border' 
-              : 'card-cutesy'
-          }`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-xl font-bold ${
-                theme === 'pixel' 
-                  ? 'font-retro text-pixel-text uppercase tracking-wider neon-text' 
-                  : 'font-display text-gray-800'
-              }`}>
+      <ThemeDialog 
+        open={showDetailModal && !!selectedEvent} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowDetailModal(false);
+            setIsEditing(false);
+            setSelectedEvent(null);
+          }
+        }}
+      >
+        <DialogHeader>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
                 {theme === 'pixel' 
                   ? (isEditing ? 'EDIT_EVENT' : 'EVENT_DETAILS')
+                : theme === 'modern'
+                ? (isEditing ? 'Edit Event' : 'Event Details')
                   : (isEditing ? '编辑日程' : '日程详情')
                 }
-              </h3>
-              <div className="flex items-center space-x-2">
-                {/* 只有有权限的用户才能看到编辑和删除按钮 */}
-                {canEditEvent(selectedEvent) && (
-                  <>
-                    {!isEditing && (
+            </DialogTitle>
+            {theme === 'modern' ? (
                       <button
-                        onClick={() => setIsEditing(true)}
-                        className={`p-2 transition-colors ${
-                          theme === 'pixel'
-                            ? 'text-pixel-cyan hover:text-pixel-accent rounded-pixel border-2 border-pixel-border hover:border-pixel-accent'
-                            : 'text-gray-500 hover:text-blue-600'
-                        }`}
-                        title={theme === 'pixel' ? 'EDIT' : '编辑'}
-                      >
-                        {theme === 'pixel' ? (
-                          <PixelIcon name="pencil" size="sm" />
-                        ) : (
-                          <PencilIcon className="w-5 h-5" />
-                        )}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setIsEditing(false);
+                  setSelectedEvent(null);
+                }}
+                aria-label="关闭"
+              >
+                <XMarkIcon className="h-4 w-4" />
                       </button>
-                    )}
+            ) : (
                     <button
-                      onClick={handleDeleteEvent}
-                      className={`p-2 transition-colors ${
+                className={`rounded-full p-2 transition-colors ${
                         theme === 'pixel'
-                          ? 'text-pixel-textMuted hover:text-pixel-accent rounded-pixel border-2 border-pixel-border hover:border-pixel-accent'
-                          : 'text-gray-500 hover:text-red-600'
-                      }`}
-                      title={theme === 'pixel' ? 'DELETE' : '删除'}
-                    >
-                      {theme === 'pixel' ? (
-                        <PixelIcon name="trash" size="sm" />
-                      ) : (
-                        <TrashIcon className="w-5 h-5" />
-                      )}
+                    ? 'bg-pixel-card border-2 border-pixel-border hover:bg-pixel-accent text-pixel-text' 
+                    : 'bg-white border border-gray-200 hover:bg-gray-100 text-gray-600'
+                }`}
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setIsEditing(false);
+                  setSelectedEvent(null);
+                }}
+                aria-label="关闭"
+              >
+                <XMarkIcon className="h-4 w-4" />
                     </button>
-                  </>
                 )}
+          </div>
+        </DialogHeader>
+        
+        <DialogContent>
+          <div className="space-y-4">
                 {/* 没有权限时显示只读标识 */}
-                {!canEditEvent(selectedEvent) && (
-                  <div className={`flex items-center space-x-2 px-3 py-1 ${
+            {selectedEvent && !canEditEvent(selectedEvent) && (
+                <div className={`flex items-center space-x-2 px-3 py-1 mb-4 ${
                     theme === 'pixel'
                       ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel'
+                    : theme === 'modern'
+                    ? 'bg-muted rounded-md'
                       : 'bg-gray-100 rounded-lg'
                   }`}>
                     <span className={`text-xs ${
                       theme === 'pixel'
                         ? 'text-pixel-textMuted font-mono uppercase'
+                      : theme === 'modern'
+                      ? 'text-muted-foreground'
                         : 'text-gray-500'
                     }`}>
                       {theme === 'pixel' ? (
@@ -2029,570 +2483,399 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                     </span>
                   </div>
                 )}
-                <button
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    setIsEditing(false);
-                    setSelectedEvent(null);
-                  }}
-                  className={`p-2 transition-colors ${
-                    theme === 'pixel'
-                      ? 'text-pixel-textMuted hover:text-pixel-text rounded-pixel border-2 border-pixel-border hover:border-pixel-textMuted'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {theme === 'pixel' ? (
-                    <PixelIcon name="x" size="sm" />
-                  ) : (
-                    <XMarkIcon className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-            
-            {!isEditing ? (
-              // 详情视图
-              <div className="space-y-4">
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${
-                    theme === 'pixel'
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'EVENT_TITLE' : '标题'}
-                  </label>
-                  <p className={`text-lg font-medium ${
-                    theme === 'pixel'
-                      ? 'text-pixel-text font-mono uppercase'
-                      : 'text-gray-900'
-                  }`}>
-                    {selectedEvent.title}
-                  </p>
-                </div>
 
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${
-                    theme === 'pixel'
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'DATE' : '日期'}
-                  </label>
-                  <p className={`${
-                    theme === 'pixel'
-                      ? 'text-pixel-text font-mono'
-                      : 'text-gray-900'
-                  }`}>
-                    {formatDate(selectedEvent.originalDate || selectedEvent.date)}
-                  </p>
-                </div>
+            {selectedEvent && !isEditing ? (
+                // 详情视图 - 使用统一的字段组件
+              <div className="space-y-4">
+                  <DetailField
+                    label={theme === 'pixel' ? 'EVENT_TITLE' : theme === 'modern' ? 'Event Title' : '日程标题'}
+                    value={selectedEvent.title}
+                    valueClassName="text-lg font-medium"
+                  />
+
+                  <DetailField
+                    label={theme === 'pixel' ? 'DATE' : theme === 'modern' ? 'Date' : '日期'}
+                    value={formatDate(selectedEvent.originalDate || selectedEvent.date)}
+                  />
 
                 {selectedEvent.time && (
-                  <div>
-                    <label className={`block text-sm font-medium mb-1 ${
-                      theme === 'pixel'
-                        ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
-                        : 'text-gray-700'
-                    }`}>
-                      {theme === 'pixel' ? 'TIME' : '时间'}
-                    </label>
-                    <p className={`${
-                      theme === 'pixel'
-                        ? 'text-pixel-text font-mono'
-                        : 'text-gray-900'
-                    }`}>
-                      {selectedEvent.time}
-                    </p>
-                  </div>
-                )}
+                    <DetailField
+                      label={theme === 'pixel' ? 'TIME' : theme === 'modern' ? 'Time' : '时间'}
+                      value={selectedEvent.time}
+                    />
+                  )}
 
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${
-                    theme === 'pixel'
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'PARTICIPANTS' : '参与者'}
-                  </label>
-                  <p className={`${
-                    theme === 'pixel'
-                      ? 'text-pixel-text font-mono'
-                      : 'text-gray-900'
-                  }`}>
-                    {getParticipantsText(selectedEvent.participants)}
-                  </p>
-                </div>
+                  <DetailField
+                    label={theme === 'pixel' ? 'PARTICIPANTS' : theme === 'modern' ? 'Participants' : '参与者'}
+                    value={getParticipantsText(selectedEvent.participants)}
+                  />
 
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${
-                    theme === 'pixel'
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'RECURRENCE' : '重复'}
-                  </label>
-                  <p className={`${
-                    theme === 'pixel'
-                      ? 'text-pixel-text font-mono'
-                      : 'text-gray-900'
-                  }`}>
-                    {selectedEvent.isRecurring 
+                  <DetailField
+                    label={theme === 'pixel' ? 'RECURRENCE' : theme === 'modern' ? 'Recurrence' : '重复设置'}
+                    value={selectedEvent.isRecurring 
                       ? `${getRecurrenceText(selectedEvent.recurrenceType!)}${
                           selectedEvent.recurrenceEnd 
                             ? `，直到 ${formatDate(selectedEvent.recurrenceEnd)}` 
                             : ''
                         }`
-                      : (theme === 'pixel' ? 'ONE_TIME_EVENT' : '一次性事件')
+                      : (theme === 'pixel' ? 'ONE_TIME_EVENT' : theme === 'modern' ? 'One-time event' : '一次性事件')
                     }
-                  </p>
+                  />
                 </div>
-              </div>
-            ) : (
-              // 编辑视图
+            ) : selectedEvent && isEditing ? (
               <div className="space-y-4">
+                {/* 编辑视图 */}
                 {/* 1. 日程标题 */}
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'pixel' 
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'EVENT_TITLE *' : '日程标题 *'}
-                  </label>
-                  <input
+                <ThemeFormField
+                  label={theme === 'pixel' ? 'EVENT_TITLE' : theme === 'modern' ? 'Event Title' : '日程标题'}
+                  required
+                >
+                  <ThemeInput
                     type="text"
                     value={editEvent.title || ''}
                     onChange={(e) => setEditEvent({...editEvent, title: e.target.value})}
-                    className={`w-full ${
-                      theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
-                    }`}
-                    placeholder={theme === 'pixel' ? 'ENTER_EVENT_TITLE...' : '输入日程标题...'}
+                    placeholder={theme === 'pixel' ? 'ENTER_EVENT_TITLE...' : theme === 'modern' ? 'Enter event title...' : '输入日程标题...'}
                   />
-                </div>
+                </ThemeFormField>
 
-                {/* 2. 重复设置 */}
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'pixel' 
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'RECURRING *' : '重复设置 *'}
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={editEvent.isRecurring || false}
-                        onChange={(e) => setEditEvent({...editEvent, isRecurring: e.target.checked})}
-                        className={theme === 'pixel' ? 'pixel-checkbox' : 'checkbox-cutesy'}
-                      />
-                      <span className={`text-sm ${
-                        theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
-                      }`}>
-                        {theme === 'pixel' ? 'ENABLE_REPEAT' : '启用重复'}
-                      </span>
-                    </label>
-                </div>
-
-                {editEvent.isRecurring && (
-                    <div className="mt-3 space-y-3">
-                    <select
-                      value={editEvent.recurrenceType || 'weekly'}
-                      onChange={(e) => setEditEvent({...editEvent, recurrenceType: e.target.value as any})}
-                      className={`w-full ${
-                          theme === 'pixel' ? 'pixel-select-glow' : 'select-cutesy'
-                      }`}
-                    >
-                      <option value="daily">{theme === 'pixel' ? 'DAILY' : '每天'}</option>
-                      <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : '每周'}</option>
-                        <option value="biweekly">{theme === 'pixel' ? 'BIWEEKLY' : '每两周'}</option>
-                      <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : '每月'}</option>
-                      <option value="yearly">{theme === 'pixel' ? 'YEARLY' : '每年'}</option>
-                    </select>
-                  <input
-                    type="date"
-                        value={editEvent.recurrenceEnd || ''}
-                        onChange={(e) => setEditEvent({...editEvent, recurrenceEnd: e.target.value})}
-                    className={`w-full ${
-                      theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
-                    }`}
-                        placeholder={theme === 'pixel' ? 'END_DATE_OPTIONAL' : '结束日期（可选）'}
-                  />
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. 日期和时间 */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${
-                      theme === 'pixel'
-                        ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
-                        : 'text-gray-700'
-                    }`}>
-                      {theme === 'pixel' ? 'DATE *' : '日期 *'}
-                    </label>
-                    <input
-                      type="date"
-                      value={editEvent.date || ''}
-                      onChange={(e) => setEditEvent({...editEvent, date: e.target.value})}
-                      className={`w-full ${
-                        theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
-                      }`}
-                    />
-                  </div>
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'pixel'
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text'
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'TIME' : '时间'}
-                  </label>
-                  <input
-                    type="time"
-                    value={editEvent.time || ''}
-                    onChange={(e) => setEditEvent({...editEvent, time: e.target.value})}
-                    className={`w-full ${
-                      theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
-                    }`}
-                  />
-                  </div>
-                </div>
-
-                {/* 4. 参与者选择 */}
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'pixel' 
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'PARTICIPANTS *' : '参与者 *'}
-                  </label>
-                  <div className="flex space-x-4">
-                    {coupleUsers && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => toggleEditParticipant(coupleUsers.user1.id)}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                            editEvent.participants?.includes(coupleUsers.user1.id)
-                              ? theme === 'pixel'
-                                ? 'bg-pixel-accent text-black border-2 border-white'
-                                : 'bg-primary-500 text-white'
-                              : theme === 'pixel'
-                                ? 'bg-pixel-card text-pixel-text border-2 border-pixel-border hover:border-pixel-accent'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {getUserIcon(coupleUsers.user1.id, 'sm')}
-                          <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
-                            {theme === 'pixel' ? 'USER_1' : coupleUsers.user1.display_name || '用户1'}
-                      </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleEditParticipant(coupleUsers.user2.id)}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                            editEvent.participants?.includes(coupleUsers.user2.id)
-                              ? theme === 'pixel'
-                                ? 'bg-pixel-accent text-black border-2 border-white'
-                                : 'bg-blue-500 text-white'
-                              : theme === 'pixel'
-                                ? 'bg-pixel-card text-pixel-text border-2 border-pixel-border hover:border-pixel-accent'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {getUserIcon(coupleUsers.user2.id, 'sm')}
-                          <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
-                            {theme === 'pixel' ? 'USER_2' : coupleUsers.user2.display_name || '用户2'}
-                      </span>
-                        </button>
-                      </>
-                  )}
-                </div>
-              </div>
-
-                {/* 操作按钮 */}
-                <div className="flex justify-end space-x-4 pt-4">
-                    <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditEvent({});
-                    }}
-                    className={`px-4 py-2 transition-colors ${
-                        theme === 'pixel'
-                        ? 'text-pixel-textMuted hover:text-pixel-text border-2 border-pixel-border rounded-pixel hover:border-pixel-textMuted font-mono uppercase'
-                        : 'text-gray-600 hover:text-gray-800'
-                      }`}
-                    >
-                      {theme === 'pixel' ? 'CANCEL' : '取消'}
-                    </button>
-                    <button
-                      onClick={handleUpdateEvent}
-                    className={`px-6 py-2 font-bold transition-all duration-300 ${
-                        theme === 'pixel'
-                        ? 'pixel-btn-neon text-white rounded-pixel pixel-border-primary hover:shadow-pixel-neon-strong hover:translate-y-[-2px] font-mono uppercase tracking-wider'
-                      : 'btn-primary'
-                  }`}
+                {/* 2. 地点（非必填） */}
+                <ThemeFormField
+                  label={theme === 'pixel' ? 'LOCATION' : theme === 'modern' ? 'Location' : '地点'}
                 >
-                    {theme === 'pixel' ? 'UPDATE_EVENT' : '更新日程'}
-                </button>
-            </div>
+                  <ThemeInput
+                    type="text"
+                    value={editEvent.location || ''}
+                    onChange={(e) => setEditEvent({...editEvent, location: e.target.value})}
+                    placeholder={theme === 'pixel' ? 'ENTER_LOCATION...' : theme === 'modern' ? 'Enter location...' : '输入地点...'}
+                  />
+                </ThemeFormField>
+
+                {/* 3. 开始时间和结束时间 */}
+                <div className="grid grid-cols-1 gap-4">
+                  <ThemeFormField
+                    label={theme === 'pixel' ? 'START_DATETIME' : theme === 'modern' ? 'Start Date & Time' : '开始时间'}
+                    required
+                  >
+                    <ThemeInput
+                      type="datetime-local"
+                      value={editEvent.startDateTime || ''}
+                      onChange={(e) => setEditEvent({...editEvent, startDateTime: e.target.value})}
+                    />
+                  </ThemeFormField>
+
+                  <ThemeFormField
+                    label={theme === 'pixel' ? 'END_DATETIME' : theme === 'modern' ? 'End Date & Time' : '结束时间'}
+                    required
+                  >
+                    <ThemeInput
+                      type="datetime-local"
+                      value={editEvent.endDateTime || ''}
+                      onChange={(e) => setEditEvent({...editEvent, endDateTime: e.target.value})}
+                    />
+                  </ThemeFormField>
+                  </div>
+
+                {/* 4. 重复设置 */}
+                <ThemeFormField
+                  label={theme === 'pixel' ? 'REPEAT' : theme === 'modern' ? 'Repeat' : '重复'}
+                >
+                  <ThemeSelect
+                    value={editEvent.repeat || 'never'}
+                    onChange={(e) => setEditEvent({...editEvent, repeat: e.target.value as any})}
+                  >
+                    <option value="never">{theme === 'pixel' ? 'NEVER' : theme === 'modern' ? 'Never' : '从不'}</option>
+                    <option value="daily">{theme === 'pixel' ? 'DAILY' : theme === 'modern' ? 'Daily' : '每天'}</option>
+                    <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : theme === 'modern' ? 'Weekly' : '每周'}</option>
+                    <option value="biweekly">{theme === 'pixel' ? 'BIWEEKLY' : theme === 'modern' ? 'Biweekly' : '每两周'}</option>
+                    <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : theme === 'modern' ? 'Monthly' : '每月'}</option>
+                    <option value="yearly">{theme === 'pixel' ? 'YEARLY' : theme === 'modern' ? 'Yearly' : '每年'}</option>
+                    <option value="custom">{theme === 'pixel' ? 'CUSTOM' : theme === 'modern' ? 'Custom' : '自定义'}</option>
+                  </ThemeSelect>
+                </ThemeFormField>
+
+                {/* 5. 结束重复设置（仅当repeat不是never时显示） */}
+                {editEvent.repeat !== 'never' && (
+                  <div className="space-y-4">
+                    <ThemeFormField
+                      label={theme === 'pixel' ? 'END_REPEAT' : theme === 'modern' ? 'End Repeat' : '结束重复'}
+                    >
+                      <ThemeSelect
+                        value={editEvent.endRepeat || 'never'}
+                        onChange={(e) => setEditEvent({...editEvent, endRepeat: e.target.value as any})}
+                      >
+                        <option value="never">{theme === 'pixel' ? 'NEVER' : theme === 'modern' ? 'Never' : '从不'}</option>
+                        <option value="on_date">{theme === 'pixel' ? 'ON_DATE' : theme === 'modern' ? 'On Date' : '在特定日期'}</option>
+                      </ThemeSelect>
+                    </ThemeFormField>
+
+                    {/* 6. 结束重复日期（仅当endRepeat是on_date时显示） */}
+                    {editEvent.endRepeat === 'on_date' && (
+                      <ThemeFormField
+                        label={theme === 'pixel' ? 'END_DATE' : theme === 'modern' ? 'End Date' : '结束日期'}
+                        required
+                      >
+                        <ThemeInput
+                          type="date"
+                          value={editEvent.endRepeatDate || ''}
+                          onChange={(e) => setEditEvent({...editEvent, endRepeatDate: e.target.value})}
+                        />
+                      </ThemeFormField>
+                        )}
+                      </div>
+                )}
+
+                {/* 7. 是否是双人活动 */}
+                <ThemeCheckbox
+                  label={theme === 'pixel' ? 'JOINT_ACTIVITY' : theme === 'modern' ? 'Joint Activity' : '是否是双人活动'}
+                  checked={editEvent.isJointActivity || false}
+                  onChange={(e) => setEditEvent({...editEvent, isJointActivity: e.target.checked})}
+                />
+                </div>
+            ) : null}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+        </DialogContent>
+
+        <DialogFooter>
+              {isEditing ? (
+            // 编辑模式的按钮
+            <>
+              <ThemeButton
+                variant="secondary"
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditEvent({});
+                }}
+              >
+                {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : '取消'}
+              </ThemeButton>
+              <ThemeButton
+                variant="primary"
+                      onClick={handleUpdateEvent}
+              >
+                {theme === 'pixel' ? 'UPDATE_EVENT' : theme === 'modern' ? 'Update Event' : '更新日程'}
+              </ThemeButton>
+            </>
+          ) : (
+            // 详情模式的操作按钮：编辑、删除、关闭
+            <>
+              {selectedEvent && canEditEvent(selectedEvent) && (
+                <>
+                  <ThemeButton
+                    variant="secondary"
+                    onClick={async () => {
+                      if (!selectedEvent) return;
+                      
+                      // 直接进入编辑模式，不询问范围
+                      await startEditWithScope('this_only');
+                    }}
+                  >
+                    {theme === 'pixel' ? 'EDIT' : theme === 'modern' ? 'Edit' : '编辑'}
+                  </ThemeButton>
+                  <ThemeButton
+                    variant="danger"
+                    onClick={handleDeleteEvent}
+                  >
+                    {theme === 'pixel' ? 'DELETE' : theme === 'modern' ? 'Delete' : '删除'}
+                  </ThemeButton>
+                </>
+              )}
+              <ThemeButton
+                variant="secondary"
+                  onClick={() => {
+                    setShowDetailModal(false);
+                  setIsEditing(false);
+                    setSelectedEvent(null);
+                  }}
+              >
+                {theme === 'pixel' ? 'CLOSE' : theme === 'modern' ? 'Close' : '关闭'}
+              </ThemeButton>
+            </>
+          )}
+        </DialogFooter>
+      </ThemeDialog>
 
       {/* Add Event Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className={`p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto ${
-            theme === 'pixel' 
-              ? 'bg-pixel-panel pixel-container rounded-pixel shadow-pixel-lg neon-border' 
-              : 'card-cutesy'
-          }`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-xl font-bold ${
-                theme === 'pixel' 
-                  ? 'font-retro text-pixel-text uppercase tracking-wider neon-text' 
-                  : 'font-display text-gray-800'
-              }`}>
-                {theme === 'pixel' ? 'CREATE_EVENT' : '新增日程'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setNewEvent({
-                    title: '',
-                    isRecurring: false,
-                    recurrenceType: 'weekly',
-                    date: '',
-                    recurrenceEnd: '',
-                    time: '',
-                    participants: []
-                  });
-                }}
-                className={`p-2 transition-colors ${
-                  theme === 'pixel'
-                    ? 'text-pixel-textMuted hover:text-pixel-text rounded-pixel border-2 border-pixel-border hover:border-pixel-textMuted'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {theme === 'pixel' ? (
-                  <PixelIcon name="x" size="sm" />
-                ) : (
-                  <XMarkIcon className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-            
+      <ThemeDialog 
+        open={showAddForm} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddForm(false);
+            setNewEvent({
+              title: '',
+              location: '',
+              startDateTime: '',
+              endDateTime: '',
+              repeat: 'never',
+              endRepeat: 'never',
+              endRepeatDate: '',
+              isJointActivity: false
+            });
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {theme === 'pixel' ? 'CREATE_EVENT' : theme === 'modern' ? 'Create Event' : '新增日程'}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <DialogContent>
             <div className="space-y-4">
               {/* 1. 日程标题 */}
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  theme === 'pixel' 
-                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                    : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'EVENT_TITLE *' : '日程标题 *'}
-                </label>
-                <input
+              <ThemeFormField
+                label={theme === 'pixel' ? 'EVENT_TITLE' : theme === 'modern' ? 'Event Title' : '日程标题'}
+                required
+              >
+                <ThemeInput
                   type="text"
                   value={newEvent.title}
                   onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                  className={`w-full ${
-                    theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
-                  }`}
-                  placeholder={theme === 'pixel' ? 'ENTER_EVENT_TITLE...' : '输入日程标题...'}
+                  placeholder={theme === 'pixel' ? 'ENTER_EVENT_TITLE...' : theme === 'modern' ? 'Enter event title...' : '输入日程标题...'}
                 />
-              </div>
+              </ThemeFormField>
 
-              {/* 2. 重复设置 */}
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  theme === 'pixel' 
-                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                    : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'RECURRING' : '重复设置'}
-                </label>
-                <div className="flex items-center space-x-4">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={newEvent.isRecurring}
-                      onChange={(e) => setNewEvent({...newEvent, isRecurring: e.target.checked})}
-                      className={theme === 'pixel' ? 'pixel-checkbox' : 'checkbox-cutesy'}
-                    />
-                    <span className={`text-sm ${
-                      theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
-                    }`}>
-                      {theme === 'pixel' ? 'ENABLE_REPEAT' : '启用重复'}
-                    </span>
-                  </label>
-              </div>
-
-              {newEvent.isRecurring && (
-                  <div className="mt-3 space-y-3">
-                  <select
-                    value={newEvent.recurrenceType}
-                    onChange={(e) => setNewEvent({...newEvent, recurrenceType: e.target.value as any})}
-                    className={`w-full ${
-                        theme === 'pixel' ? 'pixel-select-glow' : 'select-cutesy'
-                    }`}
-                  >
-                    <option value="daily">{theme === 'pixel' ? 'DAILY' : '每天'}</option>
-                    <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : '每周'}</option>
-                      <option value="biweekly">{theme === 'pixel' ? 'BIWEEKLY' : '每两周'}</option>
-                    <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : '每月'}</option>
-                    <option value="yearly">{theme === 'pixel' ? 'YEARLY' : '每年'}</option>
-                  </select>
-                <input
-                  type="date"
-                      value={newEvent.recurrenceEnd}
-                      onChange={(e) => setNewEvent({...newEvent, recurrenceEnd: e.target.value})}
-                  className={`w-full ${
-                    theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
-                  }`}
-                      placeholder={theme === 'pixel' ? 'END_DATE_OPTIONAL' : '结束日期（可选）'}
+              {/* 2. 地点（非必填） */}
+              <ThemeFormField
+                label={theme === 'pixel' ? 'LOCATION' : theme === 'modern' ? 'Location' : '地点'}
+              >
+                <ThemeInput
+                  type="text"
+                  value={newEvent.location}
+                  onChange={(e) => setNewEvent({...newEvent, location: e.target.value})}
+                  placeholder={theme === 'pixel' ? 'ENTER_LOCATION...' : theme === 'modern' ? 'Enter location...' : '输入地点...'}
                 />
-                  </div>
-                )}
-              </div>
+              </ThemeFormField>
 
-              {/* 3. 日期和时间 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'pixel' 
-                      ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                      : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'DATE *' : '日期 *'}
-                  </label>
-                  <input
-                    type="date"
-                    value={newEvent.date}
-                    onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
-                    className={`w-full ${
-                      theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
-                    }`}
+              {/* 3. 开始时间和结束时间 */}
+              <div className="grid grid-cols-1 gap-4">
+                <ThemeFormField
+                  label={theme === 'pixel' ? 'START_DATETIME' : theme === 'modern' ? 'Start Date & Time' : '开始时间'}
+                  required
+                >
+                  <ThemeInput
+                    type="datetime-local"
+                    value={newEvent.startDateTime}
+                    onChange={(e) => setNewEvent({...newEvent, startDateTime: e.target.value})}
                   />
-                </div>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  theme === 'pixel' 
-                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                    : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'TIME' : '时间'}
-                </label>
-                <input
-                  type="time"
-                  value={newEvent.time}
-                  onChange={(e) => setNewEvent({...newEvent, time: e.target.value})}
-                  className={`w-full ${
-                    theme === 'pixel' ? 'pixel-input-glow' : 'input-cutesy'
-                  }`}
-                />
-                </div>
-              </div>
+                </ThemeFormField>
 
-              {/* 4. 参与者选择 */}
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  theme === 'pixel' 
-                    ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' 
-                    : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'PARTICIPANTS *' : '参与者 *'}
-                </label>
-                                  <div className="flex space-x-4">
-                                        {coupleUsers && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => toggleParticipant(coupleUsers.user1.id)}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                            newEvent.participants.includes(coupleUsers.user1.id)
-                              ? theme === 'pixel'
-                                ? 'bg-pixel-accent text-black border-2 border-white'
-                                : 'bg-primary-500 text-white'
-                              : theme === 'pixel'
-                                ? 'bg-pixel-card text-pixel-text border-2 border-pixel-border hover:border-pixel-accent'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {getUserIcon(coupleUsers.user1.id, 'sm')}
-                          <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
-                            {theme === 'pixel' ? 'USER_1' : coupleUsers.user1.display_name || '用户1'}
-                    </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleParticipant(coupleUsers.user2.id)}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                            newEvent.participants.includes(coupleUsers.user2.id)
-                              ? theme === 'pixel'
-                                ? 'bg-pixel-accent text-black border-2 border-white'
-                                : 'bg-blue-500 text-white'
-                              : theme === 'pixel'
-                                ? 'bg-pixel-card text-pixel-text border-2 border-pixel-border hover:border-pixel-accent'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {getUserIcon(coupleUsers.user2.id, 'sm')}
-                          <span className={theme === 'pixel' ? 'font-mono uppercase' : ''}>
-                            {theme === 'pixel' ? 'USER_2' : coupleUsers.user2.display_name || '用户2'}
-                    </span>
-                        </button>
-                      </>
-                )}
-              </div>
-            </div>
+                <ThemeFormField
+                  label={theme === 'pixel' ? 'END_DATETIME' : theme === 'modern' ? 'End Date & Time' : '结束时间'}
+                  required
+                >
+                  <ThemeInput
+                    type="datetime-local"
+                    value={newEvent.endDateTime}
+                    onChange={(e) => setNewEvent({...newEvent, endDateTime: e.target.value})}
+                  />
+                </ThemeFormField>
+                </div>
 
-              {/* 操作按钮 */}
-              <div className="flex justify-end space-x-4 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setNewEvent({
-                    title: '',
-                    isRecurring: false,
-                    recurrenceType: 'weekly',
-                    date: '',
-                    recurrenceEnd: '',
-                    time: '',
-                    participants: []
-                  });
-                }}
+              {/* 5. 重复设置 */}
+              <ThemeFormField
+                label={theme === 'pixel' ? 'REPEAT' : theme === 'modern' ? 'Repeat' : '重复'}
               >
-                {theme === 'pixel' ? 'CANCEL' : '取消'}
-              </Button>
-              <Button
-                variant="primary"
+                <ThemeSelect
+                  value={newEvent.repeat}
+                  onChange={(e) => setNewEvent({...newEvent, repeat: e.target.value as any})}
+                >
+                  <option value="never">{theme === 'pixel' ? 'NEVER' : theme === 'modern' ? 'Never' : '从不'}</option>
+                  <option value="daily">{theme === 'pixel' ? 'DAILY' : theme === 'modern' ? 'Daily' : '每天'}</option>
+                  <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : theme === 'modern' ? 'Weekly' : '每周'}</option>
+                  <option value="biweekly">{theme === 'pixel' ? 'BIWEEKLY' : theme === 'modern' ? 'Biweekly' : '每两周'}</option>
+                  <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : theme === 'modern' ? 'Monthly' : '每月'}</option>
+                  <option value="yearly">{theme === 'pixel' ? 'YEARLY' : theme === 'modern' ? 'Yearly' : '每年'}</option>
+                  <option value="custom">{theme === 'pixel' ? 'CUSTOM' : theme === 'modern' ? 'Custom' : '自定义'}</option>
+                </ThemeSelect>
+              </ThemeFormField>
+
+              {/* 6. 结束重复设置（仅当repeat不是never时显示） */}
+              {newEvent.repeat !== 'never' && (
+                <div className="space-y-4">
+                  <ThemeFormField
+                    label={theme === 'pixel' ? 'END_REPEAT' : theme === 'modern' ? 'End Repeat' : '结束重复'}
+                  >
+                    <ThemeSelect
+                      value={newEvent.endRepeat}
+                      onChange={(e) => setNewEvent({...newEvent, endRepeat: e.target.value as any})}
+                    >
+                      <option value="never">{theme === 'pixel' ? 'NEVER' : theme === 'modern' ? 'Never' : '从不'}</option>
+                      <option value="on_date">{theme === 'pixel' ? 'ON_DATE' : theme === 'modern' ? 'On Date' : '在特定日期'}</option>
+                    </ThemeSelect>
+                  </ThemeFormField>
+
+                  {/* 7. 结束重复日期（仅当endRepeat是on_date时显示） */}
+                  {newEvent.endRepeat === 'on_date' && (
+                    <ThemeFormField
+                      label={theme === 'pixel' ? 'END_DATE' : theme === 'modern' ? 'End Date' : '结束日期'}
+                      required
+                    >
+                      <ThemeInput
+                        type="date"
+                        value={newEvent.endRepeatDate}
+                        onChange={(e) => setNewEvent({...newEvent, endRepeatDate: e.target.value})}
+                      />
+                    </ThemeFormField>
+                      )}
+                    </div>
+              )}
+
+              {/* 8. 是否是双人活动 */}
+              <ThemeCheckbox
+                label={theme === 'pixel' ? 'JOINT_ACTIVITY' : theme === 'modern' ? 'Joint Activity' : '是否是双人活动'}
+                checked={newEvent.isJointActivity}
+                onChange={(e) => setNewEvent({...newEvent, isJointActivity: e.target.checked})}
+              />
+
+              </div>
+        </DialogContent>
+        
+        <DialogFooter>
+          <ThemeButton
+            variant="secondary"
+            onClick={() => {
+              setShowAddForm(false);
+              setNewEvent({
+                title: '',
+                location: '',
+                startDateTime: '',
+                endDateTime: '',
+                repeat: 'never',
+                endRepeat: 'never',
+                endRepeatDate: '',
+                isJointActivity: false
+              });
+            }}
+          >
+            {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : '取消'}
+          </ThemeButton>
+          <ThemeButton
+            variant="primary"
                 onClick={handleAddEvent}
-              >
-                {theme === 'pixel' ? 'CREATE_EVENT' : '创建日程'}
-              </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+          >
+            {theme === 'pixel' ? 'CREATE_EVENT' : theme === 'modern' ? 'Create Event' : '创建日程'}
+          </ThemeButton>
+        </DialogFooter>
+      </ThemeDialog>
       
       {/* Confirm Dialog */}
       <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
+        open={confirmDialog.open}
         title={confirmDialog.title}
-        message={confirmDialog.message}
-        type={confirmDialog.type}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
         onConfirm={confirmDialog.onConfirm}
-        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}
+      />
+
+      <RecurringEventActionDialog
+        open={recurringActionDialog.open}
+        actionType={recurringActionDialog.actionType}
+        onThisOnly={recurringActionDialog.onThisOnly}
+        onThisAndFuture={recurringActionDialog.onThisAndFuture}
+        onAllEvents={recurringActionDialog.onAllEvents}
+        onCancel={() => setRecurringActionDialog(prev => ({ ...prev, open: false }))}
+        onOpenChange={(open) => setRecurringActionDialog(prev => ({ ...prev, open }))}
       />
     </div>
   );

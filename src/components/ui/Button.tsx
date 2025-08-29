@@ -57,15 +57,28 @@ const Button: React.FC<ButtonProps> = ({
     } else if (theme === 'fresh') {
       switch (variant) {
         case 'primary':
-          return 'bg-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:bg-fresh-primary focus:ring-fresh-primary';
+          return 'bg-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:bg-emerald-600 focus:ring-fresh-primary';
         case 'secondary':
-          return 'bg-fresh-card text-fresh-text border border-fresh-border rounded-fresh-lg hover:bg-fresh-primary hover:text-white focus:ring-fresh-primary';
+          return 'bg-fresh-card text-fresh-text border border-fresh-border rounded-fresh-lg hover:bg-emerald-500 hover:text-white focus:ring-fresh-primary';
         case 'danger':
           return 'bg-red-500 text-white rounded-fresh-lg shadow-fresh hover:bg-red-600 focus:ring-red-500';
         case 'navigation':
           return 'text-fresh-text hover:text-fresh-primary transition-colors rounded-fresh-lg border border-fresh-border hover:border-fresh-primary';
         default:
-          return 'bg-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:bg-fresh-primary focus:ring-fresh-primary';
+          return 'bg-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:bg-emerald-600 focus:ring-fresh-primary';
+      }
+    } else if (theme === 'modern') {
+      switch (variant) {
+        case 'primary':
+          return 'bg-primary text-primary-foreground rounded-md shadow-sm hover:bg-primary/90 focus:ring-ring';
+        case 'secondary':
+          return 'bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 focus:ring-ring';
+        case 'danger':
+          return 'bg-destructive text-destructive-foreground rounded-md shadow-sm hover:bg-destructive/90 focus:ring-ring';
+        case 'navigation':
+          return 'text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-md focus:ring-ring';
+        default:
+          return 'bg-primary text-primary-foreground rounded-md shadow-sm hover:bg-primary/90 focus:ring-ring';
       }
     } else {
       // Default theme
@@ -73,7 +86,7 @@ const Button: React.FC<ButtonProps> = ({
         case 'primary':
           return 'bg-primary-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:bg-primary-600 focus:ring-primary-500';
         case 'secondary':
-          return 'bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 focus:ring-primary-500';
+          return 'bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-100 focus:ring-primary-500';
         case 'danger':
           return 'bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 focus:ring-red-500';
         case 'navigation':

@@ -95,9 +95,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       // 更新数据库
-      const { error } = await userService.updateProfile(user.id, updates);
-      if (error) {
-        throw error;
+      const success = await userService.updateProfile(user.id, updates);
+      if (!success) {
+        throw new Error('更新用户资料失败');
       }
 
       // 更新本地状态

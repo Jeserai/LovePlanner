@@ -202,6 +202,8 @@ export type Database = {
           recurrence_end: string | null
           original_date: string | null
           parent_event_id: string | null
+          excluded_dates: string[] | null
+          modified_instances: Record<string, any> | null
           created_by: string
           created_at: string
           updated_at: string
@@ -222,6 +224,8 @@ export type Database = {
           recurrence_end?: string | null
           original_date?: string | null
           parent_event_id?: string | null
+          excluded_dates?: string[] | null
+          modified_instances?: Record<string, any> | null
           created_by: string
           created_at?: string
           updated_at?: string
@@ -242,6 +246,8 @@ export type Database = {
           recurrence_end?: string | null
           original_date?: string | null
           parent_event_id?: string | null
+          excluded_dates?: string[] | null
+          modified_instances?: Record<string, any> | null
           created_by?: string
           created_at?: string
           updated_at?: string

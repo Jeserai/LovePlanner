@@ -4,11 +4,28 @@ import { useTheme } from '../contexts/ThemeContext';
 import { PlusIcon, StarIcon, GiftIcon, CheckIcon, CalendarIcon, ClockIcon, XMarkIcon, UserIcon, DocumentIcon, ListBulletIcon, ChevronLeftIcon, ChevronRightIcon, TagIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import PixelIcon from './PixelIcon';
-import Button from './ui/Button';
-import NavigationButton from './ui/NavigationButton';
 import LoadingSpinner from './ui/LoadingSpinner';
-import Card from './ui/Card';
 import PointsDisplay from './PointsDisplay';
+import Button from './ui/Button';
+// import Card from './ui/Card'; // 已删除，使用ThemeCard替代
+import NavigationButton from './ui/NavigationButton';
+import DetailField from './ui/DetailField';
+import { 
+  ThemeCard, 
+  ThemeDialog, 
+  DialogHeader,
+  DialogTitle,
+  DialogContent,
+  DialogFooter,
+  DialogClose,
+  ThemeFormField, 
+  ThemeInput, 
+  ThemeTextarea, 
+  ThemeSelect, 
+  ThemeCheckbox, 
+  ThemeButton, 
+  ConfirmDialog
+} from './ui/Components';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../contexts/UserContext';
 import { taskService, userService, pointService } from '../services/database';
@@ -555,9 +572,52 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 保存编辑的任务
   const handleSaveEdit = async () => {
-    if (!selectedTask || !editTask.title?.trim()) {
+    if (!selectedTask) return;
+    
+    // 验证必填字段
+    if (!editTask.title?.trim()) {
       alert('请填写任务标题');
       return;
+    }
+    
+    if (!editTask.taskType) {
+      alert('请选择任务类型');
+      return;
+    }
+    
+    if (!editTask.repeatType) {
+      alert('请选择重复类型');
+      return;
+    }
+    
+    if (!editTask.points || editTask.points < 1) {
+      alert('请填写有效的积分奖励（至少1分）');
+      return;
+    }
+    
+    // 验证时间字段
+    if (editTask.repeatType === 'once') {
+      if (!editTask.deadline) {
+        alert('请选择截止时间');
+        return;
+      }
+    } else if (editTask.repeatType === 'repeat') {
+      if (!editTask.startDate) {
+        alert('请选择开始日期');
+        return;
+      }
+      if (!editTask.endDate) {
+        alert('请选择结束日期');
+        return;
+      }
+      if (!editTask.repeatFrequency) {
+        alert('请选择重复频率');
+        return;
+      }
+      if (new Date(editTask.startDate) >= new Date(editTask.endDate)) {
+        alert('结束日期必须晚于开始日期');
+        return;
+      }
     }
 
     try {
@@ -1212,11 +1272,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     {theme === 'pixel' ? 'SELECT_ONE_OR_MORE_DAYS' : '请选择一个或多个重复日期'}
                   </p>
                 </div>
-              )}
-                  </div>
+            )}
+          </div>
                 )}
       </div>
-    );
+      );
     }
   };
 
@@ -1413,9 +1473,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const isAvailableView = view === 'available';
     const isExpiringSoon = isTaskExpiringSoon(task.deadline);
     const isOverdue = isTaskOverdue(task);
-
-  return (
-      <Card
+    
+    return (
+      <ThemeCard
         key={task.id}
         onClick={() => setSelectedTask(task)}
         variant="interactive"
@@ -1426,7 +1486,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           <h4 className={`font-bold ${
               theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
               theme === 'fresh' ? 'text-fresh-text' : 'text-gray-800'
-            }`}>
+          }`}>
             {task.title}
           </h4>
           <div className="flex flex-col items-end space-y-1">
@@ -1480,7 +1540,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               <div className={`flex items-center space-x-1 ${
                 theme === 'pixel' ? 'text-pixel-accent' : 'text-blue-600'
               }`}>
-                {theme === 'pixel' ? (
+                  {theme === 'pixel' ? (
                   <PixelIcon name="user" size="sm" />
                 ) : (
                   <UserIcon className="w-4 h-4" />
@@ -1489,8 +1549,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   theme === 'pixel' ? 'font-mono uppercase' : ''
                 }`}>
                   {theme === 'pixel' ? 'CREATOR:' : '创建者:'} {task.creator}
-                </span>
-          </div>
+                  </span>
+                </div>
             )}
             
             {/* 只在"我发布的"和"可领取的"视图中显示执行者 */}
@@ -1498,7 +1558,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               <div className={`flex items-center space-x-1 ${
                 theme === 'pixel' ? 'text-pixel-info' : 'text-green-600'
               }`}>
-                {theme === 'pixel' ? (
+                    {theme === 'pixel' ? (
                   <PixelIcon name="user" size="sm" />
                 ) : (
                   <UserIcon className="w-4 h-4" />
@@ -1508,8 +1568,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 }`}>
                   {theme === 'pixel' ? 'ASSIGNEE:' : '执行者:'} {task.assignee}
                 </span>
-          </div>
-            )}
+                  </div>
+                )}
         </div>
 
           {/* 任务详情信息行 - 改为可换行布局 */}
@@ -1518,11 +1578,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             <div className={`flex items-center space-x-1 ${
               theme === 'pixel' ? 'text-pixel-warning' : 'text-orange-600'
             }`}>
-              {theme === 'pixel' ? (
-                <PixelIcon name="calendar" size="sm" />
-              ) : (
-                <CalendarIcon className="w-4 h-4" />
-              )}
+                {theme === 'pixel' ? (
+                  <PixelIcon name="calendar" size="sm" />
+                ) : (
+                  <CalendarIcon className="w-4 h-4" />
+                )}
               <span className={`text-xs ${
                 theme === 'pixel' ? 'font-mono' : ''
               }`}>
@@ -1552,7 +1612,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   </>
                 )}
               </span>
-          </div>
+              </div>
 
             <div className={`flex items-center space-x-1 ${
               theme === 'pixel' ? 'text-pixel-accent' : 'text-yellow-600'
@@ -1585,7 +1645,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               <div className={`flex items-center space-x-1 ${
                 theme === 'pixel' ? 'text-pixel-info' : 'text-blue-600'
               }`}>
-                {theme === 'pixel' ? (
+              {theme === 'pixel' ? (
                   <PixelIcon name="refresh" size="sm" />
                 ) : (
                   <ArrowPathIcon className="w-4 h-4" />
@@ -1600,7 +1660,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     </span>
                   )}
                 </span>
-          </div>
+            </div>
             )}
 
             {/* 每周重复的星期显示 */}
@@ -1635,11 +1695,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 }`}>
                   {theme === 'pixel' ? 'PROOF_REQ' : '需要凭证'}
                 </span>
+              </div>
+            )}
           </div>
-              )}
         </div>
-        </div>
-      </Card>
+      </ThemeCard>
     );
   };
 
@@ -1674,36 +1734,69 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const isAbandoned = selectedTask.status === 'abandoned';
     const hasProof = selectedTask.proof !== undefined;
     const canComplete = !selectedTask.requiresProof || hasProof;
-    
-
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className={`p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto ${
-          theme === 'pixel' 
-            ? 'bg-pixel-panel border-4 border-pixel-border rounded-pixel shadow-pixel-lg' 
-            : 'bg-white rounded-xl shadow-xl'
-        }`}>
-          {/* 关闭按钮 */}
-          <div className="flex justify-end">
-        <button
-              onClick={() => setSelectedTask(null)}
-              className={`p-2 rounded-full transition-colors ${
-            theme === 'pixel'
-                  ? 'hover:text-pixel-accent text-pixel-textMuted'
-                  : 'hover:text-primary-500 text-gray-400'
-          }`}
-              aria-label="关闭"
-        >
-              {theme === 'pixel' ? (
-                <PixelIcon name="close" size="sm" />
+      <ThemeDialog open={true} onOpenChange={() => setSelectedTask(null)}>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>
+                {theme === 'pixel' ? 'TASK_DETAILS' : theme === 'modern' ? 'Task Details' : '任务详情'}
+              </DialogTitle>
+              {theme === 'modern' ? (
+                <button
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
+                  onClick={() => setSelectedTask(null)}
+                  aria-label="关闭"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
               ) : (
-                <XMarkIcon className="w-6 h-6" />
+                <button
+                  className={`rounded-full p-2 transition-colors ${
+                    theme === 'pixel' 
+                      ? 'bg-pixel-card border-2 border-pixel-border hover:bg-pixel-accent text-pixel-text' 
+                      : 'bg-white border border-gray-200 hover:bg-gray-100 text-gray-600'
+                  }`}
+                  onClick={() => setSelectedTask(null)}
+                  aria-label="关闭"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
               )}
-        </button>
-      </div>
+            </div>
+          </DialogHeader>
+          
+          <DialogContent>
+            <div className="space-y-4">
+              {/* 没有权限时显示只读标识 */}
+              {!(isTaskOwner && (isRecruiting || isAbandoned)) && (
+                <div className={`flex items-center space-x-2 px-3 py-1 mb-4 ${
+            theme === 'pixel'
+                    ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel'
+                    : theme === 'modern'
+                    ? 'bg-muted rounded-md'
+                    : 'bg-gray-100 rounded-lg'
+                }`}>
+                  <span className={`text-xs ${
+                    theme === 'pixel'
+                      ? 'text-pixel-textMuted font-mono uppercase'
+                      : theme === 'modern'
+                      ? 'text-muted-foreground'
+                      : 'text-gray-500'
+                  }`}>
+                    {theme === 'pixel' ? (
+                      <div className="flex items-center space-x-1">
+                        <span>READONLY</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1">
+                        <span>只读</span>
+                      </div>
+                    )}
+                  </span>
+                </div>
+              )}
 
-          <div className="space-y-6">
             {isEditing ? (
               // 编辑表单
               <>
@@ -1714,24 +1807,17 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 </h4>
                 
                 {/* 任务标题输入 */}
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
-                  }`}>
-                    {theme === 'pixel' ? 'TASK_TITLE:' : '任务标题'}
-                  </label>
-                  <input
+                <ThemeFormField
+                  label={theme === 'pixel' ? 'TASK_TITLE' : theme === 'modern' ? 'Task Title' : '任务标题'}
+                  required
+                >
+                  <ThemeInput
                     type="text"
                     value={editTask.title || ''}
                     onChange={(e) => setEditTask({...editTask, title: e.target.value})}
-                    className={`w-full px-3 py-2 ${
-                      theme === 'pixel'
-                        ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
-                        : 'border border-gray-300 rounded-lg'
-                    }`}
-                    placeholder={theme === 'pixel' ? 'ENTER_TITLE...' : '输入任务标题...'}
+                    placeholder={theme === 'pixel' ? 'ENTER_TITLE...' : theme === 'modern' ? 'Enter task title...' : '输入任务标题...'}
                   />
-                </div>
+                </ThemeFormField>
 
                 {/* 任务描述输入 */}
                 <div>
@@ -1745,7 +1831,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     onChange={(e) => setEditTask({...editTask, description: e.target.value})}
                     rows={3}
                     className={`w-full px-3 py-2 ${
-                      theme === 'pixel'
+                theme === 'pixel'
                         ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
                         : 'border border-gray-300 rounded-lg'
                     }`}
@@ -1753,170 +1839,290 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   />
                 </div>
 
-                {/* 积分输入 */}
+                {/* 任务类型选择 */}
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
                     theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
                   }`}>
-                    {theme === 'pixel' ? 'POINTS:' : '积分奖励'}
+                    {theme === 'pixel' ? 'TASK_TYPE *' : '任务类型 *'}
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="1000"
-                    value={editTask.points || 50}
-                    onChange={(e) => setEditTask({...editTask, points: parseInt(e.target.value) || 50})}
+                  <select
+                    value={editTask.taskType || 'daily'}
+                    onChange={(e) => setEditTask({...editTask, taskType: e.target.value as Task['taskType']})}
+                    className={`w-full px-3 py-2 ${
+            theme === 'pixel'
+                        ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                        : 'border border-gray-300 rounded-lg'
+                    }`}
+                  >
+                    <option value="daily">{theme === 'pixel' ? 'DAILY' : '日常生活'}</option>
+                    <option value="health">{theme === 'pixel' ? 'HEALTH' : '健康运动'}</option>
+                    <option value="learning">{theme === 'pixel' ? 'LEARNING' : '学习成长'}</option>
+                    <option value="household">{theme === 'pixel' ? 'HOUSEHOLD' : '家务清洁'}</option>
+                    <option value="special">{theme === 'pixel' ? 'SPECIAL' : '特殊任务'}</option>
+                  </select>
+                </div>
+
+                {/* 重复类型选择 */}
+          <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'REPEAT_TYPE *' : '重复类型 *'}
+                  </label>
+                  <select
+                    value={editTask.repeatType || 'once'}
+                    onChange={(e) => setEditTask({...editTask, repeatType: e.target.value as Task['repeatType']})}
                     className={`w-full px-3 py-2 ${
                       theme === 'pixel'
                         ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
                         : 'border border-gray-300 rounded-lg'
                     }`}
-                  />
-                </div>
+                  >
+                    <option value="once">{theme === 'pixel' ? 'ONCE' : '一次性任务'}</option>
+                    <option value="repeat">{theme === 'pixel' ? 'REPEAT' : '重复性任务'}</option>
+                  </select>
+          </div>
 
-                {/* 操作按钮 */}
-                <div className="flex space-x-3 pt-4">
-                  <Button
-                    onClick={handleSaveEdit}
-                    variant="primary"
-                    className="flex-1"
-                  >
-                    {theme === 'pixel' ? 'SAVE' : '保存'}
-                  </Button>
-                  <Button
-                    onClick={handleCancelEdit}
-                    variant="secondary"
-                    className="flex-1"
-                  >
-                    {theme === 'pixel' ? 'CANCEL' : '取消'}
-                  </Button>
-                </div>
+                {/* 截止时间/开始时间 */}
+                {editTask.repeatType === 'once' ? (
+          <div>
+                    <label className={`block text-sm font-medium mb-2 ${
+                      theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                    }`}>
+                      {theme === 'pixel' ? 'DEADLINE *' : '截止时间 *'}
+                    </label>
+                    <input
+                      type="date"
+                      value={editTask.deadline ? editTask.deadline.split('T')[0] : ''}
+                      onChange={(e) => setEditTask({...editTask, deadline: e.target.value ? new Date(e.target.value).toISOString() : ''})}
+                      className={`w-full px-3 py-2 ${
+                        theme === 'pixel'
+                          ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                          : 'border border-gray-300 rounded-lg'
+                      }`}
+                    />
+          </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+          <div>
+                      <label className={`block text-sm font-medium mb-2 ${
+                        theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                      }`}>
+                        {theme === 'pixel' ? 'START_DATE *' : '开始日期 *'}
+                      </label>
+                      <input
+                        type="date"
+                        value={editTask.startDate || ''}
+                        onChange={(e) => setEditTask({...editTask, startDate: e.target.value})}
+                        className={`w-full px-3 py-2 ${
+                          theme === 'pixel'
+                            ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                            : 'border border-gray-300 rounded-lg'
+                        }`}
+                      />
+          </div>
+          <div>
+                      <label className={`block text-sm font-medium mb-2 ${
+                        theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                      }`}>
+                        {theme === 'pixel' ? 'END_DATE *' : '结束日期 *'}
+                      </label>
+                      <input
+                        type="date"
+                        value={editTask.endDate || ''}
+                        onChange={(e) => setEditTask({...editTask, endDate: e.target.value})}
+                        className={`w-full px-3 py-2 ${
+                          theme === 'pixel'
+                            ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                            : 'border border-gray-300 rounded-lg'
+                        }`}
+                      />
+          </div>
+        </div>
+                )}
+
+                {/* 重复性任务的重复频率 */}
+                {editTask.repeatType === 'repeat' && (
+          <div>
+                    <label className={`block text-sm font-medium mb-2 ${
+                      theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                    }`}>
+                      {theme === 'pixel' ? 'REPEAT_FREQ *' : '重复频率 *'}
+                    </label>
+                    <select
+                      value={editTask.repeatFrequency || 'daily'}
+                      onChange={(e) => setEditTask({...editTask, repeatFrequency: e.target.value as Task['repeatFrequency']})}
+                      className={`w-full px-3 py-2 ${
+                        theme === 'pixel'
+                          ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                          : 'border border-gray-300 rounded-lg'
+                      }`}
+                    >
+                      <option value="daily">{theme === 'pixel' ? 'DAILY' : '每日'}</option>
+                      <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : '每周'}</option>
+                      <option value="biweekly">{theme === 'pixel' ? 'BIWEEKLY' : '双周'}</option>
+                      <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : '每月'}</option>
+                    </select>
+          </div>
+                )}
+
+                {/* 积分输入 */}
+          <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'POINTS *' : '积分奖励 *'}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={editTask.points || ''}
+                    onChange={(e) => setEditTask({...editTask, points: e.target.value === '' ? undefined : parseInt(e.target.value) || 0})}
+                    className={`w-full px-3 py-2 ${
+              theme === 'pixel' 
+                        ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel text-pixel-text font-mono'
+                        : 'border border-gray-300 rounded-lg'
+                    }`}
+                  />
+                  {editTask.repeatType === 'repeat' && (
+                    <p className={`text-sm mt-1 ${
+                      theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+                    }`}>
+                      {theme === 'pixel' ? 'POINTS PER COMPLETION' : '每次完成获得的积分'}
+                    </p>
+                  )}
+          </div>
+
+                {/* 是否需要凭证 */}
+          <div>
+                  <label className={`flex items-center space-x-2 ${
+                    theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-700'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={editTask.requiresProof || false}
+                      onChange={(e) => setEditTask({...editTask, requiresProof: e.target.checked})}
+                      className={`${
+              theme === 'pixel' 
+                          ? 'w-4 h-4 text-pixel-accent bg-pixel-card border-2 border-pixel-border rounded-pixel'
+                          : 'w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded'
+                      }`}
+                    />
+                    <span>
+                      {theme === 'pixel' ? 'REQUIRES_PROOF' : '需要提交凭证'}
+                    </span>
+                  </label>
+          </div>
+
+
               </>
             ) : (
-              // 任务详情显示
-              <>
-            {/* 任务标题 */}
-            <div>
-              <h4 className={`text-lg font-bold mb-2 ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
-              }`}>
-                {selectedTask.title}
-              </h4>
-              <p className={`text-sm ${
-                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
-              }`}>
-                {selectedTask.description}
-              </p>
-                    </div>
+              // 任务详情显示 - 使用统一的字段组件
+              <div className="space-y-4">
+                <DetailField
+                  label={theme === 'pixel' ? 'TASK_TITLE' : theme === 'modern' ? 'Task Title' : '任务标题'}
+                  value={selectedTask.title}
+                  valueClassName="text-lg font-medium"
+                />
 
-            {/* 任务信息 */}
-            <div className="space-y-4">
-              {/* 基础信息 */}
-            <div className={`grid grid-cols-2 gap-4 ${
-              theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
-            }`}>
+                <DetailField
+                  label={theme === 'pixel' ? 'DESCRIPTION' : theme === 'modern' ? 'Description' : '任务描述'}
+                  value={selectedTask.description || '--'}
+                />
+
+                <DetailField
+                  label={theme === 'pixel' ? 'CREATOR' : theme === 'modern' ? 'Creator' : '发布者'}
+                  value={selectedTask.creator}
+                />
+
+                <DetailField
+                  label={theme === 'pixel' ? 'STATUS' : theme === 'modern' ? 'Status' : '任务状态'}
+                  value={selectedTask.status === 'recruiting' ? '招募中' : 
+                         selectedTask.status === 'assigned' ? '已领取' :
+                         selectedTask.status === 'in_progress' ? '进行中' :
+                         selectedTask.status === 'pending_review' ? '待审核' :
+                         selectedTask.status === 'completed' ? '已完成' :
+                         selectedTask.status === 'abandoned' ? '已放弃' : selectedTask.status}
+                />
+
+                <DetailField
+                  label={theme === 'pixel' ? 'POINTS' : theme === 'modern' ? 'Points' : '奖励积分'}
+                  value={`${selectedTask.points || 0} ${selectedTask.repeatType === 'repeat' ? '(每次完成)' : ''}`}
+                />
                 {/* 时间信息 - 根据任务类型动态显示 */}
                 {selectedTask.repeatType === 'once' ? (
                   // 一次性任务
                   isTimeRangeMode(selectedTask) ? (
                     <>
-                      <div className="flex items-center space-x-2">
-                        {theme === 'pixel' ? (
-                          <PixelIcon name="clock" size="sm" />
-                        ) : (
-                          <ClockIcon className="w-5 h-5" />
-                        )}
-                        <span>执行日期：{formatDate(selectedTask.taskStartTime)}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {theme === 'pixel' ? (
-                          <PixelIcon name="clock" size="sm" />
-                        ) : (
-                          <ClockIcon className="w-5 h-5" />
-                        )}
-                        <span>时间范围：{formatTimeRange(selectedTask.taskStartTime, selectedTask.taskEndTime)}</span>
-                      </div>
+                      <DetailField
+                        label={theme === 'pixel' ? 'EXECUTION_DATE' : theme === 'modern' ? 'Execution Date' : '执行日期'}
+                        value={formatDate(selectedTask.taskStartTime)}
+                      />
+                      <DetailField
+                        label={theme === 'pixel' ? 'TIME_RANGE' : theme === 'modern' ? 'Time Range' : '时间范围'}
+                        value={formatTimeRange(selectedTask.taskStartTime, selectedTask.taskEndTime)}
+                      />
                     </>
                   ) : (
-              <div className="flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="clock" size="sm" />
-                ) : (
-                  <ClockIcon className="w-5 h-5" />
-                )}
-                <span>截止日期：{formatDate(selectedTask.deadline)}</span>
-                    </div>
+                    <DetailField
+                      label={theme === 'pixel' ? 'DEADLINE' : theme === 'modern' ? 'Deadline' : '截止日期'}
+                      value={formatDate(selectedTask.deadline)}
+                    />
                   )
                 ) : (
                   // 重复性任务
                   <>
-                    <div className="flex items-center space-x-2">
-                      {theme === 'pixel' ? (
-                        <PixelIcon name="calendar" size="sm" />
-                      ) : (
-                        <CalendarIcon className="w-5 h-5" />
-                      )}
-                      <span>开始日期：{formatDate(selectedTask.startDate)}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {theme === 'pixel' ? (
-                        <PixelIcon name="calendar" size="sm" />
-                      ) : (
-                        <CalendarIcon className="w-5 h-5" />
-                      )}
-                      <span>结束日期：{formatDate(selectedTask.endDate)}</span>
-                    </div>
+                    <DetailField
+                      label={theme === 'pixel' ? 'START_DATE' : theme === 'modern' ? 'Start Date' : '开始日期'}
+                      value={selectedTask.startDate ? formatDate(selectedTask.startDate) : '--'}
+                    />
+                    <DetailField
+                      label={theme === 'pixel' ? 'END_DATE' : theme === 'modern' ? 'End Date' : '结束日期'}
+                      value={selectedTask.endDate ? formatDate(selectedTask.endDate) : '--'}
+                    />
+                    <DetailField
+                      label={theme === 'pixel' ? 'REPEAT_FREQUENCY' : theme === 'modern' ? 'Repeat Frequency' : '重复频率'}
+                      value={selectedTask.repeatFrequency || '--'}
+                    />
+                    {selectedTask.repeatWeekdays && (
+                      <DetailField
+                        label={theme === 'pixel' ? 'REPEAT_DAYS' : theme === 'modern' ? 'Repeat Days' : '重复日期'}
+                        value={selectedTask.repeatWeekdays}
+                      />
+                    )}
+                    {selectedTask.repeatTime && (
+                      <DetailField
+                        label={theme === 'pixel' ? 'REPEAT_TIME' : theme === 'modern' ? 'Repeat Time' : '重复时间'}
+                        value={selectedTask.repeatTime}
+                      />
+                    )}
                   </>
                 )}
 
-              <div className="flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="star" size="sm" className="text-pixel-accent" />
-                ) : (
-                  <StarIcon className="w-5 h-5 text-yellow-500" />
-                  )}
-                <span>
-                  积分奖励：{selectedTask.points}
-                  {selectedTask.repeatType === 'repeat' && (
-                    <span className={`text-sm ml-1 ${
-                      theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 
-                      theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-500'
-                    }`}>
-                      (每次完成)
-                    </span>
-                  )}
-                </span>
-              </div>
-
-                    <div className="flex items-center space-x-2">
-                {theme === 'pixel' ? (
-                  <PixelIcon name="user" size="sm" />
-                ) : (
-                  <UserIcon className="w-5 h-5" />
+                {/* 领取者信息 */}
+                {selectedTask.assignee && (
+                  <DetailField
+                    label={theme === 'pixel' ? 'ASSIGNEE' : theme === 'modern' ? 'Assignee' : '领取者'}
+                    value={selectedTask.assignee}
+                  />
                 )}
-                <span>发布者：{selectedTask.creator}</span>
-                    </div>
 
-              {selectedTask.assignee && (
-                    <div className="flex items-center space-x-2">
-                  {theme === 'pixel' ? (
-                    <PixelIcon name="user" size="sm" />
-                  ) : (
-                    <UserIcon className="w-5 h-5" />
-                  )}
-                  <span>执行者：{selectedTask.assignee}</span>
-                    </div>
-              )}
+                <DetailField
+                  label={theme === 'pixel' ? 'TASK_TYPE' : theme === 'modern' ? 'Task Type' : '任务类型'}
+                  value={selectedTask.taskType === 'daily' ? '日常任务' : 
+                         selectedTask.taskType === 'habit' ? '习惯养成' :
+                         selectedTask.taskType === 'special' ? '特殊任务' : selectedTask.taskType}
+                />
 
-                <div className="flex items-center space-x-2">
-                  {theme === 'pixel' ? (
-                    <PixelIcon name="tag" size="sm" />
-                  ) : (
-                    <TagIcon className="w-5 h-5" />
-                  )}
-                  <span>类型：{getCategoryName(selectedTask.taskType)}</span>
-                </div>
-                  </div>
+                {/* 需要凭证 */}
+                {selectedTask.requiresProof && (
+                  <DetailField
+                    label={theme === 'pixel' ? 'REQUIRES_PROOF' : theme === 'modern' ? 'Requires Proof' : '需要凭证'}
+                    value={theme === 'pixel' ? 'YES' : theme === 'modern' ? 'Yes' : '是'}
+                  />
+                )}
 
               {/* 重复性任务详情 */}
               {selectedTask.repeatType === 'repeat' && (
@@ -1926,46 +2132,46 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     : 'bg-gray-50 border border-gray-200'
                 }`}>
                   <h5 className={`font-bold mb-3 ${
-                    theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
-                  }`}>
+                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+              }`}>
                     {theme === 'pixel' ? 'REPEAT DETAILS' : '重复详情'}
                   </h5>
                   <div className={`grid grid-cols-2 gap-3 text-sm ${
-                    theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
-                  }`}>
-                  <div className="flex items-center space-x-2">
-                      {theme === 'pixel' ? (
+              theme === 'pixel' ? 'text-pixel-cyan font-mono' : 'text-gray-600'
+            }`}>
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
                         <PixelIcon name="refresh" size="sm" />
-                      ) : (
+                ) : (
                         <ArrowPathIcon className="w-4 h-4" />
-                      )}
+                )}
                       <span>频率：{getRepeatFrequencyName(selectedTask.repeatFrequency)}</span>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      {theme === 'pixel' ? (
+              <div className="flex items-center space-x-2">
+                {theme === 'pixel' ? (
                         <PixelIcon name="calendar" size="sm" />
-                      ) : (
+                ) : (
                         <CalendarIcon className="w-4 h-4" />
-                      )}
+                  )}
                       <span>持续时长：{getDurationLabel(selectedTask.startDate, selectedTask.endDate)}</span>
-                    </div>
+              </div>
 
                     <div className="flex items-center space-x-2">
-                      {theme === 'pixel' ? (
+                {theme === 'pixel' ? (
                         <PixelIcon name="clock" size="sm" />
-                      ) : (
+                ) : (
                         <ClockIcon className="w-4 h-4" />
-                      )}
+                )}
                       <span>指定时间：{selectedTask.repeatTime || '--'}</span>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      {theme === 'pixel' ? (
+                  {theme === 'pixel' ? (
                         <PixelIcon name="calendar" size="sm" />
-                      ) : (
+                  ) : (
                         <CalendarIcon className="w-4 h-4" />
-                      )}
+                  )}
                       <span>执行日：{getWeekdaysDisplay(selectedTask.repeatWeekdays)}</span>
                     </div>
                   </div>
@@ -1978,7 +2184,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   ? 'bg-pixel-card border-2 border-pixel-border'
                   : 'bg-gray-50 border border-gray-200'
               }`}>
-                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2">
                   {theme === 'pixel' ? (
                     <PixelIcon name="status" size="sm" />
                   ) : (
@@ -1995,12 +2201,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 }`}>
                   {getStatusDisplay(selectedTask.status)}
                 </span>
-              </div>
+          </div>
 
               {/* 需要凭证提示 */}
               {selectedTask.requiresProof && (
                 <div className={`flex items-center space-x-2 p-3 rounded ${
-                  theme === 'pixel'
+                theme === 'pixel'
                     ? 'bg-pixel-warning border-2 border-pixel-border text-pixel-text'
                     : 'bg-yellow-50 border border-yellow-200 text-yellow-800'
                 }`}>
@@ -2016,184 +2222,172 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   </span>
                 </div>
               )}
-            </div>
 
-            {/* 任务凭证 */}
-            {selectedTask.proof && (
-              <div className={`p-4 rounded ${
-                theme === 'pixel'
-                  ? 'bg-pixel-card border-2 border-pixel-border'
-                  : 'bg-gray-50 border border-gray-200'
-              }`}>
-                <h5 className={`font-bold mb-2 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
-                }`}>
-                  {theme === 'pixel' ? 'PROOF' : '完成凭证'}
-                </h5>
-                    <p className={`text-sm ${
-                  theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
-                    }`}>
-                  {selectedTask.proof}
-                    </p>
-        </div>
+                {/* 完成凭证 */}
+                {selectedTask.proof && (
+                  <DetailField
+                    label={theme === 'pixel' ? 'PROOF' : theme === 'modern' ? 'Proof' : '完成凭证'}
+                    value={selectedTask.proof}
+                  />
+                )}
+
+                {/* 审核评价 */}
+                {selectedTask.reviewComment && (
+                  <DetailField
+                    label={theme === 'pixel' ? 'REVIEW' : theme === 'modern' ? 'Review Comment' : '审核评价'}
+                    value={selectedTask.reviewComment}
+                  />
+                )}
+              </div>
             )}
+            </div>
+        </DialogContent>
+                    
+                    <DialogFooter>
+                      {isEditing ? (
+                        // 编辑模式的按钮
+                        <>
+                          <ThemeButton
+                            variant="secondary"
+                      onClick={() => {
+                              setIsEditing(false);
+                              setEditTask({});
+                            }}
+                          >
+                            {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : '取消'}
+                          </ThemeButton>
+                          <ThemeButton
+                            variant="primary"
+                            onClick={handleSaveEdit}
+                          >
+                            {theme === 'pixel' ? 'SAVE' : theme === 'modern' ? 'Save' : '保存'}
+                          </ThemeButton>
+                        </>
+                      ) : (
+                        // 详情模式的操作按钮：编辑、删除、任务操作、关闭
+                        <>
+                          {/* 编辑和删除按钮 - 任务所有者可编辑 */}
+                          {isTaskOwner && (isRecruiting || isAbandoned) && (
+                            <>
+                              <ThemeButton
+                                variant="secondary"
+                                onClick={() => {
+                                  handleEditTask(selectedTask);
+                                  setIsEditing(true);
+                                }}
+                              >
+                                {theme === 'pixel' ? 'EDIT' : theme === 'modern' ? 'Edit' : '编辑'}
+                              </ThemeButton>
+                            </>
+                          )}
 
-            {/* 审核评价 */}
-            {selectedTask.reviewComment && (
-              <div className={`p-4 rounded ${
-                theme === 'pixel'
-                  ? 'bg-pixel-card border-2 border-pixel-border'
-                  : 'bg-gray-50 border border-gray-200'
-              }`}>
-                <h5 className={`font-bold mb-2 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
-                }`}>
-                  {theme === 'pixel' ? 'REVIEW' : '审核评价'}
-                </h5>
-                <p className={`text-sm ${
-                  theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
-                }`}>
-                  {selectedTask.reviewComment}
-                </p>
-                    </div>
-                  )}
-
-            {/* 操作按钮 */}
-                  <div className="flex space-x-3">
-              {/* 编辑任务按钮 - 我发布的任务且处于招募状态 */}
-              {isTaskOwner && isRecruiting && view === 'published' && (
-                <Button
-                  onClick={() => handleEditTask(selectedTask)}
-                  variant="secondary"
-                  className="flex-1"
-                >
-                  {theme === 'pixel' ? 'EDIT_TASK' : '编辑任务'}
-                </Button>
-              )}
-
-              {/* 领取任务按钮 - 可领取的视图 */}
-              {view === 'available' && isRecruiting && !selectedTask.assignee && !isTaskOverdue(selectedTask) && (
-                    <Button
-                      onClick={async () => {
-                        try {
-                          await handleAcceptTask(selectedTask.id);
+                          {/* 任务操作按钮 */}
+                          {/* 领取任务按钮 - 招募中 */}
+                          {!isTaskOwner && isRecruiting && (
+                            <ThemeButton
+                              variant="primary"
+                              onClick={async () => {
+                                try {
+                                  await handleAcceptTask(selectedTask.id);
                         setSelectedTask(null);
-                        } catch (error) {
-                          console.error('❌ 领取任务按钮处理失败:', error);
-                        }
-                      }}
-                      variant="primary"
-                      className="flex-1"
-                    >
-                      {theme === 'pixel' ? 'ACCEPT_TASK' : '领取任务'}
-                    </Button>
-              )}
+                                } catch (error) {
+                                  console.error('❌ 领取任务按钮处理失败:', error);
+                                }
+                              }}
+                            >
+                              {theme === 'pixel' ? 'ACCEPT_TASK' : theme === 'modern' ? 'Accept Task' : '领取任务'}
+                            </ThemeButton>
+                          )}
 
-              {/* 开始任务按钮 - 已领取但未开始 */}
-              {isAssignee && isAssigned && !isTaskOverdue(selectedTask) && (
-                <div className="flex space-x-2 flex-1">
-                    <Button
-                      onClick={async () => {
-                        try {
-                          await handleStartTask(selectedTask.id);
+                          {/* 开始任务按钮 - 已领取但未开始 */}
+                          {isAssignee && isAssigned && !isTaskOverdue(selectedTask) && (
+                            <>
+                              <ThemeButton
+                                variant="primary"
+                                onClick={async () => {
+                                  try {
+                                    await handleStartTask(selectedTask.id);
                         setSelectedTask(null);
-                        } catch (error) {
-                          // 错误已经在handleStartTask中记录和显示了
-                          console.error('❌ 按钮点击处理失败:', error);
-                        }
-                      }}
-                      variant="primary"
-                      className="flex-1"
-                    >
-                      {theme === 'pixel' ? 'START_TASK' : '开始任务'}
-                    </Button>
-                    <Button
-                      onClick={async () => {
-                        await handleAbandonTask(selectedTask.id);
-                        setSelectedTask(null);
-                      }}
-                      variant="danger"
-                      className="flex-1"
-                    >
-                      {theme === 'pixel' ? 'ABANDON' : '放弃'}
-                    </Button>
-                    </div>
-                  )}
+                                  } catch (error) {
+                                    console.error('❌ 按钮点击处理失败:', error);
+                                  }
+                                }}
+                              >
+                                {theme === 'pixel' ? 'START_TASK' : theme === 'modern' ? 'Start Task' : '开始任务'}
+                              </ThemeButton>
+                              <ThemeButton
+                                variant="danger"
+                                onClick={async () => {
+                                  await handleAbandonTask(selectedTask.id);
+                                  setSelectedTask(null);
+                                }}
+                              >
+                                {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : '放弃'}
+                              </ThemeButton>
+                            </>
+                          )}
 
-              {/* 提交任务按钮 - 进行中 */}
-              {isAssignee && isInProgress && !isTaskOverdue(selectedTask) && (
-                        <Button
+                          {/* 提交任务按钮 - 进行中 */}
+                          {isAssignee && isInProgress && !isTaskOverdue(selectedTask) && (
+                            <ThemeButton
+                              variant="primary"
                   onClick={() => {
-                            handleCompleteTask(selectedTask.id);
+                                handleCompleteTask(selectedTask.id);
                     setSelectedTask(null);
                   }}
-                          variant="primary"
-                          className="flex-1"
-                        >
-                          {theme === 'pixel' ? 'COMPLETE_TASK' : '完成任务'}
-                        </Button>
+                >
+                              {theme === 'pixel' ? 'COMPLETE_TASK' : theme === 'modern' ? 'Complete Task' : '完成任务'}
+                            </ThemeButton>
               )}
 
-              {/* 审核任务按钮 - 待审核 */}
-              {isTaskOwner && isPendingReview && (
-                <div className="flex space-x-2 flex-1">
-                  <Button
+                          {/* 审核任务按钮 - 待审核 */}
+                          {isTaskOwner && isPendingReview && (
+                <>
+                              <ThemeButton
+                                variant="primary"
                     onClick={() => {
-                      handleReviewTask(selectedTask.id, true);
+                                  handleReviewTask(selectedTask.id, true);
                       setSelectedTask(null);
                     }}
-                    variant="primary"
-                    className="flex-1"
-                  >
-                    {theme === 'pixel' ? 'APPROVE' : '通过'}
-                  </Button>
-                  <Button
+                              >
+                                {theme === 'pixel' ? 'APPROVE' : theme === 'modern' ? 'Approve' : '通过'}
+                              </ThemeButton>
+                              <ThemeButton
+                                variant="danger"
                     onClick={() => {
-                      handleReviewTask(selectedTask.id, false);
+                                  handleReviewTask(selectedTask.id, false);
                         setSelectedTask(null);
                     }}
-                    variant="danger"
-                    className="flex-1"
                   >
-                    {theme === 'pixel' ? 'REJECT' : '拒绝'}
-                  </Button>
-                </div>
+                                {theme === 'pixel' ? 'REJECT' : theme === 'modern' ? 'Reject' : '拒绝'}
+                              </ThemeButton>
+                </>
               )}
 
-              {/* 重新发布按钮 - 已放弃 */}
-              {isTaskOwner && isAbandoned && (
-                <button
-                  onClick={async () => {
-                    await handleRepublishTask(selectedTask.id);
+                          {/* 重新发布按钮 - 已放弃 */}
+                          {isTaskOwner && isAbandoned && (
+                            <ThemeButton
+                              variant="primary"
+                              onClick={async () => {
+                                await handleRepublishTask(selectedTask.id);
                     setSelectedTask(null);
                   }}
-                  className={`flex-1 py-3 px-4 font-medium transition-all duration-300 ${
-                    theme === 'pixel'
-                      ? 'bg-pixel-success text-black font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-accent'
-                      : 'bg-green-500 text-white rounded-lg hover:bg-green-600'
-                  }`}
-                >
-                  {theme === 'pixel' ? 'REPUBLISH' : '重新发布'}
-                        </button>
-                      )}
+                            >
+                              {theme === 'pixel' ? 'REPUBLISH' : theme === 'modern' ? 'Republish' : '重新发布'}
+                            </ThemeButton>
+                          )}
 
-              {/* 关闭按钮 */}
-              <button
-                onClick={() => setSelectedTask(null)}
-                className={`py-3 px-6 font-medium transition-all duration-300 ${
-                  theme === 'pixel'
-                    ? 'bg-pixel-panel text-pixel-text font-mono uppercase border-2 border-pixel-border rounded-pixel shadow-pixel hover:bg-pixel-card'
-                    : 'bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300'
-                }`}
-              >
-                {theme === 'pixel' ? 'CLOSE' : '关闭'}
-              </button>
-            </div>
-                  </>
-                )}
-                    </div>
-                  </div>
-                </div>
+                          {/* 关闭按钮 - 始终显示 */}
+                          <ThemeButton
+                            variant="secondary"
+                            onClick={() => setSelectedTask(null)}
+                          >
+                            {theme === 'pixel' ? 'CLOSE' : theme === 'modern' ? 'Close' : '关闭'}
+                          </ThemeButton>
+                        </>
+                      )}
+                    </DialogFooter>
+                  </ThemeDialog>
               );
   };
 
@@ -2284,10 +2478,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               </div>
               <div>
                 {pendingReviewTasks.map(task => renderTaskCard(task))}
-              </div>
-            </div>
-          </div>
-        );
+                    </div>
+                  </div>
+                </div>
+              );
     } else {
         return (
           <div className="space-y-6">
@@ -2361,7 +2555,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       const completedTasks = taskList.filter(task => task.status === 'completed');
       const abandonedTasks = taskList.filter(task => task.status === 'abandoned');
 
-      return (
+    return (
         <div className="space-y-6">
           {/* 状态分类标题 */}
           <div className="grid grid-cols-4 gap-4 px-8">
@@ -2378,7 +2572,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               }`}>
                 {notStartedTasks.length} 个任务
               </span>
-              </div>
+            </div>
             <div className={`text-center ${
               theme === 'pixel' ? 'font-mono uppercase' : ''
             }`}>
@@ -2392,7 +2586,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               }`}>
                 {inProgressTasks.length} 个任务
               </span>
-            </div>
+          </div>
             <div className={`text-center ${
               theme === 'pixel' ? 'font-mono uppercase' : ''
             }`}>
@@ -2406,7 +2600,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               }`}>
                 {completedTasks.length} 个任务
               </span>
-            </div>
+        </div>
             <div className={`text-center ${
               theme === 'pixel' ? 'font-mono uppercase' : ''
             }`}>
@@ -2420,7 +2614,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               }`}>
                 {abandonedTasks.length} 个任务
               </span>
-            </div>
+              </div>
           </div>
           
           {/* 任务卡片区域 - 四列布局 */}
@@ -2535,15 +2729,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           >
             {theme === 'pixel' ? 'REFRESH' : '刷新'}
           </Button>
-          <Button
+                    <ThemeButton
           onClick={() => setShowAddForm(true)}
-            variant="primary"
-            size="md"
-            icon="plus"
-            iconComponent={<PlusIcon className="w-4 h-4" />}
+                              variant="primary"
+                  size="md"
           >
-            {theme === 'pixel' ? 'NEW_TASK' : '新建任务'}
-          </Button>
+            {theme === 'pixel' ? 'NEW_TASK' : theme === 'modern' ? 'New Task' : '新建任务'}
+          </ThemeButton>
         </div>
       </div>
 
@@ -2582,235 +2774,166 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       {selectedTask && renderTaskDetailModal()}
 
       {/* 新建任务表单 */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto ${
-            theme === 'pixel' 
-              ? 'bg-pixel-panel border-4 border-pixel-border rounded-pixel shadow-pixel-lg' 
-              : theme === 'fresh'
-              ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh-lg'
-              : 'bg-white rounded-xl shadow-xl'
-          }`}>
-            {/* 表单头部 */}
-            <div className="flex justify-between items-center mb-6">
-              <h3 className={`text-lg font-bold ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                theme === 'fresh' ? 'text-fresh-text' : 'text-gray-800'
-              }`}>
-                {theme === 'pixel' ? 'CREATE_NEW_TASK' : '新建任务'}
-            </h3>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className={`p-2 rounded-full transition-colors ${
-                  theme === 'pixel'
-                    ? 'hover:text-pixel-accent text-pixel-textMuted'
-                    : 'hover:text-primary-500 text-gray-400'
-                }`}
-                aria-label="关闭"
-              >
-                {theme === 'pixel' ? (
-                  <PixelIcon name="close" size="sm" />
-                ) : (
-                  <XMarkIcon className="w-5 h-5" />
-                )}
-              </button>
-            </div>
+      <ThemeDialog 
+        open={showAddForm} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddForm(false);
+            setNewTask({
+              title: '',
+              description: '',
+              deadline: '',
+              time: '',
+              points: 50,
+              requiresProof: false,
+              taskType: 'daily',
+              repeatType: 'once',
+              repeatFrequency: 'daily',
+              startDate: '',
+              endDate: '',
+              repeatTime: '',
+              repeatWeekdays: [],
+              taskStartTime: '',
+              taskEndTime: ''
+            });
+            setUseTimeRange(false);
+            setSelectedDuration('21days');
+            setRepeatHasSpecificTime(false);
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {theme === 'pixel' ? 'CREATE_NEW_TASK' : theme === 'modern' ? 'Create New Task' : '新建任务'}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <DialogContent>
             
             <div className="space-y-4">
               {/* 任务标题 */}
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'TASK_TITLE *' : '任务标题 *'}
-                </label>
-                <input
+              <ThemeFormField
+                label={theme === 'pixel' ? 'TASK_TITLE' : theme === 'modern' ? 'Task Title' : '任务标题'}
+                required
+              >
+                <ThemeInput
                   type="text"
                   value={newTask.title}
                   onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                  placeholder={theme === 'pixel' ? 'ENTER_TITLE...' : '输入任务标题'}
+                  placeholder={theme === 'pixel' ? 'ENTER_TITLE...' : theme === 'modern' ? 'Enter task title...' : '输入任务标题'}
                 />
-              </div>
+              </ThemeFormField>
 
               {/* 任务描述 */}
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'TASK_DESCRIPTION' : '任务描述'}
-                </label>
-                <textarea
+              <ThemeFormField
+                label={theme === 'pixel' ? 'TASK_DESCRIPTION' : theme === 'modern' ? 'Task Description' : '任务描述'}
+              >
+                <ThemeTextarea
                   value={newTask.description}
                   onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                  placeholder={theme === 'pixel' ? 'ENTER_DESCRIPTION...' : '输入任务描述'}
+                  placeholder={theme === 'pixel' ? 'ENTER_DESCRIPTION...' : theme === 'modern' ? 'Enter task description...' : '输入任务描述'}
                 />
-              </div>
+              </ThemeFormField>
 
               {/* 任务类型 */}
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'TASK_TYPE *' : '任务类型 *'}
-                </label>
-                <select
+              <ThemeFormField
+                label={theme === 'pixel' ? 'TASK_TYPE' : theme === 'modern' ? 'Task Type' : '任务类型'}
+                required
+              >
+                <ThemeSelect
                   value={newTask.taskType}
                   onChange={(e) => setNewTask(prev => ({ ...prev, taskType: e.target.value as 'daily' | 'habit' | 'special' }))}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                        theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
                 >
-                  <option value="daily">{theme === 'pixel' ? 'DAILY_TASK' : '日常任务'}</option>
-                  <option value="habit">{theme === 'pixel' ? 'HABIT_TASK' : '习惯任务'}</option>
-                  <option value="special">{theme === 'pixel' ? 'SPECIAL_TASK' : '特殊任务'}</option>
-                </select>
-              </div>
+                  <option value="daily">{theme === 'pixel' ? 'DAILY_TASK' : theme === 'modern' ? 'Daily Task' : '日常任务'}</option>
+                  <option value="habit">{theme === 'pixel' ? 'HABIT_TASK' : theme === 'modern' ? 'Habit Task' : '习惯任务'}</option>
+                  <option value="special">{theme === 'pixel' ? 'SPECIAL_TASK' : theme === 'modern' ? 'Special Task' : '特殊任务'}</option>
+                </ThemeSelect>
+              </ThemeFormField>
 
               {/* 重复类型 */}
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'REPEAT_TYPE *' : '重复类型 *'}
-                </label>
-                <select
+              <ThemeFormField
+                label={theme === 'pixel' ? 'REPEAT_TYPE' : theme === 'modern' ? 'Repeat Type' : '重复类型'}
+                required
+              >
+                <ThemeSelect
                   value={newTask.repeatType}
                   onChange={(e) => setNewTask(prev => ({ ...prev, repeatType: e.target.value as 'once' | 'repeat' }))}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
                 >
-                  <option value="once">{theme === 'pixel' ? 'ONE_TIME' : '一次性任务'}</option>
-                  <option value="repeat">{theme === 'pixel' ? 'REPEATING' : '重复任务'}</option>
-                </select>
-              </div>
+                  <option value="once">{theme === 'pixel' ? 'ONE_TIME' : theme === 'modern' ? 'One Time' : '一次性任务'}</option>
+                  <option value="repeat">{theme === 'pixel' ? 'REPEATING' : theme === 'modern' ? 'Repeating' : '重复任务'}</option>
+                </ThemeSelect>
+              </ThemeFormField>
 
               {/* 任务时间字段（动态显示） */}
               {renderTaskTimeFields()}
 
               {/* 积分奖励 */}
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'POINTS_REWARD *' : '积分奖励 *'}
-                </label>
-                <input
+              <ThemeFormField
+                label={theme === 'pixel' ? 'POINTS_REWARD' : theme === 'modern' ? 'Points Reward' : '积分奖励'}
+                required
+                description={newTask.repeatType === 'repeat' 
+                  ? (theme === 'modern' ? 'Repeating task: earn this reward for each completion' : '重复性任务：每次完成都可获得此积分奖励')
+                  : (theme === 'modern' ? 'One-time task: earn this reward upon completion' : '一次性任务：完成后获得此积分奖励')
+                }
+              >
+                <ThemeInput
                   type="number"
                   value={newTask.points}
                   onChange={(e) => setNewTask(prev => ({ ...prev, points: parseInt(e.target.value) || 0 }))}
                   min="1"
                   max="1000"
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    theme === 'pixel' 
-                      ? 'border-pixel-border bg-pixel-card text-pixel-text font-mono focus:ring-pixel-accent' 
-                      : theme === 'fresh'
-                      ? 'border-fresh-border bg-fresh-bg text-fresh-text focus:ring-fresh-primary'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                  placeholder={theme === 'pixel' ? '50' : '输入积分 (1-1000)'}
+                  placeholder={theme === 'pixel' ? '50' : theme === 'modern' ? 'Enter points (1-1000)' : '输入积分 (1-1000)'}
                 />
-                <p className={`text-xs mt-1 ${
-                  theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 
-                  theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-500'
-                }`}>
-                  {newTask.repeatType === 'repeat' 
-                    ? '重复性任务：每次完成都可获得此积分奖励' 
-                    : '一次性任务：完成后获得此积分奖励'
-                  }
-                </p>
-              </div>
+              </ThemeFormField>
 
               {/* 需要凭证 */}
-              <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                  id="requiresProof"
+              <ThemeCheckbox
+                label={theme === 'pixel' ? 'REQUIRES_PROOF' : theme === 'modern' ? 'Requires Proof' : '需要提交凭证'}
                     checked={newTask.requiresProof}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, requiresProof: e.target.checked }))}
-                  className={`mr-3 ${
-                    theme === 'pixel' ? 'text-pixel-accent' : theme === 'fresh' ? 'text-fresh-primary' : 'text-blue-500'
-                    }`}
+                onChange={(e) => setNewTask(prev => ({ ...prev, requiresProof: e.target.checked }))}
                   />
-                <label htmlFor="requiresProof" className={`text-sm ${
-                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-                  theme === 'fresh' ? 'text-fresh-text' : 'text-gray-700'
-                }`}>
-                  {theme === 'pixel' ? 'REQUIRES_PROOF' : '需要提交凭证'}
-                </label>
-            </div>
 
-              {/* 操作按钮 */}
-              <div className="flex space-x-3 pt-4">
-                                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setNewTask({
-                      title: '',
-                      description: '',
-                      deadline: '',
-                      time: '',
-                      points: 50,
-                      requiresProof: false,
-                      taskType: 'daily',
-                      repeatType: 'once',
-                      repeatFrequency: 'daily',
-                      startDate: '',
-                      endDate: '',
-                      repeatTime: '',
-                      repeatWeekdays: [],
-                      taskStartTime: '',
-                      taskEndTime: ''
-                    });
-                    setUseTimeRange(false);
-                    setSelectedDuration('21days');
-                    setRepeatHasSpecificTime(false);
-                    setShowAddForm(false);
-                  }}
-                  className="flex-1"
-              >
-                {theme === 'pixel' ? 'CANCEL' : '取消'}
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={handleCreateTask}
-                  className="flex-1"
-                >
-                  {theme === 'pixel' ? 'CREATE_TASK' : '创建任务'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                </div>
+        </DialogContent>
+        
+        <DialogFooter>
+          <ThemeButton
+            variant="secondary"
+            onClick={() => {
+              setShowAddForm(false);
+              setNewTask({
+                title: '',
+                description: '',
+                deadline: '',
+                time: '',
+                points: 50,
+                requiresProof: false,
+                taskType: 'daily',
+                repeatType: 'once',
+                repeatFrequency: 'daily',
+                startDate: '',
+                endDate: '',
+                repeatTime: '',
+                repeatWeekdays: [],
+                taskStartTime: '',
+                taskEndTime: ''
+              });
+              setUseTimeRange(false);
+              setSelectedDuration('21days');
+              setRepeatHasSpecificTime(false);
+            }}
+          >
+            {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : '取消'}
+          </ThemeButton>
+          <ThemeButton
+            variant="primary"
+            onClick={handleCreateTask}
+          >
+            {theme === 'pixel' ? 'CREATE_TASK' : theme === 'modern' ? 'Create Task' : '创建任务'}
+          </ThemeButton>
+        </DialogFooter>
+      </ThemeDialog>
     </div>
   );
 };
