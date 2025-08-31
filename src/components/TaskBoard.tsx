@@ -2447,8 +2447,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
               </>
             ) : (
-              // 🎯 任务详情显示 - 使用新数据结构
-              <div className="space-y-4">
+              // 🎯 任务详情显示 - 左右分栏布局
+              <div className="flex gap-6">
+                {/* 左侧：基本信息 */}
+                <div className="flex-1 space-y-4">
                 <DetailField
                   label={theme === 'pixel' ? 'TASK_TITLE' : theme === 'modern' ? 'Task Title' : '任务标题'}
                   value={selectedTask.title}
@@ -2563,7 +2565,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     )}
                     {selectedTask.required_count && (
                       <DetailField
-                        label={theme === 'pixel' ? 'REPEAT_COUNT' : theme === 'modern' ? 'Repeat Count' : '重复次数'}
+                        label={theme === 'pixel' ? 'CONSECUTIVE_TARGET' : theme === 'modern' ? 'Consecutive Target' : '连续完成目标'}
                         value={`${selectedTask.required_count} ${getUnitText(selectedTask.repeat_frequency)}`}
                       />
                     )}
@@ -2591,6 +2593,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                         })()}
                       />
                     )}
+
+
+
                     {!selectedTask.earliest_start_time && !selectedTask.task_deadline && !selectedTask.required_count && (
                       <DetailField
                         label={theme === 'pixel' ? 'TIME_LIMIT' : theme === 'modern' ? 'Time Limit' : '时间限制'}
@@ -2623,30 +2628,28 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   value={selectedTask.creator_id}
                 />
 
-
-
-              {/* 需要凭证提示 */}
-              {selectedTask.requires_proof && (
-                <div className={`flex items-center space-x-2 p-3 rounded ${
-                theme === 'pixel'
-                    ? 'bg-pixel-warning border-2 border-pixel-border text-pixel-text'
-                    : 'bg-yellow-50 border border-yellow-200 text-yellow-800'
-                }`}>
-                  {theme === 'pixel' ? (
-                    <PixelIcon name="warning" size="sm" />
-                  ) : (
-                    <Icon name="document" />
-                  )}
-                  <span className={`text-sm font-medium ${
-                    theme === 'pixel' ? 'font-mono uppercase' : ''
+                {/* 需要凭证提示 */}
+                {selectedTask.requires_proof && (
+                  <div className={`flex items-center space-x-2 p-3 rounded ${
+                  theme === 'pixel'
+                      ? 'bg-pixel-warning border-2 border-pixel-border text-pixel-text'
+                      : 'bg-yellow-50 border border-yellow-200 text-yellow-800'
                   }`}>
-                    {theme === 'pixel' ? 'PROOF REQUIRED' : '此任务需要提交完成凭证'}
-                    </span>
-                </div>
-              )}
+                    {theme === 'pixel' ? (
+                      <PixelIcon name="warning" size="sm" />
+                    ) : (
+                      <Icon name="document" />
+                    )}
+                    <span className={`text-sm font-medium ${
+                      theme === 'pixel' ? 'font-mono uppercase' : ''
+                    }`}>
+                      {theme === 'pixel' ? 'PROOF REQUIRED' : '此任务需要提交完成凭证'}
+                      </span>
+                  </div>
+                )}
 
                 {/* 完成凭证 */}
-                  {selectedTask.proof_url && (
+                {selectedTask.proof_url && (
                   <DetailField
                     label={theme === 'pixel' ? 'PROOF' : theme === 'modern' ? 'Proof' : '完成凭证'}
                     value={selectedTask.proof_url}
@@ -2660,7 +2663,182 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     value={selectedTask.review_comment}
                   />
                 )}
-          </div>
+                </div>
+
+                {/* 右侧：进度信息面板 */}
+                {selectedTask.repeat_frequency !== 'never' && isAssignee && (selectedTask.status === 'assigned' || selectedTask.status === 'in_progress') && (
+                  <div className={`w-80 space-y-4 p-4 rounded-lg ${
+                    theme === 'pixel' ? 'bg-pixel-bgSecondary border-2 border-pixel-border' : 
+                    theme === 'modern' ? 'bg-gray-50 border border-gray-200' : 'bg-blue-50 border border-blue-200'
+                  }`}>
+                    {/* 进度面板标题 */}
+                    <div className="text-center">
+                      <h3 className={`font-semibold text-lg ${
+                        theme === 'pixel' ? 'text-pixel-info font-mono uppercase' : 
+                        theme === 'modern' ? 'text-blue-600' : 'text-blue-600'
+                      }`}>
+                        {theme === 'pixel' ? 'PROGRESS_PANEL' : theme === 'modern' ? 'Progress Panel' : '进度面板'}
+                      </h3>
+                    </div>
+
+                    {/* 任务统计信息 */}
+                    <div className="space-y-3">
+                      <h4 className={`font-medium text-sm ${
+                        theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-700'
+                      }`}>
+                        {theme === 'pixel' ? 'STATISTICS' : theme === 'modern' ? 'Statistics' : '统计数据'}
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className={`text-center p-3 rounded-lg ${
+                          theme === 'pixel' ? 'bg-pixel-bg border border-pixel-border' : 
+                          theme === 'modern' ? 'bg-white border border-gray-200' : 'bg-white border border-blue-200'
+                        }`}>
+                          <div className={`text-xl font-bold ${
+                            theme === 'pixel' ? 'text-pixel-success font-mono' : 
+                            theme === 'modern' ? 'text-green-600' : 'text-green-600'
+                          }`}>
+                            {selectedTask.completed_count || 0}
+                          </div>
+                          <div className={`text-xs ${
+                            theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+                          }`}>
+                            {theme === 'pixel' ? 'TOTAL_COMPLETIONS' : theme === 'modern' ? 'Total Completions' : '总完成次数'}
+                          </div>
+                        </div>
+                        
+                        <div className={`text-center p-3 rounded-lg ${
+                          theme === 'pixel' ? 'bg-pixel-bg border border-pixel-border' : 
+                          theme === 'modern' ? 'bg-white border border-gray-200' : 'bg-white border border-orange-200'
+                        }`}>
+                          <div className={`text-xl font-bold ${
+                            theme === 'pixel' ? 'text-pixel-warning font-mono' : 
+                            theme === 'modern' ? 'text-orange-600' : 'text-orange-600'
+                          }`}>
+                            {selectedTask.current_streak || 0}
+                          </div>
+                          <div className={`text-xs ${
+                            theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+                          }`}>
+                            {theme === 'pixel' ? 'CURRENT_STREAK' : theme === 'modern' ? 'Current Streak' : '当前连续次数'}
+                          </div>
+                        </div>
+                        
+                        <div className={`text-center p-3 rounded-lg ${
+                          theme === 'pixel' ? 'bg-pixel-bg border border-pixel-border' : 
+                          theme === 'modern' ? 'bg-white border border-gray-200' : 'bg-white border border-purple-200'
+                        }`}>
+                          <div className={`text-xl font-bold ${
+                            theme === 'pixel' ? 'text-pixel-accent font-mono' : 
+                            theme === 'modern' ? 'text-purple-600' : 'text-purple-600'
+                          }`}>
+                            {selectedTask.longest_streak || 0}
+                          </div>
+                          <div className={`text-xs ${
+                            theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+                          }`}>
+                            {theme === 'pixel' ? 'BEST_STREAK' : theme === 'modern' ? 'Best Streak' : '最佳连续记录'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 连续完成进度条（仅当有目标次数时显示） */}
+                    {selectedTask.required_count && (
+                      <div className="space-y-3">
+                        <h4 className={`font-medium text-sm ${
+                          theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-700'
+                        }`}>
+                          {theme === 'pixel' ? 'PROGRESS' : theme === 'modern' ? 'Progress' : '完成进度'}
+                        </h4>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className={`text-sm ${
+                              theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-600'
+                            }`}>
+                              {theme === 'pixel' ? 'CONSECUTIVE' : theme === 'modern' ? 'Consecutive' : '连续完成'}
+                            </span>
+                            <span className={`text-sm font-medium ${
+                              theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-700'
+                            }`}>
+                              {selectedTask.current_streak || 0} / {selectedTask.required_count}
+                            </span>
+                          </div>
+                          <div className={`w-full h-4 rounded-full ${
+                            theme === 'pixel' ? 'bg-pixel-bg border border-pixel-border' : 
+                            theme === 'modern' ? 'bg-gray-200' : 'bg-gray-200'
+                          }`}>
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                theme === 'pixel' ? 'bg-pixel-success' : 
+                                theme === 'modern' ? 'bg-blue-500' : 'bg-blue-500'
+                              }`}
+                              style={{
+                                width: `${Math.min(100, ((selectedTask.current_streak || 0) / selectedTask.required_count) * 100)}%`
+                              }}
+                            />
+                          </div>
+                          <div className="text-center">
+                            <span className={`text-xs ${
+                              theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+                            }`}>
+                              {Math.round(((selectedTask.current_streak || 0) / selectedTask.required_count) * 100)}% {theme === 'pixel' ? 'COMPLETE' : theme === 'modern' ? 'Complete' : '完成'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 最近打卡记录 */}
+                    {(() => {
+                      let completionRecord: string[] = [];
+                      try {
+                        completionRecord = selectedTask.completion_record ? JSON.parse(selectedTask.completion_record) : [];
+                      } catch (e) {
+                        completionRecord = [];
+                      }
+                      
+                      if (completionRecord.length > 0) {
+                        const recentRecords = completionRecord.slice(-5).reverse(); // 显示最近5次记录
+                        
+                        return (
+                          <div className="space-y-3">
+                            <h4 className={`font-medium text-sm ${
+                              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-700'
+                            }`}>
+                              {theme === 'pixel' ? 'RECENT_CHECKINS' : theme === 'modern' ? 'Recent Check-ins' : '最近打卡'}
+                            </h4>
+                            <div className="space-y-2">
+                              {recentRecords.map((record, index) => (
+                                <div
+                                  key={index}
+                                  className={`flex items-center justify-between p-2 rounded ${
+                                    theme === 'pixel' ? 'bg-pixel-bg border border-pixel-success' : 
+                                    theme === 'modern' ? 'bg-green-50 border border-green-200' : 'bg-green-50 border border-green-200'
+                                  }`}
+                                >
+                                  <span className={`text-sm ${
+                                    theme === 'pixel' ? 'text-pixel-success font-mono' : 'text-green-700'
+                                  }`}>
+                                    {record}
+                                  </span>
+                                  <span className={`text-xs ${
+                                    theme === 'pixel' ? 'text-pixel-success font-mono' : 'text-green-600'
+                                  }`}>
+                                    ✓
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
+              </div>
                 )}
         </div>
         </DialogContent>
