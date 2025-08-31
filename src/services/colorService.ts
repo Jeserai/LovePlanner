@@ -10,7 +10,7 @@ export interface CoupleColors {
  * 最简化的颜色服务
  * 只管理情侣级别的固定颜色配置
  */
-export const minimalColorService = {
+export const colorService = {
   /**
    * 获取情侣的颜色配置
    */

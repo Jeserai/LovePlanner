@@ -11,7 +11,7 @@ import PageHeader from './ui/PageHeader';
 // import Card from './ui/Card'; // 已删除，使用ThemeCard替代
 import NavigationButton from './ui/NavigationButton';
 import DetailField from './ui/DetailField';
-import DevTools from './DevTools';
+
 import { 
   ThemeCard, 
   ThemeDialog, 
@@ -26,15 +26,13 @@ import {
   ThemeSelect, 
   ThemeCheckbox, 
   ThemeButton, 
-  ConfirmDialog
+  ConfirmDialog,
+  useToast,
+  AlertDialog
 } from './ui/Components';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../contexts/UserContext';
-import { taskService, userService, pointService } from '../services/database';
-import { taskService as switchableTaskService, userService as switchableUserService } from '../services/apiServiceSwitch';
-import { enableMockApi, disableMockApi } from '../services/mockApiService';
-import { taskBoardAdapter } from '../services/taskBoardAdapter';
-import { newTaskService } from '../services/newTaskService';
+import { userService, pointService, taskService } from '../services/database';
 import { habitTaskService, calculateLatestJoinDate, canJoinHabitTask } from '../services/habitTaskService';
 import type { PersonalHabitChallenge } from '../services/habitTaskService';
 import { supabase } from '../lib/supabase';
@@ -72,6 +70,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { userProfile } = useUser();
+  const { addToast } = useToast();
   const [view, setView] = useState<'published' | 'assigned' | 'available'>('published');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -114,6 +113,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   // 🎯 习惯任务相关状态
   const [userHabitChallenges, setUserHabitChallenges] = useState<(PersonalHabitChallenge & { task: any })[]>([]);
   const [habitChallengesLoaded, setHabitChallengesLoaded] = useState(false);
+  
+  // 🎯 确认对话框状态
+  const [showCancelEditConfirm, setShowCancelEditConfirm] = useState(false);
+  const [showDeleteTaskConfirm, setShowDeleteTaskConfirm] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   
   // 调试信息
   console.log('📋 TaskBoard 加载状态:', { loading, tasksLoaded, user: !!user, tasksCount: tasks.length });
@@ -202,7 +206,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   };
 
 
-  // 注意：现在使用taskBoardAdapter，不再需要手动转换数据库任务格式
+  // 注意：现在使用taskService，统一的任务数据结构
 
   // 加载情侣关系ID和用户映射
   useEffect(() => {
@@ -257,7 +261,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
       try {
         // 🎯 使用新的任务服务获取任务
-        const newTasks = await newTaskService.getTasks(coupleId);
+        const newTasks = await taskService.getTasks(coupleId);
         setTasks(newTasks);
         setTasksLoaded(true);
         console.log('✅ 使用新任务服务加载任务成功:', newTasks.length, '个任务');
@@ -361,7 +365,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
     try {
       // 🎯 使用新的任务服务重新加载任务
-      const newTasks = await newTaskService.getTasks(coupleId);
+      const newTasks = await taskService.getTasks(coupleId);
       setTasks(newTasks);
       setTasksLoaded(true);
       console.log('✅ 使用新任务服务重新加载任务成功:', newTasks.length, '个任务');
@@ -440,8 +444,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         throw new Error(`找不到ID为 ${taskId} 的任务`);
       }
 
-      // 3. 更新数据库 - 使用适配器
-      await taskBoardAdapter.updateTask(taskId, updates as any);
+      // 3. 更新数据库 - 使用新任务服务
+      await taskService.updateTask({ id: taskId, ...updates } as EditTaskForm);
 
       // 4. 立即更新本地状态（乐观更新）
       setTasks(prevTasks => 
@@ -510,20 +514,50 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   // 任务操作函数
   const handleAcceptTask = async (taskId: string) => {
     try {
-      await taskBoardAdapter.assignTask(taskId, currentUserId);
+      await taskService.assignTask(taskId, currentUserId);
       await reloadTasks();
+      
+      // 成功反馈
+      addToast({
+        variant: 'success',
+        title: '任务领取成功',
+        description: '任务已成功分配给您，可以开始执行了！'
+      });
     } catch (error: any) {
       console.error('❌ 领取任务失败:', error?.message);
+      
+      // 错误反馈
+      addToast({
+        variant: 'error',
+        title: '领取任务失败',
+        description: error?.message || '请稍后重试'
+      });
+      
       throw error;
     }
   };
 
   const handleStartTask = async (taskId: string) => {
     try {
-      await taskBoardAdapter.startTask(taskId);
+      await taskService.startTask(taskId);
       await reloadTasks();
+      
+      // 成功反馈
+      addToast({
+        variant: 'success',
+        title: '任务已开始',
+        description: '任务状态已更新为进行中'
+      });
     } catch (error: any) {
       console.error('❌ 开始任务失败:', error?.message);
+      
+      // 错误反馈
+      addToast({
+        variant: 'error',
+        title: '开始任务失败',
+        description: error?.message || '请稍后重试'
+      });
+      
       throw error;
     }
   };
@@ -536,21 +570,36 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
       // 检查任务是否过期，如果过期则移动到abandoned状态
       if (isTaskOverdue(task)) {
-        await taskBoardAdapter.abandonTask(taskId);
+        await taskService.abandonTask(taskId);
         await reloadTasks();
         return;
       }
 
       // 使用适配器完成任务
-      await taskBoardAdapter.completeTask(taskId);
+      await taskService.completeTask(taskId);
       await reloadTasks();
       
       // 如果不需要凭证，奖励积分给完成任务的用户
       if (!task.requires_proof) {
         await awardTaskPoints(task, currentUserId);
       }
-    } catch (error) {
+      
+      // 成功反馈
+      addToast({
+        variant: 'success',
+        title: '任务完成',
+        description: task.requires_proof ? '任务已提交，等待审核' : `任务完成！获得 ${task.points} 积分`
+      });
+    } catch (error: any) {
       console.error('❌ 完成任务失败:', error);
+      
+      // 错误反馈
+      addToast({
+        variant: 'error',
+        title: '完成任务失败',
+        description: error?.message || '请稍后重试'
+      });
+      
       throw error;
     }
   };
@@ -579,36 +628,90 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
   };
 
-  // 放弃任务
-  const handleAbandonTask = async (taskId: string) => {
+  // 放弃任务 - 显示确认对话框
+  const handleAbandonTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    // 只有assigned状态的任务才能手动放弃
+    if (task.status === 'assigned') {
+      setTaskToDelete(taskId);
+      setShowDeleteTaskConfirm(true);
+    }
+  };
+
+  // 确认放弃任务
+  const confirmAbandonTask = async () => {
+    if (!taskToDelete) return;
+    
     try {
-      const task = tasks.find(t => t.id === taskId);
+      const task = tasks.find(t => t.id === taskToDelete);
       if (!task) return;
       
-      // 只有assigned状态的任务才能手动放弃
-      if (task.status === 'assigned') {
-        console.log('🚫 放弃任务:', { taskId });
-        await taskBoardAdapter.abandonTask(taskId);
-        await reloadTasks();
+      console.log('🚫 放弃任务:', { taskId: taskToDelete });
+      await taskService.abandonTask(taskToDelete);
+      await reloadTasks();
+      
+      // 成功反馈
+      addToast({
+        variant: 'warning',
+        title: '任务已放弃',
+        description: `任务"${task.title}"已从您的任务列表中移除`
+      });
+      
+      // 关闭任务详情（如果当前显示的是被放弃的任务）
+      if (selectedTask?.id === taskToDelete) {
+        setSelectedTask(null);
+        setIsEditing(false);
+        setEditTask({});
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ 放弃任务失败:', error);
-      throw error;
+      
+      // 错误反馈
+      addToast({
+        variant: 'error',
+        title: '放弃任务失败',
+        description: error?.message || '请稍后重试'
+      });
+    } finally {
+      setShowDeleteTaskConfirm(false);
+      setTaskToDelete(null);
     }
   };
 
   // 重新发布任务
   const handleRepublishTask = async (taskId: string) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task || task.status !== 'abandoned') return;
-    
-    console.log('📢 重新发布任务:', { taskId });
-    await updateTaskInDatabase(taskId, { 
-      status: 'recruiting',
-      assignee_id: null,  // 使用null而不是undefined
-      proof_url: null,
-      review_comment: null
-    });
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task || task.status !== 'abandoned') return;
+      
+      console.log('📢 重新发布任务:', { taskId });
+      await updateTaskInDatabase(taskId, { 
+        status: 'recruiting',
+        assignee_id: null,  // 使用null而不是undefined
+        proof_url: null,
+        review_comment: null
+      });
+      
+      await reloadTasks();
+      
+      // 成功反馈
+      addToast({
+        variant: 'success',
+        title: '任务已重新发布',
+        description: `任务"${task.title}"已重新发布，等待其他人领取`
+      });
+    } catch (error: any) {
+      console.error('❌ 重新发布任务失败:', error);
+      
+      // 错误反馈
+      addToast({
+        variant: 'error',
+        title: '重新发布失败',
+        description: error?.message || '请稍后重试'
+      });
+    }
   };
 
   // 提交凭证
@@ -676,7 +779,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             return;
           }
           
-          const now = new Date();
+      const now = new Date();
           
           // 验证开始时间（如果有）
           if (hasStartTime) {
@@ -714,7 +817,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           
           // 验证开始时间不能是过去
           const startTime = new Date(editTask.earliest_start_time);
-          const now = new Date();
+    const now = new Date();
           if (startTime <= now) {
             alert('重复任务的开始时间不能是过去时间');
             return;
@@ -775,7 +878,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       console.log('🚀 更新任务数据:', updateData);
       
       // 直接使用新的任务服务更新任务
-      await newTaskService.updateTask(updateData);
+      await taskService.updateTask(updateData);
 
       // 刷新任务列表
       await reloadTasks();
@@ -789,17 +892,63 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       setSelectedTask(null);
       
       console.log('✅ 任务更新成功');
-    } catch (error) {
+      
+      // 成功反馈
+      addToast({
+        variant: 'success',
+        title: '任务更新成功',
+        description: `任务"${editTask.title}"已成功更新`
+      });
+    } catch (error: any) {
       console.error('❌ 更新任务失败:', error);
-      alert('更新任务失败，请重试');
+      
+      // 错误反馈
+      addToast({
+        variant: 'error',
+        title: '更新任务失败',
+        description: error?.message || '请检查输入信息后重试'
+      });
     }
   };
 
-  // 🎯 取消编辑
+  // 🎯 取消编辑 - 检查是否有未保存的更改
   const handleCancelEdit = () => {
+    // 检查是否有未保存的更改
+    const hasChanges = selectedTask && (
+      editTask.title !== selectedTask.title ||
+      editTask.description !== selectedTask.description ||
+      editTask.task_type !== selectedTask.task_type ||
+      editTask.points !== selectedTask.points ||
+      editTask.requires_proof !== selectedTask.requires_proof ||
+      editTask.repeat_frequency !== selectedTask.repeat_frequency ||
+      editTask.earliest_start_time !== (selectedTask.earliest_start_time || '') ||
+      editTask.task_deadline !== (selectedTask.task_deadline || '') ||
+      editTask.required_count !== selectedTask.required_count ||
+      editTask.daily_time_start !== (selectedTask.daily_time_start || '') ||
+      editTask.daily_time_end !== (selectedTask.daily_time_end || '')
+    );
+
+    if (hasChanges) {
+      // 有未保存的更改，显示确认对话框
+      setShowCancelEditConfirm(true);
+    } else {
+      // 没有更改，直接退出编辑模式
+      confirmCancelEdit();
+    }
+  };
+
+  // 确认取消编辑
+  const confirmCancelEdit = () => {
     setIsEditing(false);
     setEditTask({});
-    // 不关闭任务详情，只是退出编辑模式
+    setShowCancelEditConfirm(false);
+    
+    // 提示用户更改已丢弃
+    addToast({
+      variant: 'warning',
+      title: '编辑已取消',
+      description: '未保存的更改已丢弃'
+    });
   };
 
   // 统一的关闭任务详情函数
@@ -916,7 +1065,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             return;
           }
         }
-              } else {
+                  } else {
           // 🎯 重复任务：最早开始时间必填
           if (!newTask.earliest_start_time) {
             alert('请设置重复任务的最早开始时间');
@@ -987,21 +1136,38 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         console.log('🚀 创建任务数据:', createTaskData);
         
         // 直接使用新的任务服务创建任务
-        await newTaskService.createTask(createTaskData, user.id, coupleId);
+        await taskService.createTask(createTaskData, user.id, coupleId);
         await reloadTasks(); // 重新加载数据
         
         // 发布全局事件，通知其他组件任务数据已更新
         globalEventService.emit(GlobalEvents.TASKS_UPDATED);
 
         console.log('✅ 任务创建成功');
+        
+        // 成功反馈
+        addToast({
+          variant: 'success',
+          title: '任务创建成功',
+          description: `任务"${newTask.title}"已成功创建`
+        });
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ 创建任务失败:', error);
-        alert('创建任务失败，请重试');
+        
+        // 错误反馈
+        addToast({
+          variant: 'error',
+          title: '创建任务失败',
+          description: error?.message || '请检查输入信息后重试'
+        });
         return;
       }
-    } else {
-      alert('用户未登录或缺少情侣关系信息');
+                    } else {
+      addToast({
+        variant: 'error',
+        title: '创建任务失败',
+        description: '用户未登录或缺少情侣关系信息'
+      });
       return;
     }
 
@@ -1031,16 +1197,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
     if (newTask.repeat_frequency === 'never') {
       // 一次性任务：开始时间和结束时间都是可选的，但至少要有一个
-      return (
+          return (
         <div className="space-y-4">
-          <div className={`text-sm ${
+            <div className={`text-sm ${
             theme === 'pixel' ? 'text-pixel-textMuted' : 
             theme === 'modern' ? 'text-slate-600' : 'text-gray-600'
-          }`}>
+            }`}>
             {theme === 'pixel' ? 'TIME_CONSTRAINT_OPTIONAL' : 
              theme === 'modern' ? 'Time constraints (optional): Set start time, end time, or both' : 
              '时间限制（可选）：可以设置开始时间、结束时间，或两者都设置'}
-          </div>
+            </div>
           
           {/* 最早开始时间（可选） */}
           <ThemeFormField
@@ -1051,8 +1217,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               type="datetime-local"
               value={newTask.earliest_start_time}
               onChange={(e) => setNewTask(prev => ({ ...prev, earliest_start_time: e.target.value }))}
-              min={new Date().toISOString().slice(0, 16)}
-            />
+                  min={new Date().toISOString().slice(0, 16)}
+                />
           </ThemeFormField>
 
           {/* 最晚结束时间（可选） */}
@@ -1061,17 +1227,17 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : theme === 'modern' ? 'When must this task be finished? (Leave empty if no task_deadline)' : '任务最晚什么时候必须完成？（留空表示没有截止时间）'}
           >
             <ThemeInput
-              type="datetime-local"
+                  type="datetime-local"
               value={newTask.task_deadline}
               onChange={(e) => setNewTask(prev => ({ ...prev, task_deadline: e.target.value }))}
               min={newTask.earliest_start_time || new Date().toISOString().slice(0, 16)}
             />
           </ThemeFormField>
-        </div>
+              </div>
       );
-          } else {
+    } else {
         // 重复任务：按照要求的字段顺序
-        return (
+      return (
           <div className="space-y-4">
             <div className={`text-sm ${
               theme === 'pixel' ? 'text-pixel-textMuted' : 
@@ -1080,7 +1246,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               {theme === 'pixel' ? 'REPEAT_TASK_CONFIG' : 
                theme === 'modern' ? 'Recurring task configuration' : 
                '重复任务配置'}
-            </div>
+          </div>
 
             {/* 1. 最早开始时间（必填） */}
             <ThemeFormField
@@ -1138,21 +1304,21 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     value={newTask.daily_time_start || ''}
                     onChange={(e) => setNewTask(prev => ({ ...prev, daily_time_start: e.target.value }))}
                   />
-                </div>
-                <div>
+              </div>
+              <div>
                   <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
                     {theme === 'pixel' ? 'TO' : theme === 'modern' ? 'To' : '结束时间'}
                   </label>
                   <ThemeInput
-                    type="time"
+                  type="time"
                     value={newTask.daily_time_end || ''}
                     onChange={(e) => setNewTask(prev => ({ ...prev, daily_time_end: e.target.value }))}
                   />
-                </div>
               </div>
+            </div>
             </ThemeFormField>
-          </div>
-        );
+            </div>
+          );
       }
   };
 
@@ -1189,11 +1355,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             description={theme === 'pixel' ? 'WHEN_CAN_START' : theme === 'modern' ? 'When can this task be started' : '任务什么时候可以开始'}
           >
             <ThemeInput
-              type="datetime-local"
+                  type="datetime-local"
               value={formatDateTimeLocal(editTask.earliest_start_time)}
               onChange={(e) => setEditTask(prev => ({ ...prev, earliest_start_time: e.target.value }))}
-              min={new Date().toISOString().slice(0, 16)}
-            />
+                  min={new Date().toISOString().slice(0, 16)}
+                />
           </ThemeFormField>
 
           {/* 结束时间（可选） */}
@@ -1202,13 +1368,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : theme === 'modern' ? 'When must this task be finished' : '任务什么时候必须完成'}
           >
             <ThemeInput
-              type="datetime-local"
+                  type="datetime-local"
               value={formatDateTimeLocal(editTask.task_deadline)}
               onChange={(e) => setEditTask(prev => ({ ...prev, task_deadline: e.target.value }))}
               min={formatDateTimeLocal(editTask.earliest_start_time) || new Date().toISOString().slice(0, 16)}
             />
           </ThemeFormField>
-        </div>
+            </div>
       );
     } else {
       // 重复任务：按照要求的字段顺序
@@ -1273,23 +1439,23 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               <div>
                 <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
                   {theme === 'pixel' ? 'FROM' : theme === 'modern' ? 'From' : '开始时间'}
-                </label>
+            </label>
                 <ThemeInput
                   type="time"
                   value={editTask.daily_time_start || ''}
                   onChange={(e) => setEditTask(prev => ({ ...prev, daily_time_start: e.target.value }))}
                 />
-              </div>
+          </div>
               <div>
                 <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
                   {theme === 'pixel' ? 'TO' : theme === 'modern' ? 'To' : '结束时间'}
-                </label>
+            </label>
                 <ThemeInput
                   type="time"
                   value={editTask.daily_time_end || ''}
                   onChange={(e) => setEditTask(prev => ({ ...prev, daily_time_end: e.target.value }))}
                 />
-              </div>
+          </div>
             </div>
           </ThemeFormField>
         </div>
@@ -1802,7 +1968,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           isNotStarted: true,
           message: `${startTime!.toLocaleString()} 之后可开始`
         };
-      } else {
+        } else {
         return {
           status: 'active',
           canSubmit: true,
@@ -1823,7 +1989,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           isNotStarted: false,
           message: `已于 ${endTime!.toLocaleString()} 过期`
         };
-      } else {
+        } else {
         return {
           status: 'active',
           canSubmit: true,
@@ -1912,7 +2078,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const checkCurrentPeriodCompleted = () => {
       try {
         const completionRecord: string[] = task.completion_record ? JSON.parse(task.completion_record) : [];
-        const today = new Date();
+    const today = new Date();
         let periodKey = '';
         
         switch (task.repeat_frequency) {
@@ -1969,7 +2135,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       const taskInfo = getTaskTypeInfo(task!);
       if (!task || !taskInfo.hasConsecutiveCount) return;
 
-      const today = new Date();
+    const today = new Date();
       const currentStreak = (task.current_streak || 0) + 1;
       const consecutiveCount = task.required_count || 7;
       
@@ -2023,7 +2189,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         ...(isCompleted && { status: 'completed' })
       };
       
-      await taskService.updateTask(taskId, updateData);
+      await taskService.updateTask({ id: taskId, ...updateData } as EditTaskForm);
       await reloadTasks();
     } catch (error) {
       console.error('❌ 连续任务打卡失败:', error);
@@ -2040,7 +2206,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         completion_record: JSON.stringify([])
       };
       
-      await taskService.updateTask(taskId, updateData);
+      await taskService.updateTask({ id: taskId, ...updateData } as EditTaskForm);
       await reloadTasks();
     } catch (error) {
       console.error('❌ 重置连续任务失败:', error);
@@ -2069,7 +2235,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const userHabitChallenge = isHabitTask ? userHabitChallenges.find(c => c.task_id === selectedTask.id) : null;
     const canJoinHabit = isHabitTask && selectedTask.task_deadline ? canJoinHabitTask(selectedTask.task_deadline, getTaskDuration(selectedTask)) : false;
 
-  return (
+    return (
       <ThemeDialog open={true} onOpenChange={handleCloseTaskDetail}>
           <DialogHeader>
             <div className="flex items-center justify-between">
@@ -2087,7 +2253,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               ) : (
           <button
                   className={`rounded-full p-2 transition-colors ${
-              theme === 'pixel'
+            theme === 'pixel'
                       ? 'bg-pixel-card border-2 border-pixel-border hover:bg-pixel-accent text-pixel-text' 
                       : 'bg-white border border-gray-200 hover:bg-gray-100 text-gray-600'
             }`}
@@ -2118,27 +2284,27 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                       ? 'text-muted-foreground'
                       : 'text-gray-500'
                   }`}>
-                    {theme === 'pixel' ? (
+              {theme === 'pixel' ? (
                       <div className="flex items-center space-x-1">
                         <span>READONLY</span>
           </div>
-                    ) : (
+              ) : (
                       <div className="flex items-center space-x-1">
                         <span>只读</span>
           </div>
-                    )}
+              )}
                   </span>
-        </div>
+      </div>
               )}
 
             {isEditing ? (
               // 编辑表单
               <>
                 <h4 className={`text-lg font-bold mb-4 ${
-              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
-            }`}>
+                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+              }`}>
                   {theme === 'pixel' ? 'EDIT_TASK' : theme === 'modern' ? 'Edit Task' : '编辑任务'}
-                </h4>
+              </h4>
                 
                 {/* 任务标题输入 */}
                 <ThemeFormField
@@ -2459,7 +2625,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     theme === 'pixel' ? 'font-mono uppercase' : ''
                   }`}>
                     {theme === 'pixel' ? 'PROOF REQUIRED' : '此任务需要提交完成凭证'}
-                  </span>
+                    </span>
                 </div>
               )}
 
@@ -2478,9 +2644,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     value={selectedTask.review_comment}
                   />
                 )}
-              </div>
-            )}
-            </div>
+          </div>
+                )}
+        </div>
         </DialogContent>
                     
                     <DialogFooter>
@@ -2582,8 +2748,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                   {theme === 'pixel' ? 'JOIN_DEADLINE_PASSED' : 
                                    theme === 'modern' ? 'Join task_deadline has passed' : 
                                    '加入截止日期已过'}
-                                </div>
-                              )}
+                    </div>
+                  )}
                             </>
                           )}
                           
@@ -2624,7 +2790,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                   >
                                     {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : '放弃'}
                                   </ThemeButton>
-                                </div>
+                  </div>
                               );
                             }
                             
@@ -2634,7 +2800,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 <div className="flex flex-col space-y-2">
                                   <div className="text-red-600 text-sm font-medium">
                                     {timeStatus.message}
-                                  </div>
+                </div>
                                   <ThemeButton
                                     variant="danger"
                                     onClick={async () => {
@@ -2655,8 +2821,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                   {timeStatus.status !== 'unlimited' && (
                                     <div className="text-green-600 text-sm font-medium">
                                       {timeStatus.message}
-                                    </div>
-                                  )}
+                    </div>
+                  )}
                                   {isAssigned && (
                                     <ThemeButton
                                       variant="primary"
@@ -2782,7 +2948,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
                               // 可以进行连续任务打卡
                               if (timeStatus.canSubmit || timeStatus.status === 'unlimited') {
-                                return (
+    return (
                                   <div className="flex flex-col space-y-2">
                                     {consecutiveStatus.canCheckIn && (
                                       <ThemeButton
@@ -2817,7 +2983,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                     >
                                       {theme === 'pixel' ? 'RESET_STREAK' : theme === 'modern' ? 'Reset Streak' : '重置连续'}
                                     </ThemeButton>
-                                  </div>
+            </div>
                                 );
                               }
                             }
@@ -3369,9 +3535,37 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </ThemeButton>
         </DialogFooter>
       </ThemeDialog>
+
+      {/* 取消编辑确认对话框 */}
+      <AlertDialog
+        open={showCancelEditConfirm}
+        onOpenChange={setShowCancelEditConfirm}
+        title="取消编辑"
+        description="您有未保存的更改，确定要取消编辑吗？所有更改将丢失。"
+        variant="default"
+        confirmText="确定取消"
+        cancelText="继续编辑"
+        onConfirm={confirmCancelEdit}
+        onCancel={() => setShowCancelEditConfirm(false)}
+      />
+
+      {/* 放弃任务确认对话框 */}
+      <AlertDialog
+        open={showDeleteTaskConfirm}
+        onOpenChange={setShowDeleteTaskConfirm}
+        title="放弃任务"
+        description={taskToDelete ? `确定要放弃任务"${tasks.find(t => t.id === taskToDelete)?.title}"吗？此操作无法撤销。` : '确定要放弃此任务吗？'}
+        variant="destructive"
+        confirmText="确定放弃"
+        cancelText="取消"
+        onConfirm={confirmAbandonTask}
+        onCancel={() => {
+          setShowDeleteTaskConfirm(false);
+          setTaskToDelete(null);
+        }}
+      />
       
-      {/* 开发工具面板 */}
-      <DevTools />
+      {/* 🚫 开发工具面板已移除 */}
     </div>
   );
 };

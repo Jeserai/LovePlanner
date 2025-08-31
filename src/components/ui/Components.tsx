@@ -3,6 +3,10 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { cn } from '../../lib/utils';
 import CustomCard from './CustomCard';
 import Button from './Button';
+
+// 导出新的反馈组件
+export { ToastProvider, useToast } from './toast';
+export { AlertDialog } from './alert-dialog';
 // 内联 shadcn Card 组件避免导入问题
 const ShadcnCard = React.forwardRef<
   HTMLDivElement,

@@ -61,7 +61,7 @@ const transformCreateForm = (form: CreateTaskForm, creatorId: string, coupleId: 
   };
 };
 
-export const newTaskService = {
+export const taskService = {
   // 🎯 获取情侣的所有任务
   async getTasks(coupleId: string, filter?: TaskFilter, sort?: TaskSort): Promise<Task[]> {
     try {

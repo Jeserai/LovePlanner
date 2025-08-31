@@ -24,9 +24,9 @@ import {
   RecurringEventActionDialog
 } from './ui/Components';
 import { format, subMonths, addMonths, isSameDay, isSameMonth } from 'date-fns';
-import { userService, taskService } from '../services/database';
-import { simplifiedEventService, type SimplifiedEvent } from '../services/simplifiedEventService';
-import { minimalColorService, type CoupleColors } from '../services/minimalColorService';
+import { userService } from '../services/database';
+import { eventService, type SimplifiedEvent } from '../services/eventService';
+import { colorService, type CoupleColors } from '../services/colorService';
 import { useAuth } from '../hooks/useAuth';
 import { globalEventService, GlobalEvents } from '../services/globalEventService';
 
@@ -147,7 +147,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     setIsRefreshing(true);
     try {
       if (coupleId && coupleUsers) {
-        const dbEvents = await simplifiedEventService.getCoupleEvents(coupleId);
+        const dbEvents = await eventService.getCoupleEvents(coupleId);
         const convertedEvents = dbEvents.map(convertSimplifiedEventToEvent);
         setEvents(convertedEvents);
         // console.log('🔄 Calendar 手动刷新完成');
@@ -390,11 +390,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             });
             
             // 加载颜色配置
-            const colors = await minimalColorService.getCoupleColors(coupleData.id);
+            const colors = await colorService.getCoupleColors(coupleData.id);
             if (colors) {
               setCoupleColors(colors);
             } else {
-              setCoupleColors(minimalColorService.getDefaultColors());
+              setCoupleColors(colorService.getDefaultColors());
             }
           }
         }
@@ -420,7 +420,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }
 
       try {
-        const dbEvents = await simplifiedEventService.getCoupleEvents(coupleId);
+        const dbEvents = await eventService.getCoupleEvents(coupleId);
         const convertedEvents = dbEvents.map(convertSimplifiedEventToEvent);
         setEvents(convertedEvents);
       } catch (error) {
@@ -615,7 +615,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   };
 
   // 🚫 任务事件读取功能已移除
-
+    
   // 获取所有事件（仅包括日历事件，不包括任务）
   const getAllEvents = useMemo((): Event[] => {
     const baseEvents: Event[] = [];
@@ -768,7 +768,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       if (user && coupleId) {
         // 保存到数据库
         const createParams = convertEventToCreateParams(event, coupleId, user.id, newEvent.startDateTime, newEvent.endDateTime, newEvent.location);
-        const savedEvent = await simplifiedEventService.createEvent(
+        const savedEvent = await eventService.createEvent(
           createParams.coupleId,
           createParams.title,
           createParams.eventDate,
@@ -929,7 +929,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             includes_user2: includesUser2,
           };
 
-          success = await simplifiedEventService.updateRecurringEventInstances(
+          success = await eventService.updateRecurringEventInstances(
             originalEventId,
             scope,
             selectedEvent.date,
@@ -937,7 +937,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           );
         } else {
           // 非重复事件 - 直接更新
-          success = await simplifiedEventService.updateEvent(originalEventId, {
+          success = await eventService.updateEvent(originalEventId, {
             title: updatedEvent.title,
             event_date: updatedEvent.date,
             start_time: updatedEvent.time || undefined,
@@ -1038,7 +1038,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       
       if (selectedEvent.isRecurring && scope !== 'this_only') {
         // 重复事件的批量删除
-        success = await simplifiedEventService.deleteRecurringEventInstances(
+        success = await eventService.deleteRecurringEventInstances(
           originalEventId,
           scope,
           selectedEvent.date
@@ -1047,14 +1047,14 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         // 单个事件删除
         if (selectedEvent.isRecurring && scope === 'this_only') {
           // 重复事件的单个实例删除 - 添加到排除日期列表
-          success = await simplifiedEventService.deleteRecurringEventInstances(
+          success = await eventService.deleteRecurringEventInstances(
             originalEventId,
             'this_only',
             selectedEvent.date
           );
         } else {
           // 非重复事件
-          success = await simplifiedEventService.deleteEvent(originalEventId);
+          success = await eventService.deleteEvent(originalEventId);
         }
       }
       
@@ -1140,7 +1140,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return { pixel: 'bg-pixel-textMuted', fresh: '#94a3b8', default: 'bg-gray-400' };
     }
     
-    const userColor = minimalColorService.getUserColorByPosition(currentUserIsUser1, coupleColors);
+    const userColor = colorService.getUserColorByPosition(currentUserIsUser1, coupleColors);
     
     return { 
       pixel: currentUserIsUser1 ? 'bg-pixel-info' : 'bg-pixel-accent', // 保持像素主题的固定样式
@@ -1155,7 +1155,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return { pixel: 'bg-pixel-textMuted', fresh: '#94a3b8', default: 'bg-gray-400' };
     }
     
-    const partnerColor = minimalColorService.getPartnerColorByPosition(currentUserIsUser1, coupleColors);
+    const partnerColor = colorService.getPartnerColorByPosition(currentUserIsUser1, coupleColors);
     
     return { 
       pixel: currentUserIsUser1 ? 'bg-pixel-accent' : 'bg-pixel-info', // 保持像素主题的固定样式
@@ -1220,7 +1220,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     }
     
     // fresh主题使用原有的颜色配置：
-    const eventColor = minimalColorService.getEventColor(
+    const eventColor = colorService.getEventColor(
       participants,
       user1Id,
       user2Id,

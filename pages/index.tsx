@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
 import { UserProvider, useUser } from '../src/contexts/UserContext';
+import { ToastProvider } from '../src/components/ui/Components';
 import { useAuth } from '../src/hooks/useAuth';
 import { realtimeSyncService } from '../src/services/realtimeSync';
 import { userService } from '../src/services/database';
@@ -275,7 +276,9 @@ export default function Home() {
   return (
     <ThemeProvider>
       <UserProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </UserProvider>
     </ThemeProvider>
   );

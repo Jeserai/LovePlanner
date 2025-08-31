@@ -155,117 +155,13 @@ export const userService = {
   }
 }
 
-// 任务相关操作
-export const taskService = {
-  // 获取情侣的所有任务
-  async getCoupleTasksOld(coupleId: string): Promise<Task[]> {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('couple_id', coupleId)
-      .order('created_at', { ascending: false })
+// 🚫 旧的任务服务已删除 - 现在使用 taskService.ts 中的统一服务
 
-    if (error) {
-      console.error('Error fetching tasks:', error)
-      return []
-    }
+// 导入事件服务
+export { eventService } from './eventService';
 
-    return data || []
-  },
-
-  // 创建新任务
-  async createTask(task: Database['public']['Tables']['tasks']['Insert']): Promise<Task | null> {
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert(task)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error creating task:', error)
-      return null
-    }
-
-    return data
-  },
-
-  // 更新任务状态
-  async updateTaskStatus(taskId: string, status: Task['status'], assigneeId?: string): Promise<boolean> {
-    const updates: any = { status }
-    if (assigneeId) {
-      updates.assignee_id = assigneeId
-    }
-
-    const { error } = await supabase
-      .from('tasks')
-      .update(updates)
-      .eq('id', taskId)
-
-    if (error) {
-      console.error('Error updating task status:', error)
-      return false
-    }
-
-    return true
-  },
-
-  // 提交任务
-  async submitTask(taskId: string, proofUrl?: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        status: 'pending_review',
-        submitted_at: new Date().toISOString(),
-        proof_url: proofUrl
-      })
-      .eq('id', taskId)
-
-    if (error) {
-      console.error('Error submitting task:', error)
-      return false
-    }
-
-    return true
-  },
-
-  // 完成任务（审核通过）
-  async completeTask(taskId: string, reviewComment?: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        review_comment: reviewComment
-      })
-      .eq('id', taskId)
-
-    if (error) {
-      console.error('Error completing task:', error)
-      return false
-    }
-
-    return true
-  },
-
-  // 通用任务更新方法
-  async updateTask(taskId: string, updates: any): Promise<boolean> {
-    const { data, error } = await supabase
-      .from('tasks')
-      .update(updates)
-      .eq('id', taskId)
-      .select()
-
-    if (error) {
-      console.error('❌ 任务更新失败:', error.message);
-      throw error;
-    }
-
-    return true
-  }
-}
-
-// 导入简化的事件服务
-export { simplifiedEventService } from './simplifiedEventService';
+// 导入任务服务
+export { taskService } from './taskService';
 
 // 积分相关操作
 export const pointService = {
