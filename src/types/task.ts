@@ -19,7 +19,7 @@ export interface Task {
   
   // 核心时间配置
   earliest_start_time: string | null;     // 最早开始时间
-  required_count: number | null;          // 需要完成的次数（forever任务为null）
+  required_count: number | null;          // 需要连续完成的次数（forever任务为null）
   task_deadline: string | null;           // 任务截止时间（forever任务为null）
   
   // 重复细节配置

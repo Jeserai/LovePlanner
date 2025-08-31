@@ -1274,10 +1274,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               />
             </ThemeFormField>
 
-            {/* 2. 重复次数（可选） */}
+            {/* 2. 连续完成次数（可选） */}
             <ThemeFormField
-              label={theme === 'pixel' ? 'REPEAT_COUNT' : theme === 'modern' ? 'Repeat Count' : '重复次数'}
-              description={theme === 'pixel' ? 'HOW_MANY_TIMES_REPEAT' : theme === 'modern' ? 'How many times should this task repeat? (Leave empty for unlimited)' : '任务需要重复多少次？（留空表示无限重复）'}
+              label={theme === 'pixel' ? 'CONSECUTIVE_COUNT' : theme === 'modern' ? 'Consecutive Count' : '连续完成次数'}
+              description={theme === 'pixel' ? 'HOW_MANY_CONSECUTIVE_DAYS' : theme === 'modern' ? 'How many consecutive completions needed? (Leave empty for unlimited)' : '需要连续完成多少次？（留空表示无限重复）'}
             >
               <ThemeInput
                 type="number"
@@ -1417,8 +1417,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
           {/* 2. 重复次数（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'REPEAT_COUNT' : theme === 'modern' ? 'Repeat Count' : '重复次数'}
-            description={theme === 'pixel' ? 'HOW_MANY_TIMES_REPEAT' : theme === 'modern' ? 'How many times should this task repeat? (Leave empty for unlimited)' : '任务需要重复多少次？（留空表示无限重复）'}
+            label={theme === 'pixel' ? 'CONSECUTIVE_COUNT' : theme === 'modern' ? 'Consecutive Count' : '连续完成次数'}
+            description={theme === 'pixel' ? 'HOW_MANY_CONSECUTIVE_DAYS' : theme === 'modern' ? 'How many consecutive completions needed? (Leave empty for unlimited)' : '需要连续完成多少次？（留空表示无限重复）'}
           >
             <ThemeInput
               type="number"

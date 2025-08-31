@@ -284,8 +284,11 @@ export const taskService = {
 
       // 判断任务是否完全完成
       let newStatus = currentTask.status;
-      if (currentTask.repeat_frequency === 'never' || 
-          (currentTask.required_count && newCompletedCount >= currentTask.required_count)) {
+      if (currentTask.repeat_frequency === 'never') {
+        // 一次性任务：完成一次就算完成
+        newStatus = 'completed';
+      } else if (currentTask.required_count && newCurrentStreak >= currentTask.required_count) {
+        // 🎯 修正：重复任务应该基于连续完成次数判断，而不是总完成次数
         newStatus = 'completed';
       }
 
