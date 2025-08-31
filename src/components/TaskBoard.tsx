@@ -1510,8 +1510,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 获取我领取的任务
   const getAssignedTasks = () => {
-    const currentUserName = getCurrentUserName();
-    return tasks.filter(task => task.assignee_id === currentUserName);
+    const currentUserId = getCurrentUserId();
+    // 🎯 修正：使用用户ID而不是用户名来匹配assignee_id
+    return tasks.filter(task => task.assignee_id === currentUserId);
   };
 
   // 获取可领取的任务
@@ -2234,7 +2235,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
     // 检查任务所有者 - 如果creator_id是UUID则与用户ID比较，否则与用户名比较
     const isTaskOwner = selectedTask.creator_id === currentUserId || selectedTask.creator_id === currentUserName;
-    const isAssignee = selectedTask.assignee_id === currentUserName;
+    // 🎯 修正：使用用户ID而不是用户名来匹配assignee_id
+    const isAssignee = selectedTask.assignee_id === currentUserId;
     const isRecruiting = selectedTask.status === 'recruiting';
     const isAssigned = selectedTask.status === 'assigned';
     const isInProgress = selectedTask.status === 'in_progress';
