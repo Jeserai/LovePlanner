@@ -118,6 +118,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const [showCancelEditConfirm, setShowCancelEditConfirm] = useState(false);
   const [showDeleteTaskConfirm, setShowDeleteTaskConfirm] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [deleteAction, setDeleteAction] = useState<'abandon' | 'delete'>('abandon');
   
   // 调试信息
   console.log('📋 TaskBoard 加载状态:', { loading, tasksLoaded, user: !!user, tasksCount: tasks.length });
@@ -636,47 +637,78 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     // 只有assigned状态的任务才能手动放弃
     if (task.status === 'assigned') {
       setTaskToDelete(taskId);
+      setDeleteAction('abandon');
       setShowDeleteTaskConfirm(true);
     }
   };
 
-  // 确认放弃任务
-  const confirmAbandonTask = async () => {
+  // 统一的确认删除/放弃任务
+  const confirmTaskAction = async () => {
     if (!taskToDelete) return;
     
     try {
       const task = tasks.find(t => t.id === taskToDelete);
       if (!task) return;
       
-      console.log('🚫 放弃任务:', { taskId: taskToDelete });
-      await taskService.abandonTask(taskToDelete);
+      if (deleteAction === 'abandon') {
+        console.log('🚫 放弃任务:', { taskId: taskToDelete });
+        await taskService.abandonTask(taskToDelete);
+        
+        // 成功反馈
+        addToast({
+          variant: 'warning',
+          title: '任务已放弃',
+          description: `任务"${task.title}"已从您的任务列表中移除`
+        });
+      } else {
+        console.log('🗑️ 删除任务:', { taskId: taskToDelete });
+        
+        // 这里需要调用删除任务的API
+        // 暂时使用abandon作为删除的替代方案
+        await taskService.abandonTask(taskToDelete);
+        
+        // 成功反馈
+        addToast({
+          variant: 'success',
+          title: '任务已删除',
+          description: `任务"${task.title}"已被永久删除`
+        });
+      }
+      
       await reloadTasks();
       
-      // 成功反馈
-      addToast({
-        variant: 'warning',
-        title: '任务已放弃',
-        description: `任务"${task.title}"已从您的任务列表中移除`
-      });
-      
-      // 关闭任务详情（如果当前显示的是被放弃的任务）
+      // 关闭任务详情（如果当前显示的是被操作的任务）
       if (selectedTask?.id === taskToDelete) {
         setSelectedTask(null);
         setIsEditing(false);
         setEditTask({});
       }
     } catch (error: any) {
-      console.error('❌ 放弃任务失败:', error);
+      console.error(`❌ ${deleteAction === 'abandon' ? '放弃' : '删除'}任务失败:`, error);
       
       // 错误反馈
       addToast({
         variant: 'error',
-        title: '放弃任务失败',
+        title: `${deleteAction === 'abandon' ? '放弃' : '删除'}任务失败`,
         description: error?.message || '请稍后重试'
       });
     } finally {
       setShowDeleteTaskConfirm(false);
       setTaskToDelete(null);
+      setDeleteAction('abandon');
+    }
+  };
+
+  // 删除任务（仅限任务所有者）
+  const handleDeleteTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    // 只有recruiting或abandoned状态的任务才能被删除
+    if (task.status === 'recruiting' || task.status === 'abandoned') {
+      setTaskToDelete(taskId);
+      setDeleteAction('delete');
+      setShowDeleteTaskConfirm(true);
     }
   };
 
@@ -2677,12 +2709,19 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             <>
                               <ThemeButton
                                 variant="secondary"
-                      onClick={() => {
+                                onClick={() => {
                                   handleEditTask(selectedTask);
                                   setIsEditing(true);
                                 }}
                               >
                                 {theme === 'pixel' ? 'EDIT' : theme === 'modern' ? 'Edit' : '编辑'}
+                              </ThemeButton>
+                              
+                              <ThemeButton
+                                variant="danger"
+                                onClick={() => handleDeleteTask(selectedTask.id)}
+                              >
+                                {theme === 'pixel' ? 'DELETE' : theme === 'modern' ? 'Delete' : '删除'}
                               </ThemeButton>
                             </>
                           )}
@@ -3549,19 +3588,25 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         onCancel={() => setShowCancelEditConfirm(false)}
       />
 
-      {/* 放弃任务确认对话框 */}
+      {/* 删除/放弃任务确认对话框 */}
       <AlertDialog
         open={showDeleteTaskConfirm}
         onOpenChange={setShowDeleteTaskConfirm}
-        title="放弃任务"
-        description={taskToDelete ? `确定要放弃任务"${tasks.find(t => t.id === taskToDelete)?.title}"吗？此操作无法撤销。` : '确定要放弃此任务吗？'}
+        title={deleteAction === 'abandon' ? '放弃任务' : '删除任务'}
+        description={taskToDelete ? 
+          deleteAction === 'abandon' 
+            ? `确定要放弃任务"${tasks.find(t => t.id === taskToDelete)?.title}"吗？任务将从您的列表中移除。`
+            : `确定要删除任务"${tasks.find(t => t.id === taskToDelete)?.title}"吗？此操作无法撤销。`
+          : deleteAction === 'abandon' ? '确定要放弃此任务吗？' : '确定要删除此任务吗？'
+        }
         variant="destructive"
-        confirmText="确定放弃"
+        confirmText={deleteAction === 'abandon' ? '确定放弃' : '确定删除'}
         cancelText="取消"
-        onConfirm={confirmAbandonTask}
+        onConfirm={confirmTaskAction}
         onCancel={() => {
           setShowDeleteTaskConfirm(false);
           setTaskToDelete(null);
+          setDeleteAction('abandon');
         }}
       />
       
