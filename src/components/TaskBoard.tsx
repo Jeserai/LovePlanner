@@ -365,6 +365,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
 
     try {
+      // 🎯 先检查并更新已到开始时间的任务状态
+      await taskService.checkAndUpdateTaskStatus(coupleId);
+      
       // 🎯 使用新的任务服务重新加载任务
       const newTasks = await taskService.getTasks(coupleId);
       setTasks(newTasks);
@@ -538,30 +541,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
   };
 
-  const handleStartTask = async (taskId: string) => {
-    try {
-      await taskService.startTask(taskId);
-      await reloadTasks();
-      
-      // 成功反馈
-      addToast({
-        variant: 'success',
-        title: '任务已开始',
-        description: '任务状态已更新为进行中'
-      });
-    } catch (error: any) {
-      console.error('❌ 开始任务失败:', error?.message);
-      
-      // 错误反馈
-      addToast({
-        variant: 'error',
-        title: '开始任务失败',
-        description: error?.message || '请稍后重试'
-      });
-      
-      throw error;
-    }
-  };
+  // 🎯 handleStartTask 已移除 - 现在任务状态由时间自动控制
 
   const handleCompleteTask = async (taskId: string) => {
     try {
@@ -634,8 +614,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     
-    // 只有assigned状态的任务才能手动放弃
-    if (task.status === 'assigned') {
+    // assigned和in_progress状态的任务都可以手动放弃（无论是否有截止日期）
+    if (task.status === 'assigned' || task.status === 'in_progress') {
       setTaskToDelete(taskId);
       setDeleteAction('abandon');
       setShowDeleteTaskConfirm(true);
@@ -2081,7 +2061,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 判断任务是否尚未开始
   const isTaskNotStarted = (task: Task) => {
-    return getTaskTimeStatus(task).isNotStarted;
+    // 🎯 新逻辑：只有in_progress状态的任务才能完成
+    // assigned状态表示任务还未到开始时间或用户还未手动开始
+    return task.status !== 'in_progress';
   };
 
   // 🎯 根据重复频率确定单位文本
@@ -2862,21 +2844,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                       {timeStatus.message}
                     </div>
                   )}
-                                  {isAssigned && (
-                                    <ThemeButton
-                                      variant="primary"
-                                      onClick={async () => {
-                                        try {
-                                          await handleStartTask(selectedTask.id);
-                                          handleCloseTaskDetail();
-                                        } catch (error) {
-                                          console.error('❌ 按钮点击处理失败:', error);
-                                        }
-                                      }}
-                                    >
-                                      {theme === 'pixel' ? 'START_TASK' : theme === 'modern' ? 'Start Task' : '开始任务'}
-                                    </ThemeButton>
-                                  )}
+                                  {/* 🎯 开始任务按钮已移除 - 现在任务状态由时间自动控制 */}
                                   <ThemeButton
                                     variant="danger"
                                     onClick={async () => {
@@ -2934,13 +2902,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 </>
               )}
 
-                                                    {/* 重新发布按钮 - 已放弃 */}
+                                                    {/* 重新发布按钮 - 已放弃（暂时禁用） */}
                           {isTaskOwner && isAbandoned && (
                             <ThemeButton
-                              variant="primary"
+                              variant="secondary"
+                              disabled={true}
                               onClick={async () => {
-                                await handleRepublishTask(selectedTask.id);
-                                handleCloseTaskDetail();
+                                // 功能暂时禁用
+                                addToast({
+                                  variant: 'warning',
+                                  title: '功能暂时禁用',
+                                  description: '重新发布功能正在完善中'
+                                });
                               }}
                             >
                               {theme === 'pixel' ? 'REPUBLISH' : theme === 'modern' ? 'Republish' : '重新发布'}

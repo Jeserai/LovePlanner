@@ -197,11 +197,40 @@ export const taskService = {
   // 🎯 分配任务
   async assignTask(taskId: string, assigneeId: string): Promise<Task> {
     try {
+      // 首先获取任务信息以判断是否有开始时间
+      const task = await this.getTask(taskId);
+      if (!task) {
+        throw new Error('任务不存在');
+      }
+
+      // 判断任务状态：
+      // 1. 没有开始时间 → 直接变为 in_progress
+      // 2. 有开始时间但还未到 → assigned
+      // 3. 有开始时间且已到 → in_progress
+      let newStatus: 'assigned' | 'in_progress' = 'assigned';
+      
+      if (!task.earliest_start_time) {
+        // 没有开始时间限制，领取后立即可以开始
+        newStatus = 'in_progress';
+      } else {
+        // 有开始时间限制，检查当前时间
+        const now = new Date();
+        const startTime = new Date(task.earliest_start_time);
+        
+        if (now >= startTime) {
+          // 已到开始时间，可以立即开始
+          newStatus = 'in_progress';
+        } else {
+          // 还未到开始时间，保持assigned状态
+          newStatus = 'assigned';
+        }
+      }
+
       const { data, error } = await supabase
         .from('tasks')
         .update({ 
           assignee_id: assigneeId,
-          status: 'assigned'
+          status: newStatus
         })
         .eq('id', taskId)
         .select()
@@ -219,27 +248,7 @@ export const taskService = {
     }
   },
 
-  // 🎯 开始任务
-  async startTask(taskId: string): Promise<Task> {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .update({ status: 'in_progress' })
-        .eq('id', taskId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('开始任务失败:', error);
-        throw error;
-      }
-
-      return transformDatabaseTask(data);
-    } catch (error) {
-      console.error('开始任务时出错:', error);
-      throw error;
-    }
-  },
+  // 🎯 开始任务方法已移除 - 现在通过时间自动判断状态
 
   // 🎯 完成任务（一次）
   async completeTask(taskId: string, proofUrl?: string): Promise<Task> {
@@ -450,6 +459,52 @@ export const taskService = {
     } catch (error) {
       console.error('获取任务统计时出错:', error);
       throw error;
+    }
+  },
+
+  // 🎯 自动检查并更新已到开始时间的任务状态
+  async checkAndUpdateTaskStatus(coupleId: string): Promise<void> {
+    try {
+      const now = new Date();
+      
+      // 查找所有assigned状态且有开始时间的任务
+      const { data: assignedTasks, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('couple_id', coupleId)
+        .eq('status', 'assigned')
+        .not('earliest_start_time', 'is', null);
+
+      if (error) {
+        console.error('查询assigned任务失败:', error);
+        return;
+      }
+
+      if (!assignedTasks || assignedTasks.length === 0) {
+        return;
+      }
+
+      // 检查每个任务是否已到开始时间
+      const tasksToUpdate = assignedTasks.filter(task => {
+        const startTime = new Date(task.earliest_start_time!);
+        return now >= startTime;
+      });
+
+      // 批量更新状态为in_progress
+      for (const task of tasksToUpdate) {
+        await supabase
+          .from('tasks')
+          .update({ status: 'in_progress' })
+          .eq('id', task.id);
+        
+        console.log(`任务 ${task.title} 已自动开始 (${task.earliest_start_time} → 现在)`);
+      }
+
+      if (tasksToUpdate.length > 0) {
+        console.log(`自动更新了 ${tasksToUpdate.length} 个任务状态为 in_progress`);
+      }
+    } catch (error) {
+      console.error('检查任务状态时出错:', error);
     }
   }
 };
