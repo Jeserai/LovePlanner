@@ -734,7 +734,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       if (!excludedDates.includes(dateString)) {
         // 基础事件实例
         let eventInstance: Event = {
-          ...event,
+        ...event,
           id: `${event.id}-${dateString}`,
           date: dateString
         };
@@ -1096,9 +1096,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         ? `${startDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
         : `${startDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}`;
 
-      const updatedEvent: Event = {
-        ...selectedEvent,
-        title: editEvent.title,
+    const updatedEvent: Event = {
+      ...selectedEvent,
+      title: editEvent.title,
         date: startDate,
         time: timeDisplay,
         participants: participants,
@@ -1154,9 +1154,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         if (success) {
           // 刷新事件列表
           await handleRefresh();
-          setShowDetailModal(false);
-          setIsEditing(false);
-          setSelectedEvent(null);
+    setShowDetailModal(false);
+    setIsEditing(false);
+    setSelectedEvent(null);
         } else {
           throw new Error('更新失败');
         }
@@ -1205,7 +1205,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       });
     } else {
       // 非重复事件，使用普通确认对话框
-      setConfirmDialog({
+    setConfirmDialog({
         open: true,
         title: theme === 'pixel' ? 'DELETE_EVENT' : theme === 'modern' ? 'Delete Event' : '删除事件',
         description: theme === 'pixel' ? 'ARE_YOU_SURE_TO_DELETE_THIS_EVENT' : theme === 'modern' ? 'Are you sure you want to delete this event?' : '确定要删除这个事件吗？',
@@ -1298,7 +1298,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           // 同一天的时间格式 "14:30 - 16:30"
           startDateTime = `${event.date}T${startPart}`;
           endDateTime = `${event.date}T${endPart}`;
-        } else {
+    } else {
           // 跨天的时间格式 "01-15 14:30 - 01-16 09:00"
           const year = new Date().getFullYear();
           const [startMonth, startDayTime] = startPart.split(' ');
@@ -1315,7 +1315,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       endDateTime = `${event.date}T10:00`;
     }
     
-    setEditEvent({
+      setEditEvent({
       title: event.title,
       location: '', // 暂时设为空，因为旧事件可能没有这个字段
       startDateTime: startDateTime,

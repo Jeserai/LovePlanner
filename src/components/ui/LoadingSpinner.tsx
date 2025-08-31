@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { Spinner } from './spinner';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -38,18 +39,31 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     <div className={`text-center ${paddingClasses[size]} ${className}`}>
       <div className="space-y-4">
         {/* 加载动画 */}
-        <div className={`mx-auto ${sizeClasses[size]} ${
-          theme === 'pixel' 
-            ? 'border-4 border-pixel-border border-t-pixel-accent animate-spin' 
-            : theme === 'fresh'
-            ? 'border-4 border-fresh-border border-t-fresh-primary animate-spin'
-            : 'border-4 border-gray-200 border-t-primary-600 animate-spin'
-        } rounded-full`}></div>
+        {theme === 'modern' ? (
+          <div className="flex justify-center">
+            <Spinner 
+              size={size === 'sm' ? 'sm' : size === 'lg' ? 'lg' : 'default'}
+              className="text-primary"
+            />
+          </div>
+        ) : (
+          <div className={`mx-auto ${sizeClasses[size]} ${
+            theme === 'pixel' 
+              ? 'border-4 border-pixel-border border-t-pixel-accent animate-spin' 
+              : theme === 'fresh'
+              ? 'border-4 border-fresh-border border-t-fresh-primary animate-spin'
+              : 'border-4 border-gray-200 border-t-primary-600 animate-spin'
+          } rounded-full`}></div>
+        )}
         
         {/* 主要文字 */}
         {title && (
           <div className={`${textSizeClasses[size]} font-medium ${
-            theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-700'
+            theme === 'pixel' 
+              ? 'text-pixel-text font-mono uppercase' 
+              : theme === 'modern'
+              ? 'text-foreground'
+              : 'text-gray-700'
           }`}>
             {title}
           </div>
@@ -57,8 +71,12 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         
         {/* 副标题 */}
         {subtitle && (
-          <div className={`text-sm opacity-75 ${
-            theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+          <div className={`text-sm ${
+            theme === 'pixel' 
+              ? 'text-pixel-textMuted font-mono opacity-75' 
+              : theme === 'modern'
+              ? 'text-muted-foreground'
+              : 'text-gray-500 opacity-75'
           }`}>
             {subtitle}
           </div>

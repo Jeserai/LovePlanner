@@ -158,6 +158,157 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
   };
 
   // 根据主题渲染不同风格
+  if (theme === 'modern') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        {/* 背景网格 */}
+        <div className="absolute inset-0 bg-grid-black/[0.02] bg-[size:50px_50px]" />
+        
+        <div className="relative w-full max-w-md">
+          <ThemeCard className="p-8 space-y-6">
+            {/* Logo和标题 */}
+            <div className="text-center space-y-4">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-12 h-12 bg-primary rounded-md flex items-center justify-center">
+                  <span className="text-2xl">💕</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-3xl font-bold text-foreground">
+                  Love Planner
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Welcome back to your shared space
+                </p>
+              </div>
+            </div>
+
+            {/* 错误提示 */}
+            {error && (
+              <div className="p-3 border border-destructive/20 bg-destructive/5 rounded-md">
+                <p className="text-sm text-destructive text-center">{error}</p>
+              </div>
+            )}
+
+            {/* 快速登录 */}
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-sm font-medium text-foreground">Quick Login</p>
+                <p className="text-xs text-muted-foreground">Choose your profile</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {quickLogins.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => handleQuickLogin(user)}
+                    disabled={isLoading}
+                    className="p-4 rounded-md border border-border transition-all duration-200 flex flex-col items-center space-y-2 hover:bg-accent hover:border-primary/20 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="w-10 h-10 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-lg">
+                      {getPresetUserUITheme(user) === 'cat' ? '🐱' : '🐮'}
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium text-foreground text-sm">{user.displayName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {getPresetUserUITheme(user) === 'cat' ? 'Cat Lover' : 'Cow Lover'}
+                      </div>
+                    </div>
+                    {isLoading && (
+                      <div className="w-4 h-4 border-2 border-muted-foreground/20 border-t-muted-foreground rounded-full animate-spin" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 分割线 */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            {/* 登录表单 */}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <ThemeFormField label="Email Address" required>
+                <ThemeInput
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Enter your email address"
+                  disabled={isLoading}
+                  error={!!error}
+                />
+              </ThemeFormField>
+
+              <ThemeFormField label="Password" required>
+                <div className="relative">
+                  <ThemeInput
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Enter your password"
+                    disabled={isLoading}
+                    error={!!error}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={isLoading}
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="w-4 h-4" />
+                    ) : (
+                      <EyeIcon className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </ThemeFormField>
+
+              <ThemeButton
+                type="submit"
+                disabled={isLoading || !formData.email || !formData.password}
+                className="w-full"
+                size="lg"
+              >
+                {isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    <span>Signing in...</span>
+                  </div>
+                ) : (
+                  <span>Sign In</span>
+                )}
+              </ThemeButton>
+            </form>
+
+            {/* 底部提示 */}
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                💡 Tip: Use the profile buttons above for quick access
+              </p>
+            </div>
+          </ThemeCard>
+
+          {/* 底部装饰文字 */}
+          <div className="text-center mt-6">
+            <p className="text-sm text-muted-foreground">
+              Plan your love story together
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (theme === 'fresh') {
     return (
       <div 

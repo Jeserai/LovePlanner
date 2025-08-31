@@ -11,13 +11,13 @@ const Settings: React.FC = () => {
   const sections = [
     {
       id: 'profile',
-      name: theme === 'pixel' ? 'USER_PROFILE' : '用户档案',
+      name: theme === 'pixel' ? 'USER_PROFILE' : theme === 'modern' ? 'User Profile' : '用户档案',
       icon: UserIcon,
       pixelIcon: 'user'
     },
     {
       id: 'theme',
-      name: theme === 'pixel' ? 'THEME_SETTINGS' : '主题设置',
+      name: theme === 'pixel' ? 'THEME_SETTINGS' : theme === 'modern' ? 'Theme Settings' : '主题设置',
       icon: PaintBrushIcon,
       pixelIcon: 'palette'
     }
@@ -26,16 +26,16 @@ const Settings: React.FC = () => {
   const themes = [
     {
       id: 'modern' as const,
-      name: '现代主题（默认）',
-      description: '基于shadcn/ui的现代设计系统，简洁优雅的界面风格',
+      name: theme === 'modern' ? 'Modern Theme (Default)' : '现代主题（默认）',
+      description: theme === 'modern' ? 'Based on shadcn/ui design system, clean and elegant interface style' : '基于shadcn/ui的现代设计系统，简洁优雅的界面风格',
       icon: PaintBrushIcon,
       preview: 'bg-gradient-to-br from-gray-500 to-slate-600',
       color: 'text-gray-600'
     },
     {
       id: 'fresh' as const,
-      name: '清新淡雅',
-      description: '简约现代的设计风格，清新淡雅的绿色系配色',
+      name: theme === 'modern' ? 'Fresh & Elegant' : '清新淡雅',
+      description: theme === 'modern' ? 'Simple modern design style with fresh green color scheme' : '简约现代的设计风格，清新淡雅的绿色系配色',
       icon: PaintBrushIcon,
       preview: 'bg-gradient-to-br from-fresh-accent to-fresh-mint',
       color: 'text-fresh-accent'

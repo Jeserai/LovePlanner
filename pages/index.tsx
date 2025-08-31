@@ -10,11 +10,37 @@ import TaskBoard from '../src/components/TaskBoard';
 import Shop from '../src/components/Shop';
 import Settings from '../src/components/Settings';
 import AuthForm from '../src/components/AuthForm';
+import { Spinner } from '../src/components/ui/spinner';
 // 路由测试工具已移除（清理调试信息）
 
 // 加载组件
 const LoadingScreen: React.FC = () => {
   const { theme } = useTheme();
+  
+  if (theme === 'modern') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        {/* 背景网格 */}
+        <div className="absolute inset-0 bg-grid-black/[0.02] bg-[size:50px_50px]" />
+        
+        <div className="relative text-center space-y-6">
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <Spinner size="lg" className="text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-foreground">
+                Love Planner
+              </h1>
+              <p className="text-muted-foreground">
+                Preparing your workspace...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   if (theme === 'pixel') {
     return (
@@ -95,7 +121,7 @@ const LoadingScreen: React.FC = () => {
             爱情规划师
           </h2>
           <p className="text-gray-600 text-sm">
-            正在为你准备甜蜜的体验...
+            正在为你准备甜蜜的工作空间...
           </p>
         </div>
       </div>
@@ -107,15 +133,16 @@ const LoadingScreen: React.FC = () => {
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('calendar'); // 默认显示日历
   const [initializedTabs, setInitializedTabs] = useState<Set<string>>(new Set(['calendar'])); // 跟踪已初始化的标签页
+  const [appReady, setAppReady] = useState(false); // 应用就绪状态
   const { user, loading: authLoading, signOut } = useAuth();
   const { userProfile, loading: userLoading } = useUser();
   
-  // 实时同步初始化
+  // 应用初始化和实时同步
   useEffect(() => {
     let visibilityCleanup: (() => void) | undefined;
     
-    const initializeRealtime = async () => {
-      if (user && userProfile) {
+    const initializeApp = async () => {
+      if (user && userProfile && !appReady) {
         try {
           // 获取情侣关系ID
           const coupleData = await userService.getCoupleRelation(user.id);
@@ -127,14 +154,24 @@ const AppContent: React.FC = () => {
             visibilityCleanup = realtimeSyncService.initializeVisibilitySync();
             
             console.log('🔔 实时同步服务已启动');
+            
+            // 给一点时间让数据准备好，然后标记应用就绪
+            setTimeout(() => {
+              setAppReady(true);
+            }, 500);
+          } else {
+            // 即使没有情侣关系，也标记为就绪
+            setAppReady(true);
           }
         } catch (error) {
-          console.error('❌ 初始化实时同步失败:', error);
+          console.error('❌ 初始化应用失败:', error);
+          // 即使初始化失败，也要让应用继续运行
+          setAppReady(true);
         }
       }
     };
 
-    initializeRealtime();
+    initializeApp();
     
     // 清理函数
     return () => {
@@ -142,7 +179,7 @@ const AppContent: React.FC = () => {
         visibilityCleanup();
       }
     };
-  }, [user, userProfile]);
+  }, [user, userProfile, appReady]);
 
   // 当切换标签页时，记录已初始化的标签页
   const handleTabChange = (tab: string) => {
@@ -158,6 +195,8 @@ const AppContent: React.FC = () => {
   const handleAuthSuccess = (authUser: any, profile: any) => {
     console.log('🎉 认证成功:', authUser.email);
     setActiveTab('calendar');
+    // 重置应用就绪状态，让应用重新初始化
+    setAppReady(false);
   };
 
   // 处理登出
@@ -168,6 +207,7 @@ const AppContent: React.FC = () => {
       
       await signOut();
       setActiveTab('calendar');
+      setAppReady(false); // 重置应用状态
       console.log('👋 用户已登出');
     } catch (error) {
       console.error('❌ 登出时出错:', error);
@@ -204,18 +244,18 @@ const AppContent: React.FC = () => {
     );
   };
 
-  // 加载状态 - 认证状态检查中或用户初始化中
-  if (authLoading || userLoading) {
-    return <LoadingScreen />;
-  }
-
   // 路由逻辑：
-  // 1. 未登录用户 -> 显示认证页面
+  // 1. 未登录用户 -> 显示认证页面（AuthForm会处理自己的loading状态）
   if (!user) {
     return <AuthForm onAuthSuccess={handleAuthSuccess} />;
   }
 
-  // 2. 已登录用户 -> 显示主应用（默认日历视图）
+  // 2. 已登录但应用未就绪 -> 显示加载屏幕（包括用户资料、应用初始化等）
+  if (authLoading || userLoading || !appReady) {
+    return <LoadingScreen />;
+  }
+
+  // 3. 已登录用户 -> 显示主应用（默认日历视图）
   const currentUserName = userProfile?.display_name || user?.email || 'User';
   
   return (

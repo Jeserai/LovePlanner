@@ -98,7 +98,7 @@ export type Database = {
           id: string
           title: string
           description: string | null
-          deadline: string
+          deadline: string | null
           points: number
           status: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
           creator_id: string
@@ -128,7 +128,7 @@ export type Database = {
           id?: string
           title: string
           description?: string | null
-          deadline: string
+          deadline: string | null
           points: number
           status?: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
           creator_id: string
@@ -158,7 +158,7 @@ export type Database = {
           id?: string
           title?: string
           description?: string | null
-          deadline?: string
+          deadline?: string | null
           points?: number
           status?: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
           creator_id?: string

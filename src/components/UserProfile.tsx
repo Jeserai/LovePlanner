@@ -104,8 +104,8 @@ const UserProfile: React.FC = () => {
     return (
       <LoadingSpinner
         size="lg"
-        title={theme === 'pixel' ? 'LOADING PROFILE...' : '正在加载用户资料...'}
-        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : '请稍候，正在从数据库获取您的信息'}
+        title={theme === 'pixel' ? 'LOADING PROFILE...' : theme === 'modern' ? 'Loading Profile...' : '正在加载用户资料...'}
+        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : theme === 'modern' ? 'Please wait, fetching your profile data' : '请稍候，正在从数据库获取您的信息'}
         className="min-h-[400px]"
       />
     );
@@ -130,8 +130,8 @@ const UserProfile: React.FC = () => {
     return (
       <LoadingSpinner
         size="lg"
-        title={theme === 'pixel' ? 'LOADING PROFILE...' : '正在加载用户资料...'}
-        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : '请稍候，正在从数据库获取您的信息'}
+        title={theme === 'pixel' ? 'LOADING PROFILE...' : theme === 'modern' ? 'Loading Profile...' : '正在加载用户资料...'}
+        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : theme === 'modern' ? 'Please wait, fetching your profile data' : '请稍候，正在从数据库获取您的信息'}
         className="min-h-[400px]"
       />
     );

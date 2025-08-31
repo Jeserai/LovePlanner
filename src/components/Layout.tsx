@@ -2,7 +2,7 @@ import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { getUserDisplayInfo } from '../services/authService';
-import { HeartIcon, CalendarDaysIcon, ListBulletIcon, ShoppingBagIcon, Cog6ToothIcon, UserIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import Icon from './ui/Icon';
 import PixelIcon from './PixelIcon';
 import { ThemeButton } from './ui/Components';
 
@@ -22,22 +22,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
     { 
       id: 'calendar', 
       name: theme === 'pixel' ? 'CALENDAR' : theme === 'modern' ? 'Calendar' : 'CALENDAR', 
-      icon: CalendarDaysIcon 
+      iconName: 'calendar' as const
     },
     { 
       id: 'tasks', 
       name: theme === 'pixel' ? 'TASKS' : theme === 'modern' ? 'Tasks' : 'TASKS', 
-      icon: ListBulletIcon 
+      iconName: 'list' as const
     },
     { 
       id: 'shop', 
       name: theme === 'pixel' ? 'SHOP' : theme === 'modern' ? 'Shop' : 'SHOP', 
-      icon: ShoppingBagIcon 
+      iconName: 'shopping-bag' as const
     },
     { 
       id: 'settings', 
       name: theme === 'pixel' ? 'SETTINGS' : theme === 'modern' ? 'Settings' : 'SETTINGS', 
-      icon: Cog6ToothIcon 
+      iconName: 'settings' as const
     },
   ];
 
@@ -115,11 +115,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                 <span className="text-3xl animate-fresh-breathe">💚</span>
               ) : theme === 'modern' ? (
                 <div className="flex items-center space-x-2">
-                  <HeartIcon className="h-6 w-6 text-primary" />
+                  <Icon name="heart" size="lg" className="text-primary" />
                   <span className="font-semibold text-lg text-foreground">Love Planner</span>
                 </div>
               ) : (
-                <HeartIcon className="w-8 h-8 text-secondary-500" />
+                <Icon name="heart" size="xl" className="text-secondary-500" />
               )}
               {theme !== 'modern' && (
                 <h1 className={`text-2xl font-bold ${
@@ -135,48 +135,47 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
             </div>
             
             {/* Navigation */}
-            <nav className={`flex items-center space-x-1 ${
+            <nav className={`flex items-center ${
               theme === 'pixel' 
-                ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel p-1' 
+                ? 'space-x-2' 
                 : theme === 'fresh'
-                ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh backdrop-blur-sm p-1'
+                ? 'space-x-2'
                 : theme === 'modern'
-                ? 'bg-muted/50 rounded-lg p-1'
-                : 'bg-white/40 backdrop-blur-md rounded-2xl shadow-dream p-1'
+                ? 'space-x-1'
+                : 'space-x-2'
             }`}>
               {tabs.map((tab) => {
-                const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => onTabChange(tab.id)}
                     className={`flex items-center space-x-2 transition-all duration-200 ${
                       theme === 'pixel' 
-                        ? `rounded-pixel font-mono text-sm uppercase px-4 py-2 ${
+                        ? `rounded-pixel font-mono text-sm uppercase px-3 py-2 ${
                             activeTab === tab.id
-                              ? 'bg-pixel-accent text-black font-bold shadow-pixel border border-black'
-                              : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent'
+                              ? 'bg-pixel-accent text-black font-bold shadow-pixel border-2 border-black'
+                              : 'text-pixel-text hover:text-pixel-accent hover:bg-pixel-panel/50 border-2 border-transparent'
                           }`
                         : theme === 'fresh'
-                        ? `rounded-fresh font-medium text-sm px-4 py-2 ${
+                        ? `rounded-lg font-medium text-sm px-3 py-2 ${
                             activeTab === tab.id
-                              ? 'bg-fresh-accent text-white shadow-fresh-sm'
-                              : 'text-fresh-text hover:bg-fresh-primary hover:text-fresh-accent'
+                              ? 'bg-fresh-accent text-white'
+                              : 'text-fresh-text hover:text-fresh-accent hover:bg-fresh-primary/10'
                           }`
                         : theme === 'modern'
-                        ? `inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                        ? `inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${
                             activeTab === tab.id
-                              ? 'bg-background text-foreground shadow-sm'
-                              : 'text-muted-foreground hover:text-foreground'
+                              ? 'text-foreground bg-accent/20 font-semibold'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-accent/10'
                           }`
-                        : `rounded-xl px-4 py-2 ${
+                        : `rounded-lg px-3 py-2 ${
                             activeTab === tab.id
-                              ? 'bg-water-lily text-white shadow-dream'
-                              : 'text-secondary-600 hover:bg-white/50 hover:text-secondary-700'
+                              ? 'bg-primary-500 text-white'
+                              : 'text-secondary-600 hover:bg-primary-50 hover:text-primary-600'
                           }`
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon name={tab.iconName} className="text-current" />
                     <span className="font-medium">{tab.name}</span>
                   </button>
                 );
@@ -242,17 +241,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                       {userInfo?.emoji || '👤'}
                     </div>
                   ) : theme === 'modern' ? (
-                    <UserIcon className={`w-4 h-4 ${
+                    <Icon name="user" size="sm" className={
                       userInfo?.color === 'purple' ? 'text-purple-600' :
                       userInfo?.color === 'blue' ? 'text-blue-600' :
                       'text-muted-foreground'
-                    }`} />
+                    } />
                   ) : (
-                    <UserIcon className={`w-4 h-4 ${
+                    <Icon name="user" size="sm" className={
                       userInfo?.color === 'blue' ? 'text-blue-600' :
                       userInfo?.color === 'primary' ? 'text-primary-600' :
                       'text-gray-600'
-                    }`} />
+                    } />
                   )}
                   <span className={`text-sm font-medium ${
                     theme === 'pixel' 
@@ -275,16 +274,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
                 {onLogout && (
                   <button
                     onClick={onLogout}
-                    className={`flex items-center space-x-1 px-3 py-2 transition-all duration-300 ${
+                    className={`flex items-center space-x-1 px-3 py-2 transition-all duration-200 ${
                       theme === 'pixel' 
                         ? 'text-pixel-textMuted hover:text-pixel-warning hover:bg-pixel-panel rounded-pixel border border-pixel-border font-mono text-sm'
                         : theme === 'fresh'
                         ? 'text-fresh-textMuted hover:text-fresh-error hover:bg-fresh-primary rounded-fresh-lg border border-fresh-border'
+                        : theme === 'modern'
+                        ? 'text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md border border-border hover:border-destructive/20'
                         : 'text-sage-500 hover:text-orange-500 hover:bg-orange-50/50 rounded-xl backdrop-blur-md'
                     }`}
                     title={theme === 'pixel' ? 'LOGOUT' : '退出登录'}
                   >
-                    <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                    <Icon name="logout" />
                     <span className="text-sm font-medium">
                       {theme === 'pixel' ? 'EXIT' : '退出'}
                     </span>

@@ -92,9 +92,9 @@ export const ThemeCard = React.forwardRef<HTMLDivElement, ThemeCardProps>(
         <ShadcnCard 
           ref={ref} 
           className={cn(
-            'p-6', // 默认 padding
-            variant === 'elevated' && 'shadow-lg hover:shadow-xl',
-            variant === 'interactive' && hover && 'hover:bg-accent/5 cursor-pointer',
+            size === 'sm' ? 'p-4' : size === 'lg' ? 'p-8' : 'p-6', // shadcn标准间距
+            variant === 'elevated' && 'shadow-md hover:shadow-lg transition-shadow duration-200',
+            variant === 'interactive' && hover && 'hover:bg-accent/5 cursor-pointer transition-colors duration-200',
             className
           )}
           {...props}
@@ -416,7 +416,7 @@ export const ThemeDialog: React.FC<ThemeDialogProps> = ({
     : theme === 'fresh'
     ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh-lg'
     : theme === 'modern'
-    ? 'bg-background text-foreground border border-border rounded-lg shadow-lg'
+    ? 'bg-background text-foreground border border-border rounded-lg shadow-lg transition-all duration-200'
     : 'bg-white rounded-xl shadow-xl border border-gray-200';
   
   return (

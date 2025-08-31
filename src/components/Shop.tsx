@@ -18,7 +18,7 @@ const Shop: React.FC = () => {
               ? 'font-display text-fresh-text fresh-gradient-text'
               : 'font-display text-gray-700'
           }`}>
-            {theme === 'pixel' ? 'SHOP.EXE' : '个人商店'}
+            {theme === 'pixel' ? 'SHOP.EXE' : theme === 'modern' ? 'Personal Shop' : '个人商店'}
           </h2>
         </div>
       </div>
@@ -61,7 +61,7 @@ const Shop: React.FC = () => {
               ? 'text-fresh-text'
               : 'text-gray-800'
           }`}>
-            {theme === 'pixel' ? 'UNDER_DEVELOPMENT' : '开发中'}
+            {theme === 'pixel' ? 'UNDER_DEVELOPMENT' : theme === 'modern' ? 'Under Development' : '开发中'}
           </h3>
 
           {/* Message */}
@@ -74,6 +74,8 @@ const Shop: React.FC = () => {
           }`}>
             {theme === 'pixel' 
               ? 'THIS MODULE IS CURRENTLY UNDER DEVELOPMENT.\nCOMING SOON!'
+              : theme === 'modern' 
+              ? 'This feature module is under development.\nCurrently unavailable, stay tuned!'
               : '该功能模块正在开发中，\n暂时不可用，敬请期待！'
             }
           </p>
