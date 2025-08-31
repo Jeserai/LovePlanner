@@ -210,9 +210,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                     </div>
                     <div className="text-center">
                       <div className="font-medium text-foreground text-sm">{user.displayName}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {getPresetUserUITheme(user) === 'cat' ? 'Cat Lover' : 'Cow Lover'}
-                      </div>
                     </div>
                     {isLoading && (
                       <div className="w-4 h-4 border-2 border-muted-foreground/20 border-t-muted-foreground rounded-full animate-spin" />

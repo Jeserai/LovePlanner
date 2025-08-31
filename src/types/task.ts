@@ -2,7 +2,7 @@
 
 export type RepeatFrequency = 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'forever';
 export type TaskType = 'daily' | 'habit' | 'special';
-export type TaskStatus = 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned';
+export type TaskStatus = 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned' | 'pending_review';
 
 // 🎯 核心任务接口 - 匹配数据库结构
 export interface Task {
@@ -35,7 +35,7 @@ export interface Task {
   completed_count: number;                // 已完成次数
   current_streak: number;                 // 当前连续次数
   longest_streak: number;                 // 历史最长连续次数
-  completion_record: Record<string, boolean>; // 完成记录 {"2024-01-01": true, ...}
+  completion_record: string | null; // 完成记录的JSON字符串 ["2024-01-01", "2024-01-02", ...]
   
   // 其他字段
   requires_proof: boolean;

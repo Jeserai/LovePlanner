@@ -73,7 +73,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // 强制刷新状态，用于触发重新渲染
-  const [forceRefresh, setForceRefresh] = useState(0);
+  // 🚫 forceRefresh状态已移除（用于任务同步）
   
   // 用户类型定义
   type UserView = 'my' | 'partner' | 'shared';
@@ -119,178 +119,24 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     if (currentUserIsUser1 !== null && user) {
       // console.log('📅 设置默认视图为"我的日历":', { currentUserIsUser1, userId: user.id });
       setCurrentView('my'); // 总是默认显示"我的日历"
+      
+      // 清理任务相关的localStorage数据
+      cleanupTaskData();
     }
   }, [currentUserIsUser1, user]);
 
   // 生成重复性任务的日历事件
-  const generateRecurringTaskEvents = (task: any, participants: string[], color: string): Event[] => {
-    const events: Event[] = [];
-    
-    if (!task.start_date || !task.end_date || !task.repeat_frequency) {
-      // console.log('⚠️ 重复性任务缺少必要信息:', task.title);
-      return events;
-    }
-    
-    const startDate = new Date(task.start_date);
-    const endDate = new Date(task.end_date);
-    const currentDate = new Date(startDate);
-    
-    // 确保不超过合理的事件数量限制（避免无限循环）
-    const maxEvents = 365; // 最多一年的事件
-    let eventCount = 0;
-    
-    // 如果有指定工作日，使用特殊逻辑
-    if (task.repeat_weekdays && task.repeat_weekdays.length > 0) {
-      // 为每个指定的工作日生成事件
-      while (currentDate <= endDate && eventCount < maxEvents) {
-        const dayOfWeek = currentDate.getDay(); // 0=Sunday, 1=Monday, ...
-        
-        if (task.repeat_weekdays.includes(dayOfWeek)) {
-          const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
-          
-          const taskEvent: Event = {
-            id: `task-${task.id}-${dateStr}`,
-            title: task.title,
-            date: dateStr,
-            time: task.repeat_time || undefined,
-            participants,
-            color,
-            isRecurring: true,
-            recurrenceType: task.repeat_frequency,
-            originalDate: task.start_date
-          };
-          
-          events.push(taskEvent);
-          eventCount++;
-        }
-        
-        // 移动到下一天
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-    } else {
-      // 常规重复频率逻辑
-      while (currentDate <= endDate && eventCount < maxEvents) {
-        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
-        
-        const taskEvent: Event = {
-          id: `task-${task.id}-${dateStr}`,
-          title: `📋 ${task.title}`,
-          date: dateStr,
-          time: task.repeat_time || undefined,
-          participants,
-          color,
-          isRecurring: true,
-          recurrenceType: task.repeat_frequency,
-          originalDate: task.start_date
-        };
-        
-        events.push(taskEvent);
-        eventCount++;
-        
-        // 根据重复频率移动到下一个日期
-        switch (task.repeat_frequency) {
-          case 'daily':
-            currentDate.setDate(currentDate.getDate() + 1);
-            break;
-          case 'weekly':
-            currentDate.setDate(currentDate.getDate() + 7);
-            break;
-          case 'biweekly':
-            currentDate.setDate(currentDate.getDate() + 14);
-            break;
-          case 'monthly':
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            break;
-          case 'yearly':
-            currentDate.setFullYear(currentDate.getFullYear() + 1);
-            break;
-          default:
-            console.warn('⚠️ 未知的重复频率:', task.repeat_frequency);
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-      }
-    }
-    
-    // console.log(`🔄 为任务 "${task.title}" 生成了 ${events.length} 个重复事件`);
-    return events;
-  };
+  // 🚫 任务事件生成功能已移除
 
-  // 同步任务到日历显示
-  const syncTasksToCalendar = async () => {
-    // console.log('🔄 syncTasksToCalendar 被调用, 状态:', { coupleId, user: !!user });
-    if (!coupleId || !user) {
-      // console.log('⚠️ syncTasksToCalendar 条件不满足，跳过同步');
-      return;
-    }
-    
+  // 🚫 任务同步功能已移除 - 任务类型过于复杂，不适合在日历中显示
+  
+  // 清理任务相关的localStorage数据
+  const cleanupTaskData = () => {
     try {
-      // console.log('🔄 开始同步任务到日历');
-      // 从数据库获取所有任务
-      const dbTasks = await taskService.getCoupleTasksOld(coupleId);
-      // console.log('📊 获取到的数据库任务:', dbTasks);
-      
-      // 转换任务为日历事件
-      const taskEvents: Event[] = [];
-      
-      dbTasks.forEach(task => {
-        // console.log('🔍 检查任务:', { id: task.id, title: task.title, status: task.status, assignee_id: task.assignee_id, repeat_type: task.repeat_type, repeat_frequency: task.repeat_frequency, start_date: task.start_date, end_date: task.end_date, deadline: task.deadline });
-        
-        // 只显示已分配或进行中的任务
-        if (task.status === 'assigned' || task.status === 'in_progress') {
-          const participants = task.assignee_id ? [task.assignee_id] : [];
-          const taskColor = task.status === 'assigned' ? 'bg-yellow-400' : 'bg-blue-400';
-          
-          if (task.repeat_type === 'repeat' && task.start_date && task.end_date) {
-            // 重复性任务：根据频率生成多个事件
-            // console.log('🔄 处理重复性任务:', task.title, { repeat_frequency: task.repeat_frequency, start_date: task.start_date, end_date: task.end_date, repeat_time: task.repeat_time, repeat_weekdays: task.repeat_weekdays });
-            const events = generateRecurringTaskEvents(task, participants, taskColor);
-            // console.log(`🔄 生成的事件数量: ${events.length}，前几个日期:`, events.slice(0, 5).map(e => e.date));
-            taskEvents.push(...events);
-            
-          } else if (task.repeat_type === 'once' && task.deadline) {
-            // 一次性任务：只显示deadline
-            // console.log('📅 处理一次性任务:', task.title);
-            const deadlineDate = new Date(task.deadline);
-            const dateStr = `${deadlineDate.getFullYear()}-${String(deadlineDate.getMonth() + 1).padStart(2, '0')}-${String(deadlineDate.getDate()).padStart(2, '0')}`;
-            
-            const taskEvent = {
-              id: `task-${task.id}`,
-              title: task.title,
-              date: dateStr,
-              time: task.repeat_time || undefined,
-              participants,
-              color: taskColor,
-      isRecurring: false
-            };
-            
-            // console.log('✨ 创建一次性任务事件:', taskEvent);
-            taskEvents.push(taskEvent);
-            
-          } else {
-            console.log('⚠️ 任务缺少必要的日期信息，跳过:', { 
-              title: task.title, 
-              repeat_type: task.repeat_type,
-              has_deadline: !!task.deadline,
-              has_start_date: !!task.start_date,
-              has_end_date: !!task.end_date
-            });
-          }
-        } else {
-          // console.log('⚠️ 任务状态不符合条件，跳过:', { title: task.title, status: task.status });
-        }
-      });
-      
-      // 将任务事件存储到localStorage（用于Calendar的readTaskEvents函数）
-      localStorage.setItem('calendarTaskEvents', JSON.stringify(taskEvents));
-      
-      // console.log('✅ 任务同步到日历完成:', taskEvents.length, '个任务事件');
-      // console.log('💾 存储到localStorage的数据:', taskEvents);
-      
-      // 强制触发重新渲染，让getAllEvents重新读取localStorage中的任务事件
-      setForceRefresh(prev => prev + 1);
-      
+      localStorage.removeItem('calendarTaskEvents');
+      console.log('🧹 已清理任务相关的localStorage数据');
     } catch (error) {
-      console.error('❌ 同步任务到日历失败:', error);
+      console.error('❌ 清理localStorage数据失败:', error);
     }
   };
 
@@ -585,23 +431,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
     if (!loading) {
       loadEvents();
-      // 同时同步任务到日历
-      syncTasksToCalendar();
+      // 🚫 任务同步已移除
     }
   }, [coupleId, loading, coupleUsers]);
 
-  // 创建稳定的回调函数，避免闭包陷阱
-  const handleTasksUpdated = useCallback(() => {
-    console.log('📋 Calendar 收到任务更新通知，准备同步任务到日历');
-    console.log('📋 当前状态:', { coupleId, user: !!user, loading });
-    // 只有在条件满足时才同步
-    if (coupleId && user && !loading) {
-      console.log('📋 条件满足，开始同步任务到日历');
-      syncTasksToCalendar();
-    } else {
-      console.log('📋 条件不满足，跳过同步');
-    }
-  }, [coupleId, user, loading]);
+  // 🚫 任务更新处理已移除
 
   const handleEventsUpdated = useCallback(() => {
     console.log('📅 Calendar 收到事件更新通知（可能来自其他用户）');
@@ -618,8 +452,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 订阅全局事件，响应其他组件的数据更新
   useEffect(() => {
-    // 订阅任务更新（任务可能影响日历显示）
-    const unsubscribeTasks = globalEventService.subscribe(GlobalEvents.TASKS_UPDATED, handleTasksUpdated);
+    // 🚫 任务更新订阅已移除
 
     // 订阅事件数据更新（包括其他用户的操作）
     const unsubscribeEvents = globalEventService.subscribe(GlobalEvents.EVENTS_UPDATED, handleEventsUpdated);
@@ -628,11 +461,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const unsubscribeProfile = globalEventService.subscribe(GlobalEvents.USER_PROFILE_UPDATED, handleUserProfileUpdated);
 
     return () => {
-      unsubscribeTasks();
       unsubscribeEvents();
       unsubscribeProfile();
     };
-  }, [handleTasksUpdated, handleEventsUpdated, handleUserProfileUpdated]);
+  }, [handleEventsUpdated, handleUserProfileUpdated]);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -782,40 +614,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return events;
   };
 
-  // 从任务板(localStorage)读取任务事件
-  const readTaskEvents = (): Event[] => {
-    try {
-      const raw = localStorage.getItem('calendarTaskEvents');
-      if (!raw) {
-        console.log('📋 没有找到calendarTaskEvents数据');
-        return [];
-      }
-      
-      const parsed = JSON.parse(raw) as any[];
-      console.log('📋 读取到任务事件原始数据:', parsed);
-      
-      const taskEvents = parsed.map((e, idx) => ({
-        id: typeof e.id === 'string' ? e.id : `task-${idx}`,
-        title: String(e.title || 'Task'),
-        date: String(e.date),
-        time: e.time ? String(e.time) : undefined,
-        participants: Array.isArray(e.participants) ? e.participants : [], // 移除错误的过滤逻辑
-        color: typeof e.color === 'string' ? e.color : 'bg-lavender-400',
-        isRecurring: Boolean(e.isRecurring),
-        recurrenceType: e.recurrenceType,
-        recurrenceEnd: e.recurrenceEnd,
-        originalDate: e.originalDate
-      }));
-      
-      console.log('📋 转换后的任务事件:', taskEvents);
-      return taskEvents;
-    } catch (error) {
-      console.error('❌ 读取任务事件失败:', error);
-      return [];
-    }
-  };
+  // 🚫 任务事件读取功能已移除
 
-  // 获取所有事件（包括重复事件的实例和任务事件）
+  // 获取所有事件（仅包括日历事件，不包括任务）
   const getAllEvents = useMemo((): Event[] => {
     const baseEvents: Event[] = [];
     
@@ -828,11 +629,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }
     });
     
-    // 添加任务事件
-    const taskEvents = readTaskEvents();
-    baseEvents.push(...taskEvents);
+    // 🚫 任务事件已移除 - 任务类型复杂，不适合在日历中显示
     return baseEvents;
-  }, [events, forceRefresh]); // 依赖于events和forceRefresh
+  }, [events]); // 移除forceRefresh依赖
 
   // 检查事件是否包含指定用户的辅助函数
   const eventIncludesUser = (event: Event, userId: string): boolean => {
