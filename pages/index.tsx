@@ -7,6 +7,7 @@ import { userService } from '../src/services/database';
 import Layout from '../src/components/Layout';
 import Calendar from '../src/components/Calendar';
 import TaskBoard from '../src/components/TaskBoard';
+import NewTaskBoard from '../src/components/NewTaskBoard';
 import Shop from '../src/components/Shop';
 import Settings from '../src/components/Settings';
 import AuthForm from '../src/components/AuthForm';
@@ -227,7 +228,10 @@ const AppContent: React.FC = () => {
         )}
         {initializedTabs.has('tasks') && (
           <div style={{ display: activeTab === 'tasks' ? 'block' : 'none' }}>
-            <TaskBoard currentUser={currentUserName} />
+            {/* 使用新的TaskBoard组件 - 基于优化后的单表结构 */}
+            <NewTaskBoard />
+            {/* 旧版TaskBoard作为备用 */}
+            {/* <TaskBoard currentUser={currentUserName} /> */}
           </div>
         )}
         {initializedTabs.has('shop') && (

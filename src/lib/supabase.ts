@@ -98,91 +98,88 @@ export type Database = {
           id: string
           title: string
           description: string | null
-          deadline: string | null
           points: number
-          status: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
           creator_id: string
-          assignee_id: string | null
           couple_id: string
           task_type: 'daily' | 'habit' | 'special'
-          repeat_type: 'once' | 'repeat'
+          repeat_frequency: 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'forever'
+          earliest_start_time: string | null
+          required_count: number | null
+          task_deadline: string | null
+          repeat_weekdays: number[] | null
+          daily_time_start: string | null
+          daily_time_end: string | null
+          status: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned'
+          assignee_id: string | null
+          completed_count: number
+          current_streak: number
+          longest_streak: number
+          completion_record: any
           requires_proof: boolean
-          repeat_frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null
-          start_date: string | null
-          end_date: string | null
-          duration: '21days' | '1month' | '6months' | '1year' | null
-          repeat_weekdays: number[]
-          repeat_time: string | null
-          has_specific_time: boolean
-          task_start_time: string | null
-          task_end_time: string | null
           proof_url: string | null
-          proof_type: string | null
-          submitted_at: string | null
           review_comment: string | null
-          completed_at: string | null
           created_at: string
           updated_at: string
+          submitted_at: string | null
+          completed_at: string | null
         }
         Insert: {
           id?: string
           title: string
           description?: string | null
-          deadline: string | null
-          points: number
-          status?: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
+          points?: number
           creator_id: string
-          assignee_id?: string | null
           couple_id: string
-          task_type: 'daily' | 'habit' | 'special'
-          repeat_type?: 'once' | 'repeat'
+          task_type?: 'daily' | 'habit' | 'special'
+          repeat_frequency?: 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'forever'
+          earliest_start_time?: string | null
+          required_count?: number | null
+          task_deadline?: string | null
+          repeat_weekdays?: number[] | null
+          daily_time_start?: string | null
+          daily_time_end?: string | null
+          status?: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned'
+          assignee_id?: string | null
+          completed_count?: number
+          current_streak?: number
+          longest_streak?: number
+          completion_record?: any
           requires_proof?: boolean
-          repeat_frequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null
-          start_date?: string | null
-          end_date?: string | null
-          duration?: '21days' | '1month' | '6months' | '1year' | null
-          repeat_weekdays?: number[]
-          repeat_time?: string | null
-          has_specific_time?: boolean
-          task_start_time?: string | null
-          task_end_time?: string | null
           proof_url?: string | null
-          proof_type?: string | null
-          submitted_at?: string | null
           review_comment?: string | null
-          completed_at?: string | null
           created_at?: string
           updated_at?: string
+          submitted_at?: string | null
+          completed_at?: string | null
         }
         Update: {
           id?: string
           title?: string
           description?: string | null
-          deadline?: string | null
           points?: number
-          status?: 'recruiting' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'abandoned'
           creator_id?: string
-          assignee_id?: string | null
           couple_id?: string
           task_type?: 'daily' | 'habit' | 'special'
-          repeat_type?: 'once' | 'repeat'
+          repeat_frequency?: 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'forever'
+          earliest_start_time?: string | null
+          required_count?: number | null
+          task_deadline?: string | null
+          repeat_weekdays?: number[] | null
+          daily_time_start?: string | null
+          daily_time_end?: string | null
+          status?: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned'
+          assignee_id?: string | null
+          completed_count?: number
+          current_streak?: number
+          longest_streak?: number
+          completion_record?: any
           requires_proof?: boolean
-          repeat_frequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null
-          start_date?: string | null
-          end_date?: string | null
-          duration?: '21days' | '1month' | '6months' | '1year' | null
-          repeat_weekdays?: number[]
-          repeat_time?: string | null
-          has_specific_time?: boolean
-          task_start_time?: string | null
-          task_end_time?: string | null
           proof_url?: string | null
-          proof_type?: string | null
-          submitted_at?: string | null
           review_comment?: string | null
-          completed_at?: string | null
           created_at?: string
           updated_at?: string
+          submitted_at?: string | null
+          completed_at?: string | null
         }
       }
       events: {
