@@ -119,6 +119,18 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadUserProfile();
   }, [user]);
 
+  // 🎯 监听全局用户资料更新事件
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      console.log('🔄 收到用户资料更新事件，重新加载...');
+      loadUserProfile();
+    };
+
+    const unsubscribe = globalEventService.subscribe(GlobalEvents.USER_PROFILE_UPDATED, handleProfileUpdate);
+    
+    return unsubscribe;
+  }, [user]);
+
   const value: UserContextType = {
     userProfile,
     loading,

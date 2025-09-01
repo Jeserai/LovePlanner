@@ -2,10 +2,52 @@
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
 import type { Task, CreateTaskForm, EditTaskForm, TaskFilter, TaskSort } from '../types/task';
+import { getCurrentTime, getTodayString } from '../utils/testTimeManager';
 
 type DatabaseTask = Database['public']['Tables']['tasks']['Row'];
 type InsertTask = Database['public']['Tables']['tasks']['Insert'];
 type UpdateTask = Database['public']['Tables']['tasks']['Update'];
+
+// 🎯 统一解析completion_record字段，兼容新旧格式
+const parseCompletionRecord = (completionRecord: any): string[] => {
+  if (!completionRecord) return [];
+  
+  try {
+    if (typeof completionRecord === 'string') {
+      const parsed = JSON.parse(completionRecord);
+      
+      // 新格式：数组 ["2024-01-01", "2024-01-02"]
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      
+      // 旧格式：对象 {"2024-01-01": true, "2024-01-02": true}
+      if (typeof parsed === 'object' && parsed !== null) {
+        return Object.keys(parsed).filter(key => parsed[key] === true);
+      }
+    }
+    
+    // 如果直接是数组
+    if (Array.isArray(completionRecord)) {
+      return completionRecord;
+    }
+    
+    // 如果直接是对象
+    if (typeof completionRecord === 'object' && completionRecord !== null) {
+      return Object.keys(completionRecord).filter(key => completionRecord[key] === true);
+    }
+  } catch (e) {
+    console.error('解析completion_record失败:', completionRecord, e);
+  }
+  
+  return [];
+};
+
+// 🎯 检查指定日期是否在完成记录中
+const isDateCompleted = (completionRecord: any, date: string): boolean => {
+  const recordArray = parseCompletionRecord(completionRecord);
+  return recordArray.includes(date);
+};
 
 // 🎯 数据库任务转换为前端任务
 const transformDatabaseTask = (dbTask: DatabaseTask): Task => {
@@ -29,7 +71,7 @@ const transformDatabaseTask = (dbTask: DatabaseTask): Task => {
     completed_count: dbTask.completed_count,
     current_streak: dbTask.current_streak,
     longest_streak: dbTask.longest_streak,
-    completion_record: dbTask.completion_record || {},
+    completion_record: dbTask.completion_record || null,
     requires_proof: dbTask.requires_proof,
     proof_url: dbTask.proof_url,
     review_comment: dbTask.review_comment,
@@ -214,7 +256,7 @@ export const taskService = {
         newStatus = 'in_progress';
       } else {
         // 有开始时间限制，检查当前时间
-        const now = new Date();
+        const now = getCurrentTime();
         const startTime = new Date(task.earliest_start_time);
         
         if (now >= startTime) {
@@ -259,25 +301,168 @@ export const taskService = {
         throw new Error('任务不存在');
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      // 🎯 检查任务是否已到开始时间
+      const now = getCurrentTime();
+      if (currentTask.earliest_start_time && now < new Date(currentTask.earliest_start_time)) {
+        throw new Error(`任务将于 ${new Date(currentTask.earliest_start_time).toLocaleString()} 开始，请稍后再试`);
+      }
+
+      const today = getTodayString();
+      
+      // 🎯 修正：使用统一的解析函数处理新旧格式
+      let completionRecordArray: string[] = parseCompletionRecord(currentTask.completion_record);
+      
+      // 🎯 检查重复任务当前周期是否已完成，防止重复打卡
+      if (currentTask.repeat_frequency !== 'never') {
+        let periodKey = '';
+        
+        switch (currentTask.repeat_frequency) {
+          case 'daily':
+            periodKey = today; // YYYY-MM-DD
+            break;
+          case 'weekly':
+            // 🔧 使用标准 ISO 周格式计算，与前端保持一致
+            const getISOWeek = (date: Date): number => {
+              const target = new Date(date.valueOf());
+              const dayNr = (date.getDay() + 6) % 7;
+              target.setDate(target.getDate() - dayNr + 3);
+              const firstThursday = target.valueOf();
+              target.setMonth(0, 1);
+              if (target.getDay() !== 4) {
+                target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+              }
+              return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+            };
+            
+            const currentTime = getCurrentTime();
+            const isoWeek = getISOWeek(currentTime);
+            const isoYear = currentTime.getFullYear();
+            periodKey = `${isoYear}-W${String(isoWeek).padStart(2, '0')}`;
+            
+            // 🐛 调试：后端周期标识符生成
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🏗️ 后端周期标识符生成:', {
+                taskId: currentTask.id,
+                taskTitle: currentTask.title,
+                currentTime: currentTime.toISOString(),
+                calculatedWeek: isoWeek,
+                year: isoYear,
+                generatedPeriodKey: periodKey
+              });
+            }
+            break;
+          case 'biweekly':
+            const currentTimeForBiweek = getCurrentTime();
+            const weekNumber = Math.floor((currentTimeForBiweek.getTime() - new Date(currentTimeForBiweek.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+            const biweekNumber = Math.floor(weekNumber / 2);
+            periodKey = `${currentTimeForBiweek.getFullYear()}-BW${biweekNumber}`;
+            break;
+          case 'monthly':
+            const currentTimeForMonth = getCurrentTime();
+            periodKey = `${currentTimeForMonth.getFullYear()}-${String(currentTimeForMonth.getMonth() + 1).padStart(2, '0')}`;
+            break;
+          case 'yearly':
+            const currentTimeForYear = getCurrentTime();
+            periodKey = String(currentTimeForYear.getFullYear());
+            break;
+          default:
+            periodKey = today;
+        }
+        
+        if (completionRecordArray.includes(periodKey)) {
+          throw new Error('本周期已完成打卡，请等待下一个周期');
+        }
+        
+        // 添加当前周期的记录
+        completionRecordArray.push(periodKey);
+      } else {
+        // 一次性任务直接添加今天的记录
+        if (!completionRecordArray.includes(today)) {
+          completionRecordArray.push(today);
+        }
+      }
+      
       const newCompletedCount = currentTask.completed_count + 1;
       
-      // 更新完成记录
-      const newCompletionRecord = {
-        ...currentTask.completion_record,
-        [today]: true
-      };
+      const newCompletionRecord = JSON.stringify(completionRecordArray);
 
-      // 计算新的连续次数
-      let newCurrentStreak = currentTask.current_streak;
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      // 🎯 修正：重新计算完整的连续次数
+      let newCurrentStreak = 1; // 至少这次打卡算1次
       
-      if (currentTask.completion_record[yesterdayStr] === true) {
-        newCurrentStreak += 1;
+      if (currentTask.repeat_frequency === 'never') {
+        // 一次性任务：完成就是1
+        newCurrentStreak = 1;
       } else {
-        newCurrentStreak = 1; // 重新开始计算连续次数
+        // 🎯 重复任务：重新计算完整的连续次数
+        const sortedRecords = [...completionRecordArray].sort();
+        const latestRecord = sortedRecords[sortedRecords.length - 1]; // 最新的打卡记录
+        
+        // 从最新记录开始向前计算连续次数
+        for (let i = sortedRecords.length - 1; i >= 0; i--) {
+          const currentRecord = sortedRecords[i];
+          
+          if (i === sortedRecords.length - 1) {
+            // 最新记录，计数为1
+            newCurrentStreak = 1;
+            continue;
+          }
+          
+          const nextRecord = sortedRecords[i + 1];
+          
+          // 根据频率检查是否连续
+          let isConsecutive = false;
+          switch (currentTask.repeat_frequency) {
+            case 'daily':
+              const currentDate = new Date(currentRecord);
+              const nextDate = new Date(nextRecord);
+              const diffDays = (nextDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24);
+              isConsecutive = diffDays === 1;
+              break;
+            case 'weekly':
+              // 🔧 周任务：检查 ISO 周格式是否连续 (2025-W35, 2025-W36)
+              const parseISOWeek = (weekStr: string) => {
+                const [year, week] = weekStr.split('-W').map(Number);
+                return { year, week };
+              };
+              
+              const current = parseISOWeek(currentRecord);
+              const next = parseISOWeek(nextRecord);
+              
+              // 检查是否是连续的周
+              if (current.year === next.year) {
+                isConsecutive = next.week - current.week === 1;
+              } else if (next.year - current.year === 1) {
+                // 跨年情况：当前年最后一周 → 下一年第一周
+                const lastWeekOfYear = 52; // 大多数年份有52周，少数有53周
+                isConsecutive = current.week >= lastWeekOfYear && next.week === 1;
+              } else {
+                isConsecutive = false;
+              }
+              break;
+            case 'monthly':
+              // 月任务：检查格式 YYYY-MM
+              const [currentYear, currentMonth] = currentRecord.split('-').map(Number);
+              const [nextYear, nextMonth] = nextRecord.split('-').map(Number);
+              isConsecutive = (nextYear === currentYear && nextMonth === currentMonth + 1) || 
+                            (nextYear === currentYear + 1 && currentMonth === 12 && nextMonth === 1);
+              break;
+            case 'yearly':
+              // 年任务：检查格式 YYYY
+              const currentYearNum = parseInt(currentRecord);
+              const nextYearNum = parseInt(nextRecord);
+              isConsecutive = nextYearNum === currentYearNum + 1;
+              break;
+            default:
+              isConsecutive = false;
+          }
+          
+          if (isConsecutive) {
+            newCurrentStreak++;
+          } else {
+            // 不连续，停止计算
+            break;
+          }
+        }
       }
 
       const newLongestStreak = Math.max(currentTask.longest_streak, newCurrentStreak);
@@ -299,8 +484,8 @@ export const taskService = {
         completion_record: newCompletionRecord,
         status: newStatus,
         proof_url: proofUrl || currentTask.proof_url,
-        submitted_at: new Date().toISOString(),
-        completed_at: newStatus === 'completed' ? new Date().toISOString() : currentTask.completed_at
+        submitted_at: getCurrentTime().toISOString(),
+        completed_at: newStatus === 'completed' ? getCurrentTime().toISOString() : currentTask.completed_at
       };
 
       const { data, error } = await supabase
@@ -374,12 +559,12 @@ export const taskService = {
       });
 
       // 过滤出今日可完成的任务
-      const today = new Date().toISOString().split('T')[0];
-      const now = new Date();
+      const today = getTodayString();
+      const now = getCurrentTime();
 
       return tasks.filter(task => {
-        // 检查是否今天已经完成
-        if (task.completion_record[today] === true) {
+        // 🎯 修正：使用统一的解析函数检查是否今天已经完成
+        if (isDateCompleted(task.completion_record, today)) {
           return false;
         }
 
@@ -468,7 +653,7 @@ export const taskService = {
   // 🎯 自动检查并更新已到开始时间的任务状态
   async checkAndUpdateTaskStatus(coupleId: string): Promise<void> {
     try {
-      const now = new Date();
+      const now = getCurrentTime();
       
       // 查找所有assigned状态且有开始时间的任务
       const { data: assignedTasks, error } = await supabase

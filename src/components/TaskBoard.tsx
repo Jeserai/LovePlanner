@@ -39,6 +39,8 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
 import { globalEventService, GlobalEvents } from '../services/globalEventService';
 import type { Task, CreateTaskForm, EditTaskForm } from '../types/task';
+import TestTimeController from './TestTimeController';
+import { getCurrentTime, getTodayString } from '../utils/testTimeManager';
 
 // 🎯 使用统一的Task类型，不再重复定义
 
@@ -61,6 +63,41 @@ interface EditTaskState {
   isUnlimited?: boolean;
   endRepeat?: 'never' | 'on_date';
 }
+
+// 🎯 统一解析completion_record字段，兼容新旧格式
+const parseCompletionRecord = (completionRecord: any): string[] => {
+  if (!completionRecord) return [];
+  
+  try {
+    if (typeof completionRecord === 'string') {
+      const parsed = JSON.parse(completionRecord);
+      
+      // 新格式：数组 ["2024-01-01", "2024-01-02"]
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      
+      // 旧格式：对象 {"2024-01-01": true, "2024-01-02": true}
+      if (typeof parsed === 'object' && parsed !== null) {
+        return Object.keys(parsed).filter(key => parsed[key] === true);
+      }
+    }
+    
+    // 如果直接是数组
+    if (Array.isArray(completionRecord)) {
+      return completionRecord;
+    }
+    
+    // 如果直接是对象
+    if (typeof completionRecord === 'object' && completionRecord !== null) {
+      return Object.keys(completionRecord).filter(key => completionRecord[key] === true);
+    }
+  } catch (e) {
+    console.error('解析completion_record失败:', completionRecord, e);
+  }
+  
+  return [];
+};
 
 interface TaskBoardProps {
   currentUser?: string | null;
@@ -129,7 +166,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const isTaskOverdue = (task: Task): boolean => {
     const task_deadline = task.task_deadline;
     if (!task_deadline) return false;
-    const now = new Date();
+    const now = getCurrentTime(); // 🔧 使用测试时间管理器
     const task_deadlineDate = new Date(task_deadline);
     return now > task_deadlineDate;
   };
@@ -543,11 +580,23 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 🎯 handleStartTask 已移除 - 现在任务状态由时间自动控制
 
+
+
   const handleCompleteTask = async (taskId: string) => {
     try {
       // 找到任务以检查是否需要凭证
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
+
+      // 🎯 检查重复任务当前周期是否已完成，防止重复打卡
+      if (task.repeat_frequency !== 'never' && isCurrentPeriodCompleted(task)) {
+        addToast({
+          variant: 'warning',
+          title: '本周期已打卡',
+          description: '您在当前周期内已经完成打卡，请等待下一个周期'
+        });
+        return;
+      }
 
       // 检查任务是否过期，如果过期则移动到abandoned状态
       if (isTaskOverdue(task)) {
@@ -557,27 +606,37 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       }
 
       // 使用适配器完成任务
-      await taskService.completeTask(taskId);
+      const updatedTask = await taskService.completeTask(taskId);
       await reloadTasks();
+      
+      // 🎯 更新selectedTask以反映最新状态
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask(updatedTask);
+      }
       
       // 如果不需要凭证，奖励积分给完成任务的用户
       if (!task.requires_proof) {
         await awardTaskPoints(task, currentUserId);
       }
       
-      // 成功反馈
+      // 🎯 区分一次性任务和重复任务的成功反馈
+      const isRepeatTask = task.repeat_frequency !== 'never';
       addToast({
         variant: 'success',
-        title: '任务完成',
-        description: task.requires_proof ? '任务已提交，等待审核' : `任务完成！获得 ${task.points} 积分`
+        title: isRepeatTask ? '打卡成功' : '任务完成',
+        description: task.requires_proof ? 
+          (isRepeatTask ? '打卡已提交，等待审核' : '任务已提交，等待审核') : 
+          (isRepeatTask ? `打卡成功！获得 ${task.points} 积分` : `任务完成！获得 ${task.points} 积分`)
       });
     } catch (error: any) {
       console.error('❌ 完成任务失败:', error);
       
-      // 错误反馈
+      // 🎯 区分一次性任务和重复任务的错误反馈
+      const task = tasks.find(t => t.id === taskId);
+      const isRepeatTask = task?.repeat_frequency !== 'never';
       addToast({
         variant: 'error',
-        title: '完成任务失败',
+        title: isRepeatTask ? '打卡失败' : '完成任务失败',
         description: error?.message || '请稍后重试'
       });
       
@@ -1662,7 +1721,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const isTaskExpiringSoon = (task_deadline: string | null) => {
     if (!task_deadline) return false; // 不限时任务不会过期
     const task_deadlineDate = new Date(task_deadline);
-    const now = new Date();
+    const now = getCurrentTime(); // 🔧 使用测试时间管理器
     const diffDays = Math.floor((task_deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays <= 3 && diffDays > 0;
   };
@@ -1931,24 +1990,24 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 判断任务的类型组合
   const getTaskTypeInfo = (task: Task) => {
-    const taskType = task.repeat_frequency !== 'never' ? 'repeat' : 'once';
-    const isRepeating = taskType === 'repeat';
+    const isRepeating = task.repeat_frequency !== 'never';
     const isUnlimited = isUnlimitedTask(task);
-    const hasConsecutiveCount = isRepeating && isUnlimited && (task.required_count && task.required_count > 0);
+    const hasRequiredCount = task.required_count && task.required_count > 0;
     
     return {
       isRepeating,
       isUnlimited,
-      hasConsecutiveCount,
+      hasRequiredCount,
+      // 🎯 简化分类：只区分一次性和重复任务
       taskCategory: isRepeating 
-        ? (isUnlimited ? (hasConsecutiveCount ? 'repeat-unlimited-consecutive' : 'repeat-unlimited') : 'repeat-limited')
+        ? (isUnlimited ? 'repeat-unlimited' : 'repeat-limited')
         : (isUnlimited ? 'once-unlimited' : 'once-limited')
     };
   };
 
   // 🎯 获取任务的时间状态（完全重构的时间逻辑）
   const getTaskTimeStatus = (task: Task) => {
-    const now = new Date();
+    const now = getCurrentTime();
     
     // 使用新的统一字段，向后兼容
     const startTimeStr = task.earliest_start_time || task.earliest_start_time;
@@ -2031,7 +2090,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           isNotStarted: false,
           message: `已于 ${endTime!.toLocaleString()} 过期`
         };
-      } else {
+        } else {
         return {
           status: 'active',
           canSubmit: true,
@@ -2080,10 +2139,87 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
   };
 
-  // 重复不限时连续任务的专用逻辑
-  const getConsecutiveTaskStatus = (task: Task) => {
+  // 🎯 检查任务当前周期是否已完成（通用函数）
+  const isCurrentPeriodCompleted = (task: Task): boolean => {
+    try {
+      const completionRecord: string[] = parseCompletionRecord(task.completion_record);
+      const today = getCurrentTime(); // 🔧 使用测试时间管理器
+      let periodKey = '';
+      
+      // 🐛 调试信息：查看时间和记录
+      if (process.env.NODE_ENV === 'development' && (task.title?.includes('测试每周打卡') || task.title?.includes('每周任务测试'))) {
+        console.log('🔍 每周打卡调试信息:', {
+          taskTitle: task.title,
+          currentTime: today.toISOString(),
+          currentTimeLocal: today.toString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timezoneOffset: today.getTimezoneOffset(),
+          isTestTime: getCurrentTime().getTime() !== new Date().getTime(),
+          completionRecord,
+          function: 'isCurrentPeriodCompleted'
+        });
+      }
+      
+      switch (task.repeat_frequency) {
+        case 'daily':
+          periodKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
+          break;
+        case 'weekly':
+          // 🔧 使用标准 ISO 周格式计算
+          const getISOWeek = (date: Date): number => {
+            const target = new Date(date.valueOf());
+            const dayNr = (date.getDay() + 6) % 7;
+            target.setDate(target.getDate() - dayNr + 3);
+            const firstThursday = target.valueOf();
+            target.setMonth(0, 1);
+            if (target.getDay() !== 4) {
+              target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+            }
+            return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+          };
+          
+          const isoWeek = getISOWeek(today);
+          const isoYear = today.getFullYear();
+          periodKey = `${isoYear}-W${String(isoWeek).padStart(2, '0')}`;
+          
+          // 🐛 调试：周期标识符生成
+          if (process.env.NODE_ENV === 'development' && (task.title?.includes('测试每周打卡') || task.title?.includes('每周任务测试'))) {
+            console.log('🗓️ 周期标识符生成:', {
+              inputTime: today.toISOString(),
+              inputLocal: today.toString(),
+              calculatedWeek: isoWeek,
+              year: isoYear,
+              generatedKey: periodKey,
+              existingRecords: completionRecord,
+              isMatched: completionRecord.includes(periodKey)
+            });
+          }
+          break;
+        case 'biweekly':
+          const weekNum1 = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+          const biweekNumber1 = Math.floor(weekNum1 / 2);
+          periodKey = `${today.getFullYear()}-BW${biweekNumber1}`;
+          break;
+        case 'monthly':
+          periodKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+          break;
+        case 'yearly':
+          periodKey = String(today.getFullYear());
+          break;
+        default:
+          periodKey = today.toISOString().split('T')[0];
+      }
+      
+      return completionRecord.includes(periodKey);
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // 🎯 重复任务的连续状态逻辑（所有重复任务都是连续任务）
+  const getRepeatTaskStatus = (task: Task) => {
     const taskInfo = getTaskTypeInfo(task);
-    if (!taskInfo.hasConsecutiveCount) return null;
+    if (!taskInfo.isRepeating) return null;
     
     const consecutiveCount = task.required_count || 7;
     const currentStreak = task.current_streak || 0;
@@ -2092,8 +2228,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     // 检查当前周期是否已完成（今天/本周/本月是否已打卡）
     const checkCurrentPeriodCompleted = () => {
       try {
-        const completionRecord: string[] = task.completion_record ? JSON.parse(task.completion_record) : [];
-    const today = new Date();
+        const completionRecord: string[] = parseCompletionRecord(task.completion_record);
+        const today = getCurrentTime(); // 🔧 使用测试时间管理器
         let periodKey = '';
         
         switch (task.repeat_frequency) {
@@ -2101,15 +2237,17 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             periodKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
             break;
           case 'weekly':
-            const startOfWeek = new Date(today);
-            const dayOfWeek = today.getDay();
-            startOfWeek.setDate(today.getDate() - dayOfWeek);
-            periodKey = startOfWeek.toISOString().split('T')[0];
+            // 🔧 使用 ISO 周格式，与测试数据保持一致
+            const year = today.getFullYear();
+            const startOfYear = new Date(year, 0, 1);
+            const dayOfYear = Math.floor((today.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+            const weekNumber = Math.ceil(dayOfYear / 7);
+            periodKey = `${year}-W${String(weekNumber).padStart(2, '0')}`;
             break;
           case 'biweekly':
-            const weekNumber = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
-            const biweekNumber = Math.floor(weekNumber / 2);
-            periodKey = `${today.getFullYear()}-BW${biweekNumber}`;
+            const weekNum2 = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+            const biweekNumber2 = Math.floor(weekNum2 / 2);
+            periodKey = `${today.getFullYear()}-BW${biweekNumber2}`;
             break;
           case 'monthly':
             periodKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -2144,13 +2282,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   };
 
   // 连续任务打卡
-  const handleConsecutiveTaskCheckIn = async (taskId: string) => {
+  const handleRepeatTaskCheckIn = async (taskId: string) => {
     try {
       const task = tasks.find(t => t.id === taskId);
       const taskInfo = getTaskTypeInfo(task!);
-      if (!task || !taskInfo.hasConsecutiveCount) return;
-
-    const today = new Date();
+      if (!task || !taskInfo.isRepeating) return;
+    
+    const today = getCurrentTime(); // 🔧 使用测试时间管理器
       const currentStreak = (task.current_streak || 0) + 1;
       const consecutiveCount = task.required_count || 7;
       
@@ -2161,15 +2299,40 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           periodKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
           break;
         case 'weekly':
-          const startOfWeek = new Date(today);
-          const dayOfWeek = today.getDay();
-          startOfWeek.setDate(today.getDate() - dayOfWeek);
-          periodKey = startOfWeek.toISOString().split('T')[0];
+          // 🔧 使用标准 ISO 周格式计算
+          const getISOWeek = (date: Date): number => {
+            const target = new Date(date.valueOf());
+            const dayNr = (date.getDay() + 6) % 7;
+            target.setDate(target.getDate() - dayNr + 3);
+            const firstThursday = target.valueOf();
+            target.setMonth(0, 1);
+            if (target.getDay() !== 4) {
+              target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+            }
+            return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+          };
+          
+          const isoWeek = getISOWeek(today);
+          const isoYear = today.getFullYear();
+          periodKey = `${isoYear}-W${String(isoWeek).padStart(2, '0')}`;
+          
+          // 🐛 调试：周期标识符生成
+          if (process.env.NODE_ENV === 'development' && (task.title?.includes('测试每周打卡') || task.title?.includes('每周任务测试'))) {
+            console.log('🗓️ 周期标识符生成:', {
+              inputTime: today.toISOString(),
+              inputLocal: today.toString(),
+              calculatedWeek: isoWeek,
+              year: isoYear,
+              generatedKey: periodKey,
+              existingRecords: completionRecord,
+              isMatched: completionRecord.includes(periodKey)
+            });
+          }
           break;
         case 'biweekly':
-          const weekNumber = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
-          const biweekNumber = Math.floor(weekNumber / 2);
-          periodKey = `${today.getFullYear()}-BW${biweekNumber}`;
+          const weekNum1 = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+          const biweekNumber1 = Math.floor(weekNum1 / 2);
+          periodKey = `${today.getFullYear()}-BW${biweekNumber1}`;
           break;
         case 'monthly':
           periodKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -2184,7 +2347,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 解析已有的完成记录
       let completionRecord: string[] = [];
       try {
-        completionRecord = task.completion_record ? JSON.parse(task.completion_record) : [];
+        completionRecord = parseCompletionRecord(task.completion_record);
       } catch (e) {
         completionRecord = [];
       }
@@ -2214,17 +2377,55 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 重置连续任务
   const handleResetConsecutiveTask = async (taskId: string) => {
+    // 🎯 添加确认对话框
+    const confirmed = window.confirm(
+      '⚠️ 警告：此操作将清空所有打卡记录，且不可撤销！\n\n确定要重置连续记录吗？'
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+    
     try {
-      const updateData = {
-        current_streak: 0,
-        streak_start_date: null,
-        completion_record: JSON.stringify([])
-      };
+      // 🎯 直接更新数据库，因为updateTask方法不支持这些字段
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          current_streak: 0,
+          completed_count: 0,
+          longest_streak: 0, // 也重置最长记录
+          completion_record: '[]'
+        })
+        .eq('id', taskId);
       
-      await taskService.updateTask({ id: taskId, ...updateData } as EditTaskForm);
+      if (error) {
+        console.error('❌ 重置连续任务失败:', error);
+        throw error;
+      }
+      
+      // 重新加载任务列表
       await reloadTasks();
+      
+      // 重新获取更新后的任务数据
+      const updatedTask = await taskService.getTask(taskId);
+      if (updatedTask && selectedTask?.id === taskId) {
+        setSelectedTask(updatedTask);
+      }
+      
+      // 显示成功提示
+      addToast({
+        variant: 'success',
+        title: '重置成功',
+        description: '连续打卡记录已清空，可以重新开始打卡'
+      });
+      
     } catch (error) {
       console.error('❌ 重置连续任务失败:', error);
+      addToast({
+        variant: 'error',
+        title: '重置失败',
+        description: '重置连续记录时发生错误，请稍后重试'
+      });
       throw error;
     }
   };
@@ -2251,7 +2452,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const userHabitChallenge = isHabitTask ? userHabitChallenges.find(c => c.task_id === selectedTask.id) : null;
     const canJoinHabit = isHabitTask && selectedTask.task_deadline ? canJoinHabitTask(selectedTask.task_deadline, getTaskDuration(selectedTask)) : false;
 
-    return (
+  return (
       <ThemeDialog open={true} onOpenChange={handleCloseTaskDetail}>
           <DialogHeader>
             <div className="flex items-center justify-between">
@@ -2317,8 +2518,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               // 编辑表单
               <>
                 <h4 className={`text-lg font-bold mb-4 ${
-                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
-              }`}>
+              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-800'
+            }`}>
                   {theme === 'pixel' ? 'EDIT_TASK' : theme === 'modern' ? 'Edit Task' : '编辑任务'}
               </h4>
                 
@@ -2508,7 +2709,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                       <>
                         <DetailField
                           label={theme === 'pixel' ? 'MY_PROGRESS' : theme === 'modern' ? 'My Progress' : '我的进度'}
-                          value={`${userHabitChallenge.total_completions}/${getTaskDuration(selectedTask)} ${theme === 'pixel' ? 'DAYS' : theme === 'modern' ? 'days' : '天'}`}
+                          value={`${selectedTask.completed_count || 0}/${getTaskDuration(selectedTask)} ${theme === 'pixel' ? 'DAYS' : theme === 'modern' ? 'days' : '天'}`}
                         />
                         
                         <DetailField
@@ -2645,7 +2846,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     }`}>
                       {theme === 'pixel' ? 'PROOF REQUIRED' : '此任务需要提交完成凭证'}
                       </span>
-                  </div>
+          </div>
                 )}
 
                 {/* 完成凭证 */}
@@ -2678,8 +2879,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                         theme === 'modern' ? 'text-blue-600' : 'text-blue-600'
                       }`}>
                         {theme === 'pixel' ? 'PROGRESS_PANEL' : theme === 'modern' ? 'Progress Panel' : '进度面板'}
-                      </h3>
-                    </div>
+            </h3>
+          </div>
 
                     {/* 任务统计信息 */}
                     <div className="space-y-3">
@@ -2699,12 +2900,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             theme === 'modern' ? 'text-green-600' : 'text-green-600'
                           }`}>
                             {selectedTask.completed_count || 0}
-                          </div>
+          </div>
                           <div className={`text-xs ${
                             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
                           }`}>
                             {theme === 'pixel' ? 'TOTAL_COMPLETIONS' : theme === 'modern' ? 'Total Completions' : '总完成次数'}
-                          </div>
+        </div>
                         </div>
                         
                         <div className={`text-center p-3 rounded-lg ${
@@ -2716,12 +2917,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             theme === 'modern' ? 'text-orange-600' : 'text-orange-600'
                           }`}>
                             {selectedTask.current_streak || 0}
-                          </div>
+          </div>
                           <div className={`text-xs ${
                             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
-                          }`}>
+            }`}>
                             {theme === 'pixel' ? 'CURRENT_STREAK' : theme === 'modern' ? 'Current Streak' : '当前连续次数'}
-                          </div>
+          </div>
                         </div>
                         
                         <div className={`text-center p-3 rounded-lg ${
@@ -2733,13 +2934,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             theme === 'modern' ? 'text-purple-600' : 'text-purple-600'
                           }`}>
                             {selectedTask.longest_streak || 0}
-                          </div>
+          </div>
                           <div className={`text-xs ${
                             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
-                          }`}>
+            }`}>
                             {theme === 'pixel' ? 'BEST_STREAK' : theme === 'modern' ? 'Best Streak' : '最佳连续记录'}
-                          </div>
-                        </div>
+          </div>
+        </div>
                       </div>
                     </div>
 
@@ -2764,7 +2965,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             }`}>
                               {selectedTask.current_streak || 0} / {selectedTask.required_count}
                             </span>
-                          </div>
+          </div>
                           <div className={`w-full h-4 rounded-full ${
                             theme === 'pixel' ? 'bg-pixel-bg border border-pixel-border' : 
                             theme === 'modern' ? 'bg-gray-200' : 'bg-gray-200'
@@ -2778,63 +2979,220 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 width: `${Math.min(100, ((selectedTask.current_streak || 0) / selectedTask.required_count) * 100)}%`
                               }}
                             />
-                          </div>
+        </div>
                           <div className="text-center">
                             <span className={`text-xs ${
                               theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
                             }`}>
                               {Math.round(((selectedTask.current_streak || 0) / selectedTask.required_count) * 100)}% {theme === 'pixel' ? 'COMPLETE' : theme === 'modern' ? 'Complete' : '完成'}
                             </span>
-                          </div>
+        </div>
                         </div>
                       </div>
                     )}
 
-                    {/* 最近打卡记录 */}
+                    {/* 打卡记录详情 */}
                     {(() => {
                       let completionRecord: string[] = [];
-                      try {
-                        completionRecord = selectedTask.completion_record ? JSON.parse(selectedTask.completion_record) : [];
-                      } catch (e) {
-                        completionRecord = [];
+                      completionRecord = parseCompletionRecord(selectedTask.completion_record);
+                      
+                      // 🎯 数据一致性检查
+                      const dataConsistencyCheck = {
+                        taskTitle: selectedTask.title,
+                        current_streak: selectedTask.current_streak,
+                        completed_count: selectedTask.completed_count,
+                        completion_record_raw: selectedTask.completion_record,
+                        completion_record_parsed: completionRecord,
+                        completion_record_length: completionRecord.length,
+                        isConsistent: selectedTask.completed_count === completionRecord.length
+                      };
+                      
+                      console.log('任务数据一致性检查:', dataConsistencyCheck);
+                      
+                      // 如果数据不一致，显示警告
+                      if (!dataConsistencyCheck.isConsistent && selectedTask.completed_count > 0) {
+                        console.warn('⚠️ 数据不一致警告:', {
+                          task: selectedTask.title,
+                          completed_count: selectedTask.completed_count,
+                          record_length: completionRecord.length,
+                          suggestion: '建议重新打卡以同步数据'
+                        });
                       }
                       
-                      if (completionRecord.length > 0) {
-                        const recentRecords = completionRecord.slice(-5).reverse(); // 显示最近5次记录
-                        
-                        return (
-                          <div className="space-y-3">
-                            <h4 className={`font-medium text-sm ${
-                              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-700'
-                            }`}>
-                              {theme === 'pixel' ? 'RECENT_CHECKINS' : theme === 'modern' ? 'Recent Check-ins' : '最近打卡'}
-                            </h4>
-                            <div className="space-y-2">
-                              {recentRecords.map((record, index) => (
-                                <div
-                                  key={index}
-                                  className={`flex items-center justify-between p-2 rounded ${
-                                    theme === 'pixel' ? 'bg-pixel-bg border border-pixel-success' : 
-                                    theme === 'modern' ? 'bg-green-50 border border-green-200' : 'bg-green-50 border border-green-200'
-                                  }`}
-                                >
-                                  <span className={`text-sm ${
-                                    theme === 'pixel' ? 'text-pixel-success font-mono' : 'text-green-700'
-                                  }`}>
-                                    {record}
-                                  </span>
-                                  <span className={`text-xs ${
-                                    theme === 'pixel' ? 'text-pixel-success font-mono' : 'text-green-600'
-                                  }`}>
-                                    ✓
-                                  </span>
+                      // 获取任务的重复频率信息
+                      const getFrequencyInfo = () => {
+                        switch (selectedTask.repeat_frequency) {
+                          case 'daily': return { name: '每日', unit: '天' };
+                          case 'weekly': return { name: '每周', unit: '周' };
+                          case 'biweekly': return { name: '双周', unit: '双周' };
+                          case 'monthly': return { name: '每月', unit: '月' };
+                          case 'yearly': return { name: '每年', unit: '年' };
+                          default: return { name: '自定义', unit: '次' };
+                        }
+                      };
+                      
+                      const frequencyInfo = getFrequencyInfo();
+
+    return (
+                                                <div className="space-y-4">
+
+                          {/* 打卡历史记录 */}
+                          {completionRecord.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className={`font-medium text-sm ${
+                  theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 'text-gray-700'
+                }`}>
+                                  {theme === 'pixel' ? 'CHECKIN_HISTORY' : theme === 'modern' ? 'Check-in History' : '打卡历史'}
+                </h4>
+                                <span className={`text-xs ${
+                                  theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+                                }`}>
+                                  {theme === 'pixel' ? 'LATEST_FIRST' : theme === 'modern' ? 'Latest First' : '最新在前'}
+                    </span>
+                </div>
+                              
+                              <div className={`max-h-48 overflow-y-auto ${
+                                theme === 'pixel' ? 'scrollbar-pixel' : 'scrollbar-thin'
+                              }`}>
+                                <div className="space-y-2">
+                                  {completionRecord.slice().reverse().map((record, index) => {
+                                    // 解析日期并格式化显示
+                                    const formatCheckInDate = (dateStr: string) => {
+                                      try {
+                                        if (dateStr.includes('-W')) {
+                                          // 🔧 ISO周格式：2025-W35
+                                          const [year, week] = dateStr.split('-W');
+                                          return `${year}年第${week}周`;
+                                        } else if (dateStr.includes('-BW')) {
+                                          // 双周格式：2024-BW1
+                                          const [year, bw] = dateStr.split('-BW');
+                                          return `${year}年第${parseInt(bw) + 1}双周`;
+                                        } else if (dateStr.match(/^\d{4}-\d{2}$/)) {
+                                          // 月份格式：2024-01
+                                          const [year, month] = dateStr.split('-');
+                                          return `${year}年${parseInt(month)}月`;
+                                        } else if (dateStr.match(/^\d{4}$/)) {
+                                          // 年份格式：2024
+                                          return `${dateStr}年`;
+                                        } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                          // 日期格式：2024-01-15
+                                          const date = new Date(dateStr);
+                                          const now = getCurrentTime(); // 🔧 使用测试时间管理器
+                                          const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                          
+                                          if (diffDays === 0) return '今天';
+                                          if (diffDays === 1) return '昨天';
+                                          if (diffDays === 2) return '前天';
+                                          if (diffDays < 7) return `${diffDays}天前`;
+                                          
+                                          return `${date.getMonth() + 1}月${date.getDate()}日`;
+                                        }
+                                        return dateStr;
+                                      } catch (e) {
+                                        return dateStr;
+                                      }
+                                    };
+                                    
+                                    const isToday = record === getTodayString(); // 🔧 使用测试时间管理器
+                                    
+                                    return (
+                                      <div
+                                        key={index}
+                                        className={`flex items-center justify-between p-3 rounded-lg transition-all ${
+                                          isToday ? (
+                                            theme === 'pixel' ? 'bg-pixel-success border-2 border-pixel-success' : 
+                                            theme === 'modern' ? 'bg-green-100 border-2 border-green-300' : 'bg-green-100 border-2 border-green-300'
+                                          ) : (
+                                            theme === 'pixel' ? 'bg-pixel-bg border border-pixel-border hover:border-pixel-success' : 
+                                            theme === 'modern' ? 'bg-gray-50 border border-gray-200 hover:border-green-300' : 'bg-gray-50 border border-gray-200 hover:border-green-300'
+                                          )
+                                        }`}
+                                      >
+                                        <div className="flex items-center space-x-3">
+                                          <div className={`w-3 h-3 rounded-full ${
+                                            isToday ? (
+                                              theme === 'pixel' ? 'bg-pixel-bg' : 'bg-green-600'
+                                            ) : (
+                                              theme === 'pixel' ? 'bg-pixel-success' : 'bg-green-500'
+                                            )
+                                          }`} />
+            <div>
+                                            <div className={`text-sm font-medium ${
+                                              theme === 'pixel' ? 'text-pixel-text font-mono' : 'text-gray-900'
+                                            }`}>
+                                              {formatCheckInDate(record)}
+                    </div>
+                                            <div className={`text-xs ${
+                      theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+                    }`}>
+                                              {record}
+                    </div>
+              </div>
+                    </div>
+                                        
+                    <div className="flex items-center space-x-2">
+                                          {isToday && (
+                                            <span className={`px-2 py-1 text-xs rounded-full ${
+                                              theme === 'pixel' ? 'bg-pixel-bg text-pixel-success font-mono' : 
+                                              theme === 'modern' ? 'bg-green-600 text-white' : 'bg-green-600 text-white'
+                                            }`}>
+                                              {theme === 'pixel' ? 'TODAY' : theme === 'modern' ? 'Today' : '今日'}
+                                            </span>
+                                          )}
+                                          <span className={`text-lg ${
+                                            theme === 'pixel' ? 'text-pixel-success font-mono' : 'text-green-600'
+                                          }`}>
+                                            ✓
+                                          </span>
+                    </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
+                  </div>
+
+                              {/* 打卡记录统计 */}
+                              {completionRecord.length > 5 && (
+                                <div className={`text-center p-2 rounded ${
+                                  theme === 'pixel' ? 'bg-pixel-bgSecondary border border-pixel-border' : 
+                                  theme === 'modern' ? 'bg-gray-100 border border-gray-200' : 'bg-blue-50 border border-blue-200'
+                                }`}>
+                                  <span className={`text-xs ${
+                                    theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-600'
+                                  }`}>
+                                    {theme === 'pixel' ? 'SHOWING_ALL_RECORDS' : theme === 'modern' ? 'Showing all records' : `共显示 ${completionRecord.length} 条打卡记录`}
+                    </span>
+          </div>
+                )}
+        </div>
+            )}
+
+                          {/* 无打卡记录时的提示 */}
+                          {completionRecord.length === 0 && (
+                            <div className={`text-center p-6 rounded-lg ${
+                              theme === 'pixel' ? 'bg-pixel-bgSecondary border-2 border-dashed border-pixel-border' : 
+                              theme === 'modern' ? 'bg-gray-50 border-2 border-dashed border-gray-300' : 'bg-blue-50 border-2 border-dashed border-blue-300'
+                            }`}>
+                              <div className={`text-4xl mb-2 ${
+                                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-400'
+                              }`}>
+                                📅
+                              </div>
+                              <div className={`text-sm font-medium ${
+                        theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-600'
+                      }`}>
+                                {theme === 'pixel' ? 'NO_CHECKINS_YET' : theme === 'modern' ? 'No check-ins yet' : '还没有打卡记录'}
+                              </div>
+                              <div className={`text-xs mt-1 ${
+                                theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+                              }`}>
+                                {theme === 'pixel' ? 'START_YOUR_FIRST_CHECKIN' : theme === 'modern' ? 'Start your first check-in!' : '开始您的第一次打卡吧！'}
+                              </div>
+                    </div>
+                  )}
+                        </div>
+                      );
                     })()}
                   </div>
                 )}
@@ -2871,7 +3229,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             <>
                               <ThemeButton
                                 variant="secondary"
-                                onClick={() => {
+                      onClick={() => {
                                   handleEditTask(selectedTask);
                                   setIsEditing(true);
                                 }}
@@ -2937,8 +3295,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                   >
                                     {theme === 'pixel' ? 'ABANDON_CHALLENGE' : theme === 'modern' ? 'Abandon Challenge' : '放弃挑战'}
                                   </ThemeButton>
-                                </>
-                              )}
+                </>
+              )}
                               
                               {!canJoinHabit && !userHabitChallenge && (
                                 <div className={`text-sm ${
@@ -2981,7 +3339,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 <div className="flex flex-col space-y-2">
                                   <div className="text-yellow-600 text-sm font-medium">
                                     {timeStatus.message}
-                                  </div>
+            </div>
                                   <ThemeButton
                                     variant="danger"
                                     onClick={async () => {
@@ -2991,7 +3349,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                   >
                                     {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : '放弃'}
                                   </ThemeButton>
-                  </div>
+                    </div>
                               );
                             }
                             
@@ -3001,7 +3359,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 <div className="flex flex-col space-y-2">
                                   <div className="text-red-600 text-sm font-medium">
                                     {timeStatus.message}
-                </div>
+                  </div>
                                   <ThemeButton
                                     variant="danger"
                                     onClick={async () => {
@@ -3011,8 +3369,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                   >
                                     {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : '放弃'}
                                   </ThemeButton>
-                                </div>
-                              );
+                </div>
+              );
                             }
                             
                             // 任务可以提交
@@ -3044,19 +3402,39 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                           {/* 提交任务按钮 - 进行中 */}
                           {isAssignee && isInProgress && (() => {
                             const timeStatus = getTaskTimeStatus(selectedTask);
+                            const taskInfo = getTaskTypeInfo(selectedTask);
+                            
+                            // 🎯 所有重复任务都使用统一的打卡逻辑
+                            // 这里不再区分普通重复和连续重复
+                            
                             return timeStatus.canSubmit || timeStatus.status === 'unlimited';
-                          })() && (
-                            <ThemeButton
-                              variant="primary"
-                  onClick={() => {
-                    handleCompleteTask(selectedTask.id);
-                                handleCloseTaskDetail();
-                              }}
-                              disabled={isTaskNotStarted(selectedTask)}
-                            >
-                              {theme === 'pixel' ? 'COMPLETE_TASK' : theme === 'modern' ? 'Complete Task' : '完成任务'}
-                            </ThemeButton>
-                          )}
+                          })() && (() => {
+                            // 🎯 检查重复任务的当前周期是否已完成
+                            const isRepeatTask = selectedTask.repeat_frequency !== 'never';
+                            const currentPeriodCompleted = isRepeatTask ? isCurrentPeriodCompleted(selectedTask) : false;
+                            
+    return (
+                              <ThemeButton
+                                variant={currentPeriodCompleted ? "secondary" : "primary"}
+                                onClick={() => {
+                                  if (!currentPeriodCompleted) {
+                                    handleCompleteTask(selectedTask.id);
+                                    handleCloseTaskDetail();
+                                  }
+                                }}
+                                disabled={isTaskNotStarted(selectedTask) || currentPeriodCompleted}
+                              >
+                                {/* 🎯 根据任务类型和周期完成状态显示不同文本 */}
+                                {selectedTask.repeat_frequency === 'never' ? (
+                                  theme === 'pixel' ? 'COMPLETE_TASK' : theme === 'modern' ? 'Complete Task' : '完成任务'
+                                ) : currentPeriodCompleted ? (
+                                  theme === 'pixel' ? 'CHECKED_IN' : theme === 'modern' ? 'Checked In' : '已打卡'
+                                ) : (
+                                  theme === 'pixel' ? 'CHECK_IN' : theme === 'modern' ? 'Check In' : '打卡'
+                                )}
+                              </ThemeButton>
+                            );
+                          })()}
 
                           {/* 审核任务按钮 - 待审核 */}
                           {isTaskOwner && isPendingReview && (
@@ -3100,23 +3478,27 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             </ThemeButton>
                           )}
 
-                                                    {/* 连续任务的特殊操作按钮 */}
+                                                    {/* 🎯 重复任务的额外信息显示（仅显示状态，不显示按钮） */}
                           {(() => {
                             const taskInfo = getTaskTypeInfo(selectedTask);
-                            if (!taskInfo.hasConsecutiveCount) return null;
                             
-                            const consecutiveStatus = getConsecutiveTaskStatus(selectedTask);
-                            if (!consecutiveStatus) return null;
+
+                            
+                            // 🎯 修复：所有重复任务都应该可以重置，不只是有required_count的任务
+                            if (!taskInfo.isRepeating) return null;
+                            
+                            const repeatStatus = getRepeatTaskStatus(selectedTask);
+                            if (!repeatStatus) return null;
                             
                             // 检查任务的时间状态（是否可以开始/提交）
                             const timeStatus = getTaskTimeStatus(selectedTask);
 
                             if (isAssignee && (isInProgress || isAssigned)) {
-                              // 已完成的连续任务
-                              if (consecutiveStatus.isCompleted) {
+                              // 已完成的重复任务
+                              if (repeatStatus.isCompleted) {
                                 return (
                                   <div className="text-green-600 text-sm font-medium">
-                                    {theme === 'pixel' ? 'STREAK_COMPLETED' : theme === 'modern' ? 'Streak completed!' : '连续任务已完成！'}
+                                    {theme === 'pixel' ? 'TASK_COMPLETED' : theme === 'modern' ? 'Task completed!' : '任务已完成！'}
                                   </div>
                                 );
                               }
@@ -3131,57 +3513,47 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                               }
 
                               if (timeStatus.isOverdue) {
-                                return (
+    return (
                                   <div className="text-red-600 text-sm font-medium">
                                     {timeStatus.message}
                                   </div>
                                 );
                               }
 
-                              // 可以进行连续任务打卡
-                              if (timeStatus.canSubmit || timeStatus.status === 'unlimited') {
-    return (
-                                  <div className="flex flex-col space-y-2">
-                                    {consecutiveStatus.canCheckIn && (
-                                      <ThemeButton
-                                        variant="primary"
-                                        onClick={async () => {
-                                          try {
-                                            await handleConsecutiveTaskCheckIn(selectedTask.id);
-                                            handleCloseTaskDetail();
-                                          } catch (error) {
-                                            console.error('❌ 连续任务打卡失败:', error);
-                                          }
-                                        }}
-                                      >
-                                        {theme === 'pixel' ? 'CHECK_IN' : theme === 'modern' ? 'Check In' : '打卡'}
-                                      </ThemeButton>
-                                    )}
-                                    {consecutiveStatus.currentPeriodCompleted && (
-                                      <div className="text-green-600 text-sm font-medium">
-                                        {theme === 'pixel' ? 'PERIOD_COMPLETED' : theme === 'modern' ? 'Period completed!' : '本期已完成！'}
-                                      </div>
-                                    )}
-                                    <ThemeButton
-                                      variant="secondary"
-                                      onClick={async () => {
-                                        try {
-                                          await handleResetConsecutiveTask(selectedTask.id);
-                                          handleCloseTaskDetail();
-                                        } catch (error) {
-                                          console.error('❌ 重置连续任务失败:', error);
-                                        }
-                                      }}
-                                    >
-                                      {theme === 'pixel' ? 'RESET_STREAK' : theme === 'modern' ? 'Reset Streak' : '重置连续'}
-                                    </ThemeButton>
+                              // 🎯 仅显示进度信息，不显示额外按钮（避免重复）
+                              return (
+                                <div className="flex flex-col space-y-2">
+                                  {repeatStatus.currentPeriodCompleted && (
+                                    <div className="text-green-600 text-sm font-medium">
+                                      {theme === 'pixel' ? 'PERIOD_COMPLETED' : theme === 'modern' ? 'Period completed!' : '本期已完成！'}
+                                    </div>
+                                  )}
+                                  {/* Reset Streak 按钮已移至底部统一位置 */}
             </div>
-                                );
-                              }
+                              );
                             }
 
                             return null;
                           })()}
+
+                          {/* 🎯 Reset Streak 按钮 - 仅对我领取的进行中重复任务显示（仅开发环境） */}
+                          {process.env.NODE_ENV === 'development' && 
+                           selectedTask.repeat_frequency !== 'never' && 
+                           selectedTask.assignee_id === currentUserId && 
+                           selectedTask.status === 'in_progress' && (
+                            <ThemeButton
+                              variant="secondary"
+                              onClick={async () => {
+                                try {
+                                  await handleResetConsecutiveTask(selectedTask.id);
+                                } catch (error) {
+                                  console.error('❌ 重置连续任务失败:', error);
+                                }
+                              }}
+                            >
+                              {theme === 'pixel' ? 'RESET_STREAK' : theme === 'modern' ? 'Reset Streak' : '重置连续'}
+                            </ThemeButton>
+                          )}
 
                           {/* 关闭按钮 - 始终显示 */}
                           <ThemeButton
@@ -3201,7 +3573,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const renderTaskList = (taskList: Task[], type: 'published' | 'assigned' | 'available') => {
     if (type === 'published') {
       const recruitingTasks = taskList.filter(task => task.status === 'recruiting');
-      const inProgressTasks = taskList.filter(task => task.status === 'in_progress');
+      // 🎯 将assigned和in_progress合并为"已分配"
+      const assignedTasks = taskList.filter(task => task.status === 'assigned' || task.status === 'in_progress');
       const pendingReviewTasks = taskList.filter(task => task.status === 'pending_review');
       const completedTasks = taskList.filter(task => task.status === 'completed');
       const abandonedTasks = taskList.filter(task => task.status === 'abandoned');
@@ -3249,12 +3622,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   <h3 className={`font-bold text-lg mb-1 ${
                     theme === 'pixel' ? 'text-pixel-warning' : 'text-orange-600'
                   }`}>
-                    {theme === 'pixel' ? 'IN_PROGRESS' : '进行中'}
+                    {theme === 'pixel' ? 'ASSIGNED' : '已分配'}
             </h3>
                   <span className={`text-sm ${
                     theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
                   }`}>
-                    {inProgressTasks.length} 个任务
+                    {assignedTasks.length} 个任务
                   </span>
           </div>
                 <div className={`text-center ${
@@ -3280,7 +3653,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 {recruitingTasks.map(task => renderTaskCard(task))}
           </div>
           <div>
-            {inProgressTasks.map(task => renderTaskCard(task))}
+            {assignedTasks.map(task => renderTaskCard(task))}
           </div>
           <div>
                 {pendingReviewTasks.map(task => renderTaskCard(task))}
@@ -3466,9 +3839,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <PageHeader
+            <div className="space-y-6">
+          {/* 测试时间控制器 - 仅开发环境显示 */}
+          <TestTimeController />
+          
+          {/* Page Header */}
+          <PageHeader
         title={theme === 'pixel' ? 'TASK_MANAGER.EXE' : theme === 'modern' ? 'Task Board' : '任务看板'}
         viewSwitcher={{
           views: [
@@ -3480,6 +3856,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           onViewChange: (viewId) => setView(viewId as any)
         }}
         actions={[
+          // 🎯 用户积分显示
+          {
+            label: `${theme === 'pixel' ? 'POINTS:' : theme === 'modern' ? 'Points:' : '积分:'} ${userProfile?.points || 0}`,
+            variant: 'secondary',
+            icon: 'gift',
+            onClick: () => {}, // 点击无操作，仅用于显示
+            disabled: true
+          },
           {
             label: theme === 'pixel' ? 'REFRESH' : theme === 'modern' ? 'Refresh' : '刷新',
             variant: 'secondary',

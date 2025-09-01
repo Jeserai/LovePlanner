@@ -23,6 +23,7 @@ interface PageHeaderProps {
     icon?: string;
     onClick: () => void;
     loading?: boolean;
+    disabled?: boolean;
   }>;
   className?: string;
 }
@@ -154,7 +155,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               onClick={action.onClick}
               variant={action.variant || 'primary'}
               size="md"
-              disabled={action.loading}
+              disabled={action.loading || action.disabled}
             >
               {action.icon && (
                 <Icon 
