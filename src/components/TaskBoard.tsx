@@ -948,19 +948,27 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
       console.log('🚀 更新任务数据:', updateData);
       
+
+      
       // 直接使用新的任务服务更新任务
       await taskService.updateTask(updateData);
 
       // 刷新任务列表
       await reloadTasks();
       
+      // 🔧 获取更新后的任务数据并更新选中任务
+      const updatedTask = await taskService.getTask(updateData.id);
+      if (updatedTask) {
+
+        setSelectedTask(updatedTask);
+      }
+      
       // 发送全局事件
       globalEventService.emit('TASKS_UPDATED');
       
-      // 关闭编辑模式
+      // 关闭编辑模式（但保持任务详情弹窗打开）
       setIsEditing(false);
       setEditTask({});
-      setSelectedTask(null);
       
       console.log('✅ 任务更新成功');
       
@@ -1135,8 +1143,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             alert('任务开始时间必须早于结束时间');
             return;
           }
-        }
-                  } else {
+      }
+    } else {
           // 🎯 重复任务：最早开始时间必填
           if (!newTask.earliest_start_time) {
             alert('请设置重复任务的最早开始时间');
@@ -1288,7 +1296,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               type="datetime-local"
               value={newTask.earliest_start_time}
               onChange={(e) => setNewTask(prev => ({ ...prev, earliest_start_time: e.target.value }))}
-                  min={new Date().toISOString().slice(0, 16)}
+                  min={getCurrentLocalDateTimeString()}
                 />
           </ThemeFormField>
 
@@ -1301,14 +1309,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   type="datetime-local"
               value={newTask.task_deadline}
               onChange={(e) => setNewTask(prev => ({ ...prev, task_deadline: e.target.value }))}
-              min={newTask.earliest_start_time || new Date().toISOString().slice(0, 16)}
+              min={newTask.earliest_start_time || getCurrentLocalDateTimeString()}
             />
           </ThemeFormField>
-              </div>
-      );
+            </div>
+          );
     } else {
         // 重复任务：按照要求的字段顺序
-      return (
+          return (
           <div className="space-y-4">
             <div className={`text-sm ${
               theme === 'pixel' ? 'text-pixel-textMuted' : 
@@ -1329,7 +1337,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 type="datetime-local"
                 value={newTask.earliest_start_time || ''}
                 onChange={(e) => setNewTask(prev => ({ ...prev, earliest_start_time: e.target.value }))}
-                min={new Date().toISOString().slice(0, 16)}
+                min={getCurrentLocalDateTimeString()}
               />
             </ThemeFormField>
 
@@ -1356,7 +1364,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 type="datetime-local"
                 value={newTask.task_deadline || ''}
                 onChange={(e) => setNewTask(prev => ({ ...prev, task_deadline: e.target.value }))}
-                min={newTask.earliest_start_time || new Date().toISOString().slice(0, 16)}
+                min={newTask.earliest_start_time || getCurrentLocalDateTimeString()}
               />
             </ThemeFormField>
 
@@ -1393,16 +1401,57 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       }
   };
 
-  // 🎯 格式化日期时间为datetime-local输入格式
+  // 🎯 格式化日期时间为datetime-local输入格式（修复时区问题）
   const formatDateTimeLocal = (dateString?: string) => {
     if (!dateString) return '';
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return '';
-      return date.toISOString().slice(0, 16);
+      
+      // 🔧 修复：转换为用户本地时区，而不是直接使用UTC
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
     } catch {
       return '';
     }
+  };
+
+  // 🎯 格式化日期时间为用户友好的显示格式
+  const formatDateTimeDisplay = (dateString?: string | null) => {
+    if (!dateString) return '--';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '--';
+      
+      // 使用用户本地时区的友好格式
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch {
+      return '--';
+    }
+  };
+
+  // 🎯 获取当前本地时间的datetime-local格式
+  const getCurrentLocalDateTimeString = () => {
+    const now = getCurrentTime(); // 使用测试时间管理器
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   // 🎯 渲染编辑任务的时间字段（使用新数据结构）
@@ -1429,7 +1478,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   type="datetime-local"
               value={formatDateTimeLocal(editTask.earliest_start_time)}
               onChange={(e) => setEditTask(prev => ({ ...prev, earliest_start_time: e.target.value }))}
-                  min={new Date().toISOString().slice(0, 16)}
+                  min={getCurrentLocalDateTimeString()}
                 />
           </ThemeFormField>
 
@@ -1442,10 +1491,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   type="datetime-local"
               value={formatDateTimeLocal(editTask.task_deadline)}
               onChange={(e) => setEditTask(prev => ({ ...prev, task_deadline: e.target.value }))}
-              min={formatDateTimeLocal(editTask.earliest_start_time) || new Date().toISOString().slice(0, 16)}
+              min={formatDateTimeLocal(editTask.earliest_start_time) || getCurrentLocalDateTimeString()}
             />
           </ThemeFormField>
-            </div>
+              </div>
       );
     } else {
       // 重复任务：按照要求的字段顺序
@@ -1470,7 +1519,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               type="datetime-local"
               value={formatDateTimeLocal(editTask.earliest_start_time)}
               onChange={(e) => setEditTask(prev => ({ ...prev, earliest_start_time: e.target.value }))}
-              min={new Date().toISOString().slice(0, 16)}
+              min={getCurrentLocalDateTimeString()}
             />
           </ThemeFormField>
 
@@ -1497,7 +1546,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               type="datetime-local"
               value={formatDateTimeLocal(editTask.task_deadline)}
               onChange={(e) => setEditTask(prev => ({ ...prev, task_deadline: e.target.value }))}
-              min={formatDateTimeLocal(editTask.earliest_start_time) || new Date().toISOString().slice(0, 16)}
+              min={formatDateTimeLocal(editTask.earliest_start_time) || getCurrentLocalDateTimeString()}
             />
           </ThemeFormField>
 
@@ -1583,9 +1632,19 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '--';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '--';
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '--';
+      
+      // 🔧 使用本地时区格式化日期
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return '--';
+    }
   };
 
   const getStatusDisplay = (status: string) => {
@@ -2189,9 +2248,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               inputLocal: today.toString(),
               calculatedWeek: isoWeek,
               year: isoYear,
-              generatedKey: periodKey,
-              existingRecords: completionRecord,
-              isMatched: completionRecord.includes(periodKey)
+              generatedKey: periodKey
             });
           }
           break;
@@ -2323,9 +2380,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               inputLocal: today.toString(),
               calculatedWeek: isoWeek,
               year: isoYear,
-              generatedKey: periodKey,
-              existingRecords: completionRecord,
-              isMatched: completionRecord.includes(periodKey)
+              generatedKey: periodKey
             });
           }
           break;
@@ -2695,7 +2750,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     
                     <DetailField
                       label={theme === 'pixel' ? 'TASK_PERIOD' : theme === 'modern' ? 'Task Period' : '任务期间'}
-                      value={`${selectedTask.earliest_start_time || '--'} ~ ${selectedTask.task_deadline || '--'}`}
+                      value={`${formatDateTimeDisplay(selectedTask.earliest_start_time)} ~ ${formatDateTimeDisplay(selectedTask.task_deadline)}`}
                     />
                     
                     {selectedTask.task_deadline && (
@@ -2724,7 +2779,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                         {userHabitChallenge.last_completion_date && (
                           <DetailField
                             label={theme === 'pixel' ? 'LAST_CHECKIN' : theme === 'modern' ? 'Last Check-in' : '最后打卡'}
-                            value={userHabitChallenge.last_completion_date}
+                            value={formatDateTimeDisplay(userHabitChallenge.last_completion_date)}
                           />
                         )}
                       </>
@@ -2739,13 +2794,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     {selectedTask.earliest_start_time && (
                       <DetailField
                         label={theme === 'pixel' ? 'START_TIME' : theme === 'modern' ? 'Start Time' : '开始时间'}
-                        value={formatDate(selectedTask.earliest_start_time)}
+                        value={formatDateTimeDisplay(selectedTask.earliest_start_time)}
                       />
                     )}
                     {selectedTask.task_deadline && (
                       <DetailField
                         label={theme === 'pixel' ? 'END_TIME' : theme === 'modern' ? 'End Time' : '结束时间'}
-                        value={formatDate(selectedTask.task_deadline)}
+                        value={formatDateTimeDisplay(selectedTask.task_deadline)}
                       />
                     )}
                     {!selectedTask.earliest_start_time && !selectedTask.task_deadline && (
@@ -2761,7 +2816,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     {selectedTask.earliest_start_time && (
                       <DetailField
                         label={theme === 'pixel' ? 'EARLIEST_START_TIME' : theme === 'modern' ? 'Earliest Start Time' : '最早开始时间'}
-                        value={formatDate(selectedTask.earliest_start_time)}
+                        value={formatDateTimeDisplay(selectedTask.earliest_start_time)}
                       />
                     )}
                     {selectedTask.required_count && (
@@ -2773,7 +2828,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     {selectedTask.task_deadline && (
                       <DetailField
                         label={theme === 'pixel' ? 'DEADLINE' : theme === 'modern' ? 'Deadline' : '截止时间'}
-                        value={formatDate(selectedTask.task_deadline)}
+                        value={formatDateTimeDisplay(selectedTask.task_deadline)}
                       />
                     )}
                     {(selectedTask.daily_time_start || selectedTask.daily_time_end) && (
@@ -3307,7 +3362,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                   {theme === 'pixel' ? 'JOIN_DEADLINE_PASSED' : 
                                    theme === 'modern' ? 'Join task_deadline has passed' : 
                                    '加入截止日期已过'}
-                    </div>
+                  </div>
                   )}
                             </>
                           )}
@@ -3339,7 +3394,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 <div className="flex flex-col space-y-2">
                                   <div className="text-yellow-600 text-sm font-medium">
                                     {timeStatus.message}
-            </div>
+                </div>
                                   <ThemeButton
                                     variant="danger"
                                     onClick={async () => {
@@ -3416,7 +3471,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     return (
                               <ThemeButton
                                 variant={currentPeriodCompleted ? "secondary" : "primary"}
-                                onClick={() => {
+                  onClick={() => {
                                   if (!currentPeriodCompleted) {
                                     handleCompleteTask(selectedTask.id);
                                     handleCloseTaskDetail();
@@ -3499,7 +3554,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 return (
                                   <div className="text-green-600 text-sm font-medium">
                                     {theme === 'pixel' ? 'TASK_COMPLETED' : theme === 'modern' ? 'Task completed!' : '任务已完成！'}
-                                  </div>
+            </div>
                                 );
                               }
 
@@ -3508,7 +3563,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 return (
                                   <div className="text-yellow-600 text-sm font-medium">
                                     {timeStatus.message}
-                                  </div>
+                    </div>
                                 );
                               }
 
@@ -3516,7 +3571,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     return (
                                   <div className="text-red-600 text-sm font-medium">
                                     {timeStatus.message}
-                                  </div>
+                  </div>
                                 );
                               }
 
@@ -3529,8 +3584,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                     </div>
                                   )}
                                   {/* Reset Streak 按钮已移至底部统一位置 */}
-            </div>
-                              );
+                </div>
+              );
                             }
 
                             return null;
@@ -3580,7 +3635,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       const abandonedTasks = taskList.filter(task => task.status === 'abandoned');
 
       if (publishedPage === 'active') {
-  return (
+    return (
           <div className="space-y-6">
             {/* 活跃任务页面 */}
             <div className="relative mb-6">
@@ -3615,7 +3670,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   }`}>
                     {recruitingTasks.length} 个任务
                   </span>
-          </div>
+            </div>
                 <div className={`text-center ${
                   theme === 'pixel' ? 'font-mono uppercase' : ''
             }`}>

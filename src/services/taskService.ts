@@ -84,6 +84,20 @@ const transformDatabaseTask = (dbTask: DatabaseTask): Task => {
 
 // 🎯 前端表单转换为数据库插入数据
 const transformCreateForm = (form: CreateTaskForm, creatorId: string, coupleId: string): InsertTask => {
+  // 🔧 修复时区问题：将本地时间转换为ISO字符串
+  const convertLocalToISO = (localDateTime?: string) => {
+    if (!localDateTime) return null;
+    try {
+      // datetime-local 格式：YYYY-MM-DDTHH:mm
+      // 需要将其视为用户的本地时间并转换为 ISO 字符串
+      const date = new Date(localDateTime);
+      return date.toISOString();
+    } catch (error) {
+      console.error('时间格式转换错误:', error);
+      return null;
+    }
+  };
+
   return {
     title: form.title,
     description: form.description || null,
@@ -92,9 +106,9 @@ const transformCreateForm = (form: CreateTaskForm, creatorId: string, coupleId: 
     couple_id: coupleId,
     task_type: form.task_type,
     repeat_frequency: form.repeat_frequency,
-    earliest_start_time: form.earliest_start_time || null,
+    earliest_start_time: convertLocalToISO(form.earliest_start_time),
     required_count: form.repeat_frequency === 'never' ? 1 : (form.required_count || null),
-    task_deadline: form.repeat_frequency === 'forever' ? null : (form.task_deadline || null),
+    task_deadline: form.repeat_frequency === 'forever' ? null : convertLocalToISO(form.task_deadline),
     repeat_weekdays: form.repeat_weekdays || null,
     daily_time_start: form.daily_time_start || null,
     daily_time_end: form.daily_time_end || null,
@@ -202,20 +216,36 @@ export const taskService = {
   // 🎯 更新任务
   async updateTask(form: EditTaskForm): Promise<Task> {
     try {
+      // 🔧 修复时区问题：将本地时间转换为ISO字符串
+      const convertLocalToISO = (localDateTime?: string) => {
+        if (!localDateTime) return null;
+        try {
+          // datetime-local 格式：YYYY-MM-DDTHH:mm
+          // 需要将其视为用户的本地时间并转换为 ISO 字符串
+          const date = new Date(localDateTime);
+          return date.toISOString();
+        } catch (error) {
+          console.error('时间格式转换错误:', error);
+          return null;
+        }
+      };
+
       const updateData: UpdateTask = {
         title: form.title,
         description: form.description || null,
         points: form.points,
         task_type: form.task_type,
         repeat_frequency: form.repeat_frequency,
-        earliest_start_time: form.earliest_start_time || null,
+        earliest_start_time: convertLocalToISO(form.earliest_start_time),
         required_count: form.repeat_frequency === 'never' ? 1 : (form.required_count || null),
-        task_deadline: form.repeat_frequency === 'forever' ? null : (form.task_deadline || null),
+        task_deadline: form.repeat_frequency === 'forever' ? null : convertLocalToISO(form.task_deadline),
         repeat_weekdays: form.repeat_weekdays || null,
         daily_time_start: form.daily_time_start || null,
         daily_time_end: form.daily_time_end || null,
         requires_proof: form.requires_proof
       };
+
+
 
       const { data, error } = await supabase
         .from('tasks')

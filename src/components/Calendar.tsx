@@ -29,6 +29,15 @@ import { eventService, type SimplifiedEvent } from '../services/eventService';
 import { colorService, type CoupleColors } from '../services/colorService';
 import { useAuth } from '../hooks/useAuth';
 import { globalEventService, GlobalEvents } from '../services/globalEventService';
+import { testTimezoneManager } from '../utils/testTimezoneManager';
+import TestTimezoneController from './TestTimezoneController';
+import { 
+  convertUTCTimeToUserTime, 
+  convertUserTimeToUTCTime, 
+  convertUTCToUserDateTimeLocal,
+  getUserTimezone,
+  debugTimezone
+} from '../utils/timezoneService';
 
 // 前端展示用的Event接口
 interface Event {
@@ -208,7 +217,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   };
 
   // 简化数据库事件转换为前端Event格式
-  const convertSimplifiedEventToEvent = (dbEvent: SimplifiedEvent & { excluded_dates?: string[]; modified_instances?: Record<string, any> }): Event & { excludedDates?: string[]; modifiedInstances?: Record<string, any> } => {
+  const convertSimplifiedEventToEvent = (dbEvent: SimplifiedEvent & { excluded_dates?: string[]; modified_instances?: Record<string, any> }): Event & { excludedDates?: string[]; modifiedInstances?: Record<string, any>; rawStartTime?: string; rawEndTime?: string } => {
     const participants: string[] = [];
     
     if (!coupleUsers) {
@@ -224,7 +233,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         recurrenceEnd: dbEvent.recurrence_end || undefined,
         originalDate: dbEvent.original_date || undefined,
         excludedDates: dbEvent.excluded_dates || undefined,
-        modifiedInstances: dbEvent.modified_instances || undefined
+        modifiedInstances: dbEvent.modified_instances || undefined,
+        rawStartTime: dbEvent.start_time || undefined,
+        rawEndTime: dbEvent.end_time || undefined
       };
     }
     
@@ -232,11 +243,34 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     if (dbEvent.includes_user1) participants.push(coupleUsers.user1.id);
     if (dbEvent.includes_user2) participants.push(coupleUsers.user2.id);
     
+    // 🔧 时区修复：构建时间显示字符串（延迟格式化）
+    let timeDisplay = undefined;
+    if (dbEvent.start_time && dbEvent.end_time) {
+      // 保存原始时间信息，稍后格式化
+      timeDisplay = `${dbEvent.start_time} - ${dbEvent.end_time}`;
+    } else if (dbEvent.start_time) {
+      timeDisplay = dbEvent.start_time;
+    }
+    
+    // 🐛 调试：事件转换信息
+    if (process.env.NODE_ENV === 'development' && dbEvent.start_time) {
+      console.log('📅 事件数据转换:', {
+        事件标题: dbEvent.title,
+        事件日期: dbEvent.event_date,
+        原始开始时间: dbEvent.start_time,
+        原始结束时间: dbEvent.end_time,
+        构建的时间显示: timeDisplay,
+        参与者1: dbEvent.includes_user1,
+        参与者2: dbEvent.includes_user2,
+        参与者数组: participants
+      });
+    }
+    
     return {
       id: dbEvent.id,
       title: dbEvent.title,
       date: dbEvent.event_date,
-      time: dbEvent.start_time || undefined,
+      time: timeDisplay,
       participants: participants,
       color: getEventColor(participants),
       isRecurring: dbEvent.is_recurring,
@@ -244,7 +278,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       recurrenceEnd: dbEvent.recurrence_end || undefined,
       originalDate: dbEvent.original_date || undefined,
       excludedDates: dbEvent.excluded_dates || undefined,
-      modifiedInstances: dbEvent.modified_instances || undefined
+      modifiedInstances: dbEvent.modified_instances || undefined,
+      rawStartTime: dbEvent.start_time || undefined,
+      rawEndTime: dbEvent.end_time || undefined
     };
   };
 
@@ -274,18 +310,36 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const includesUser1 = event.participants.includes(coupleUsers.user1.id);
     const includesUser2 = event.participants.includes(coupleUsers.user2.id);
     
-    // 从原始的datetime-local格式中提取时间
+    // 🎯 统一时区处理：所有时间都转换为UTC存储
     let startTime = null;
     let endTime = null;
     
     if (originalStartDateTime) {
-      // 从 "2024-01-15T14:30" 中提取 "14:30"
-      startTime = originalStartDateTime.split('T')[1] || null;
+      try {
+        // 统一：所有事件都从用户本地时间转换为UTC时间存储
+        startTime = convertUserTimeToUTCTime(originalStartDateTime);
+        
+        // 调试信息
+        debugTimezone('创建事件开始时间', originalStartDateTime);
+      } catch (e) {
+        console.warn('开始时间转换失败:', originalStartDateTime, e);
+        // 降级处理：直接提取时间部分
+        startTime = originalStartDateTime.split('T')[1]?.split('.')[0] || null;
+      }
     }
     
     if (originalEndDateTime) {
-      // 从 "2024-01-15T16:30" 中提取 "16:30"  
-      endTime = originalEndDateTime.split('T')[1] || null;
+      try {
+        // 统一：所有事件都从用户本地时间转换为UTC时间存储
+        endTime = convertUserTimeToUTCTime(originalEndDateTime);
+        
+        // 调试信息
+        debugTimezone('创建事件结束时间', originalEndDateTime);
+      } catch (e) {
+        console.warn('结束时间转换失败:', originalEndDateTime, e);
+        // 降级处理：直接提取时间部分
+        endTime = originalEndDateTime.split('T')[1]?.split('.')[0] || null;
+      }
     }
     
     return {
@@ -921,9 +975,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         
         if (selectedEvent.isRecurring) {
           // 重复事件 - 使用智能更新策略
+          // 🔧 时区修复：转换为UTC时间格式
+          // 🎯 使用统一时区服务convertUserTimeToUTCTime
+          
           const updateData = {
             title: updatedEvent.title,
-            start_time: updatedEvent.time || undefined,
+            start_time: convertUserTimeToUTCTime(editEvent.startDateTime),
+            end_time: convertUserTimeToUTCTime(editEvent.endDateTime),
             location: editEvent.location || undefined,
             includes_user1: includesUser1,
             includes_user2: includesUser2,
@@ -937,16 +995,20 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           );
         } else {
           // 非重复事件 - 直接更新
+          // 🔧 时区修复：转换为UTC时间格式
+          // 🎯 使用统一时区服务convertUserTimeToUTCTime
+          
           success = await eventService.updateEvent(originalEventId, {
             title: updatedEvent.title,
             event_date: updatedEvent.date,
-            start_time: updatedEvent.time || undefined,
+            start_time: convertUserTimeToUTCTime(editEvent.startDateTime),
+            end_time: convertUserTimeToUTCTime(editEvent.endDateTime),
             includes_user1: includesUser1,
             includes_user2: includesUser2,
             is_recurring: updatedEvent.isRecurring,
             recurrence_type: updatedEvent.recurrenceType || undefined,
             recurrence_end: updatedEvent.recurrenceEnd || undefined,
-            is_all_day: !updatedEvent.time
+            is_all_day: false
           });
         }
         
@@ -1083,34 +1145,43 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     // 预填充编辑表单数据
     const event = selectedEvent;
     
-    // 将现有的时间格式转换为datetime-local格式
+    // 🔧 时区修复：使用原始时间数据而不是解析显示字符串
     let startDateTime = '';
     let endDateTime = '';
     
-    if (event.time) {
-      // 解析时间显示格式
-      const timeStr = event.time;
-      if (timeStr.includes(' - ')) {
-        const [startPart, endPart] = timeStr.split(' - ');
-        
-        if (startPart.includes(':') && !startPart.includes('-')) {
-          // 同一天的时间格式 "14:30 - 16:30"
-          startDateTime = `${event.date}T${startPart}`;
-          endDateTime = `${event.date}T${endPart}`;
-    } else {
-          // 跨天的时间格式 "01-15 14:30 - 01-16 09:00"
-          const year = new Date().getFullYear();
-          const [startMonth, startDayTime] = startPart.split(' ');
-          const [endMonth, endDayTime] = endPart.split(' ');
-          startDateTime = `${year}-${startMonth.replace('-', '-')}T${startDayTime}`;
-          endDateTime = `${year}-${endMonth.replace('-', '-')}T${endDayTime}`;
+    // 🎯 统一时区处理：将UTC时间转换为用户本地的datetime-local格式
+    const convertToDateTimeLocal = (timeStr: string, dateStr: string) => {
+      try {
+        if (timeStr.includes('T') || timeStr.includes(' ')) {
+          // 完整的 datetime 字符串 (ISO format)
+          return convertUTCToUserDateTimeLocal(timeStr);
+        } else if (timeStr.includes(':')) {
+          // 时间字符串格式："HH:MM:SS" 或 "HH:MM"
+          // 统一假设为UTC时间，转换为本地时间
+          const utcDatetimeString = `${dateStr}T${timeStr}${timeStr.length === 5 ? ':00' : ''}Z`;
+          return convertUTCToUserDateTimeLocal(utcDatetimeString);
         }
+      } catch (e) {
+        console.warn('时间转换失败:', timeStr, e);
       }
+      return `${dateStr}T09:00`; // 默认值
+    };
+    
+    if ((event as any).rawStartTime) {
+      startDateTime = convertToDateTimeLocal((event as any).rawStartTime, event.date);
+      debugTimezone('编辑表单开始时间', (event as any).rawStartTime);
     }
     
-    // 默认值，如果解析失败
+    if ((event as any).rawEndTime) {
+      endDateTime = convertToDateTimeLocal((event as any).rawEndTime, event.date);
+      debugTimezone('编辑表单结束时间', (event as any).rawEndTime);
+    }
+    
+    // 默认值，如果没有原始时间数据
     if (!startDateTime) {
       startDateTime = `${event.date}T09:00`;
+    }
+    if (!endDateTime) {
       endDateTime = `${event.date}T10:00`;
     }
     
@@ -1355,12 +1426,35 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return sortEventsByTime(dayEvents);
   };
 
-  // 格式化时间显示
-  const formatTime = (time?: string) => {
+  // 🎯 统一时区处理：格式化时间显示
+  const formatTime = (time?: string, eventDate?: string) => {
     if (!time) return '全天';
-    const [hours, minutes] = time.split(':');
-    return `${hours}:${minutes}`;
+    
+    // 处理时间范围：格式如 "04:00:00 - 05:00:00"
+    if (time.includes(' - ')) {
+      try {
+        const [startTime, endTime] = time.split(' - ');
+        const startFormatted = convertUTCTimeToUserTime(startTime, eventDate || '');
+        const endFormatted = convertUTCTimeToUserTime(endTime, eventDate || '');
+        return `${startFormatted.slice(0, 5)} - ${endFormatted.slice(0, 5)}`;
+      } catch (e) {
+        console.warn('解析时间范围失败:', time, eventDate, e);
+        return time; // 回退到原始字符串
+      }
+    }
+    
+    // 处理单个时间 - 统一从UTC转换为用户时区
+    try {
+      const userTime = convertUTCTimeToUserTime(time, eventDate || '');
+      debugTimezone('Calendar formatTime', time);
+      return userTime.slice(0, 5); // HH:mm格式
+    } catch (error) {
+      console.warn('时区转换失败:', error, 'time:', time);
+      return time.slice(0, 5); // 回退到原始显示
+    }
   };
+
+
 
   const buildDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const todayStrForPanel = buildDateStr(new Date());
@@ -2104,7 +2198,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                           ) : (
                             <ClockIcon className="w-4 h-4" />
                           )}
-                          <span>{formatTime(event.time)}</span>
+                          <span>{formatTime(event.time, event.date)}</span>
                         </div>
                         {event.isRecurring && (
                           <div className={`text-xs px-2 py-1 rounded-full ${
@@ -2300,7 +2394,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 {selectedEvent.time && (
                     <DetailField
                       label={theme === 'pixel' ? 'TIME' : theme === 'modern' ? 'Time' : '时间'}
-                      value={selectedEvent.time}
+                      value={formatTime(selectedEvent.time, selectedEvent.date)}
                     />
                   )}
 
@@ -2676,6 +2770,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         onCancel={() => setRecurringActionDialog(prev => ({ ...prev, open: false }))}
         onOpenChange={(open) => setRecurringActionDialog(prev => ({ ...prev, open }))}
       />
+      
+      {/* 时区测试控制器 */}
+      <TestTimezoneController />
     </div>
   );
 };

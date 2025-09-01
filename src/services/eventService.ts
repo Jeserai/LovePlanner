@@ -18,6 +18,8 @@ export interface SimplifiedEvent {
   created_by: string;
   includes_user1: boolean;
   includes_user2: boolean;
+  created_timezone?: string | null;     // 创建者时区
+  timezone_aware?: boolean;            // 是否需要时区处理
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +41,8 @@ export interface CreateEventParams {
   recurrence_type?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null;
   recurrence_end?: string | null;
   original_date?: string | null;
+  created_timezone?: string | null;     // 创建者时区
+  timezone_aware?: boolean;            // 是否需要时区处理
 }
 
 // 事件更新参数
