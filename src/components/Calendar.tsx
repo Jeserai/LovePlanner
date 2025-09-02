@@ -216,6 +216,25 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return 'bg-sage-500';
   };
 
+  // 从UTC datetime格式化为用户本地时间显示
+  const formatTimeFromDatetime = (startDatetime?: string | null, endDatetime?: string | null): string => {
+    if (!startDatetime) return '全天';
+    
+    try {
+      const eventDate = startDatetime.split('T')[0]; // 从datetime中提取日期
+      const startTime = convertUTCTimeToUserTime(startDatetime, eventDate);
+      const endTime = endDatetime ? convertUTCTimeToUserTime(endDatetime, eventDate) : null;
+      
+      if (endTime) {
+        return `${startTime} - ${endTime}`;
+      }
+      return startTime;
+    } catch (error) {
+      console.error('时间格式化失败:', error);
+      return '时间格式错误';
+    }
+  };
+
   // 简化数据库事件转换为前端Event格式
   const convertSimplifiedEventToEvent = (dbEvent: SimplifiedEvent & { excluded_dates?: string[]; modified_instances?: Record<string, any> }): Event & { excludedDates?: string[]; modifiedInstances?: Record<string, any>; rawStartTime?: string; rawEndTime?: string } => {
     const participants: string[] = [];
@@ -225,7 +244,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         id: dbEvent.id,
         title: dbEvent.title,
         date: dbEvent.event_date,
-        time: dbEvent.start_time || undefined,
+        time: dbEvent.start_datetime ? formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime) : undefined,
         participants: [],
         color: 'bg-gray-400',
         isRecurring: dbEvent.is_recurring,
@@ -234,8 +253,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         originalDate: dbEvent.original_date || undefined,
         excludedDates: dbEvent.excluded_dates || undefined,
         modifiedInstances: dbEvent.modified_instances || undefined,
-        rawStartTime: dbEvent.start_time || undefined,
-        rawEndTime: dbEvent.end_time || undefined
+        rawStartTime: dbEvent.start_datetime ? convertUTCTimeToUserTime(dbEvent.start_datetime, dbEvent.event_date) : undefined,
+        rawEndTime: dbEvent.end_datetime ? convertUTCTimeToUserTime(dbEvent.end_datetime, dbEvent.event_date) : undefined
       };
     }
     
@@ -243,22 +262,16 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     if (dbEvent.includes_user1) participants.push(coupleUsers.user1.id);
     if (dbEvent.includes_user2) participants.push(coupleUsers.user2.id);
     
-    // 🔧 时区修复：构建时间显示字符串（延迟格式化）
-    let timeDisplay = undefined;
-    if (dbEvent.start_time && dbEvent.end_time) {
-      // 保存原始时间信息，稍后格式化
-      timeDisplay = `${dbEvent.start_time} - ${dbEvent.end_time}`;
-    } else if (dbEvent.start_time) {
-      timeDisplay = dbEvent.start_time;
-    }
+    // 🔧 时区修复：使用新的datetime字段构建时间显示
+    const timeDisplay = formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime);
     
     // 🐛 调试：事件转换信息
-    if (process.env.NODE_ENV === 'development' && dbEvent.start_time) {
+    if (process.env.NODE_ENV === 'development' && dbEvent.start_datetime) {
       console.log('📅 事件数据转换:', {
         事件标题: dbEvent.title,
         事件日期: dbEvent.event_date,
-        原始开始时间: dbEvent.start_time,
-        原始结束时间: dbEvent.end_time,
+        UTC开始时间: dbEvent.start_datetime,
+        UTC结束时间: dbEvent.end_datetime,
         构建的时间显示: timeDisplay,
         参与者1: dbEvent.includes_user1,
         参与者2: dbEvent.includes_user2,
@@ -279,8 +292,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       originalDate: dbEvent.original_date || undefined,
       excludedDates: dbEvent.excluded_dates || undefined,
       modifiedInstances: dbEvent.modified_instances || undefined,
-      rawStartTime: dbEvent.start_time || undefined,
-      rawEndTime: dbEvent.end_time || undefined
+      rawStartTime: dbEvent.start_datetime ? convertUTCTimeToUserTime(dbEvent.start_datetime, dbEvent.event_date) : undefined,
+      rawEndTime: dbEvent.end_datetime ? convertUTCTimeToUserTime(dbEvent.end_datetime, dbEvent.event_date) : undefined
     };
   };
 
@@ -777,119 +790,18 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     setShowDetailModal(true);
   };
 
-  const handleAddEvent = async () => {
-    if (!newEvent.title || !newEvent.startDateTime || !newEvent.endDateTime) {
-      return;
-    }
-
-    // 根据isJointActivity确定参与者
-    const participants = newEvent.isJointActivity && coupleUsers 
-      ? [coupleUsers.user1.id, coupleUsers.user2.id]
-      : user ? [user.id] : [];
-
-    if (participants.length === 0) {
-      return;
-    }
-
-    // 从startDateTime提取日期部分作为主要日期
-    const startDate = newEvent.startDateTime.split('T')[0];
+  // 🎯 统一的事件提交函数（合并创建和编辑逻辑）
+  const handleEventSubmit = async (mode: 'create' | 'edit', eventData: any, scope?: 'this_only' | 'this_and_future' | 'all_events') => {
+    const isEdit = mode === 'edit';
+    const data = isEdit ? editEvent : newEvent;
+    const targetEvent = isEdit ? selectedEvent : null;
     
-    // 格式化时间显示（如果是同一天显示时间范围，如果跨天显示完整日期时间）
-    const startDateObj = new Date(newEvent.startDateTime);
-    const endDateObj = new Date(newEvent.endDateTime);
-    const isSameDay = startDate === newEvent.endDateTime.split('T')[0];
-    
-    const timeDisplay = isSameDay 
-      ? `${startDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
-      : `${startDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}`;
-
-      const event: Event = {
-        id: Date.now().toString(),
-      title: newEvent.title,
-      date: startDate,
-      time: timeDisplay,
-      participants: participants,
-      isRecurring: newEvent.repeat !== 'never',
-      recurrenceType: newEvent.repeat === 'never' ? undefined : 
-                     newEvent.repeat === 'custom' ? 'weekly' : // 自定义暂时默认为weekly
-                     newEvent.repeat as any,
-      recurrenceEnd: newEvent.endRepeat === 'on_date' ? newEvent.endRepeatDate : undefined,
-      color: getEventColor(participants),
-      originalDate: newEvent.repeat !== 'never' ? startDate : undefined
-    };
-
-    try {
-      if (user && coupleId) {
-        // 保存到数据库
-        const createParams = convertEventToCreateParams(event, coupleId, user.id, newEvent.startDateTime, newEvent.endDateTime, newEvent.location);
-        const savedEvent = await eventService.createEvent(
-          createParams.coupleId,
-          createParams.title,
-          createParams.eventDate,
-          createParams.createdBy,
-          createParams.includesUser1,
-          createParams.includesUser2,
-          createParams.startTime,
-          createParams.endTime,
-          createParams.description,
-          createParams.isAllDay,
-          createParams.location,
-          createParams.isRecurring,
-          createParams.recurrenceType,
-          createParams.recurrenceEnd,
-          createParams.originalDate
-        );
-        
-        if (savedEvent) {
-          // 使用数据库返回的事件数据（包含真实的ID）
-          const convertedEvent = convertSimplifiedEventToEvent(savedEvent);
-          setEvents([...events, convertedEvent]);
-          
-          // 发布全局事件，通知其他组件事件数据已更新
-          globalEventService.emit(GlobalEvents.EVENTS_UPDATED);
-        }
-      } else {
-        throw new Error('用户未登录或缺少情侣关系信息');
-      }
-
-      // 重置表单
-      setNewEvent({ 
-        title: '',
-        location: '',
-        startDateTime: '',
-        endDateTime: '',
-        repeat: 'never',
-        endRepeat: 'never',
-        endRepeatDate: '',
-        isJointActivity: false
-      });
-      setShowAddForm(false);
-    } catch (error) {
-      console.error('添加事件失败:', error);
-      console.error('事件数据:', {
-        event,
-        newEvent
-      });
-      try {
-        if (coupleId && user?.id) {
-          const debugParams = convertEventToCreateParams(event, coupleId, user.id, newEvent.startDateTime, newEvent.endDateTime, newEvent.location);
-          console.error('转换参数:', debugParams);
-        }
-      } catch (conversionError) {
-        console.error('参数转换失败:', conversionError);
-      }
-      alert(`添加事件失败：${error instanceof Error ? error.message : '未知错误'}，请重试`);
-    }
-  };
-
-  // 更新事件
-  const handleUpdateEvent = () => {
-    if (!selectedEvent || !editEvent.title || !editEvent.startDateTime || !editEvent.endDateTime) {
+    if (!data.title || !data.startDateTime || !data.endDateTime) {
       return;
     }
 
-    // 检查权限
-    if (!canEditEvent(selectedEvent)) {
+    // 编辑时检查权限
+    if (isEdit && targetEvent && !canEditEvent(targetEvent)) {
       setConfirmDialog({
         open: true,
         title: theme === 'pixel' ? 'ACCESS_DENIED' : theme === 'modern' ? 'Access Denied' : '权限不足',
@@ -900,138 +812,182 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return;
     }
 
+    // 根据isJointActivity确定参与者
+    const participants = data.isJointActivity && coupleUsers 
+      ? [coupleUsers.user1.id, coupleUsers.user2.id]
+      : user ? [user.id] : [];
+
+    if (participants.length === 0) {
+      return;
+    }
+
+    // 从startDateTime提取日期部分作为主要日期
+    const startDate = data.startDateTime.split('T')[0];
+    
+    try {
+      if (isEdit && targetEvent) {
+        // 编辑模式
+        const updatedEvent: Event = {
+          ...targetEvent,
+          title: data.title,
+          date: startDate,
+          participants: participants,
+          isRecurring: data.repeat !== 'never',
+          recurrenceType: data.repeat === 'never' ? undefined : 
+                         data.repeat === 'custom' ? 'weekly' : 
+                         data.repeat as any,
+          recurrenceEnd: data.endRepeat === 'on_date' ? data.endRepeatDate : undefined,
+          originalDate: data.repeat !== 'never' ? startDate : undefined,
+          color: getEventColor(participants)
+        };
+
+        if (user && coupleId && coupleUsers) {
+          const includesUser1 = updatedEvent.participants.includes(coupleUsers.user1.id);
+          const includesUser2 = updatedEvent.participants.includes(coupleUsers.user2.id);
+          
+          let success = false;
+          const originalEventId = extractOriginalEventId(targetEvent.id);
+
+          if (targetEvent.isRecurring && scope !== 'this_only') {
+            const apiScope = scope === 'this_and_future' ? 'this_and_following' : 
+                            scope === 'all_events' ? 'all' : 'this_and_following';
+            success = await eventService.updateRecurringEventInstances(
+              originalEventId,
+              apiScope,
+              data.startDateTime,
+              {
+                title: updatedEvent.title,
+                event_date: updatedEvent.date,
+                start_datetime: data.startDateTime,
+                end_datetime: data.endDateTime,
+                includes_user1: includesUser1,
+                includes_user2: includesUser2,
+                location: data.location,
+                is_recurring: updatedEvent.isRecurring,
+                recurrence_type: updatedEvent.recurrenceType,
+                recurrence_end: updatedEvent.recurrenceEnd
+              }
+            );
+          } else {
+            success = await eventService.updateEvent(originalEventId, {
+              title: updatedEvent.title,
+              event_date: updatedEvent.date,
+              start_datetime: data.startDateTime,
+              end_datetime: data.endDateTime,
+              includes_user1: includesUser1,
+              includes_user2: includesUser2,
+              location: data.location,
+              is_recurring: updatedEvent.isRecurring,
+              recurrence_type: updatedEvent.recurrenceType,
+              recurrence_end: updatedEvent.recurrenceEnd
+            });
+          }
+
+          if (success) {
+            // 刷新事件列表
+            if (coupleId && coupleUsers) {
+              const dbEvents = await eventService.getCoupleEvents(coupleId);
+              const convertedEvents = dbEvents.map(convertSimplifiedEventToEvent);
+              setEvents(convertedEvents);
+            }
+            
+            setShowDetailModal(false);
+            setIsEditing(false);
+            globalEventService.emit(GlobalEvents.EVENTS_UPDATED);
+          }
+        }
+      } else {
+        // 创建模式
+        const event: Event = {
+          id: Date.now().toString(),
+          title: data.title,
+          date: startDate,
+          participants: participants,
+          color: getEventColor(participants),
+          isRecurring: data.repeat !== 'never',
+          recurrenceType: data.repeat === 'never' ? undefined : 
+                         data.repeat === 'custom' ? 'weekly' : 
+                         data.repeat as any,
+          recurrenceEnd: data.endRepeat === 'on_date' ? data.endRepeatDate : undefined,
+          originalDate: data.repeat !== 'never' ? startDate : undefined
+        };
+
+        if (user && coupleId) {
+          const savedEvent = await eventService.createEvent(
+            coupleId,
+            event.title,
+            startDate,
+            user.id,
+            participants.includes(coupleUsers?.user1.id || ''),
+            participants.includes(coupleUsers?.user2.id || ''),
+            data.startDateTime,
+            data.endDateTime,
+            null, // description
+            false, // isAllDay
+            data.location,
+            event.isRecurring,
+            event.recurrenceType,
+            event.recurrenceEnd,
+            event.originalDate
+          );
+          
+          if (savedEvent) {
+            const convertedEvent = convertSimplifiedEventToEvent(savedEvent);
+            setEvents([...events, convertedEvent]);
+            globalEventService.emit(GlobalEvents.EVENTS_UPDATED);
+          }
+        }
+
+        setNewEvent({
+          title: '',
+          location: '',
+          startDateTime: '',
+          endDateTime: '',
+          repeat: 'never',
+          endRepeat: 'never',
+          endRepeatDate: '',
+          isJointActivity: false
+        });
+        setShowAddForm(false);
+      }
+    } catch (error) {
+      console.error(`${isEdit ? '更新' : '添加'}事件失败:`, error);
+      alert(`${isEdit ? '更新' : '添加'}事件失败：${error instanceof Error ? error.message : '未知错误'}，请重试`);
+    }
+  };
+
+  const handleAddEvent = async () => {
+    await handleEventSubmit('create', newEvent);
+  };
+
+  // 更新事件
+  const handleUpdateEvent = () => {
+    if (!selectedEvent || !editEvent.title || !editEvent.startDateTime || !editEvent.endDateTime) {
+      return;
+    }
+
     // 如果是重复事件，询问影响范围
     if (selectedEvent.isRecurring) {
       setRecurringActionDialog({
         open: true,
         actionType: 'edit',
         onThisOnly: async () => {
-          await performEventUpdate('this_only');
+          await handleEventSubmit('edit', editEvent, 'this_only');
         },
         onThisAndFuture: async () => {
-          await performEventUpdate('this_and_future');
+          await handleEventSubmit('edit', editEvent, 'this_and_future');
         },
         onAllEvents: async () => {
-          await performEventUpdate('all_events');
+          await handleEventSubmit('edit', editEvent, 'all_events');
         }
       });
     } else {
       // 非重复事件，直接更新
-      performEventUpdate('this_only');
+      handleEventSubmit('edit', editEvent, 'this_only');
     }
   };
 
-  // 执行事件更新的实际逻辑
-  const performEventUpdate = async (scope: 'this_only' | 'this_and_future' | 'all_events') => {
-    if (!selectedEvent || !editEvent.title || !editEvent.startDateTime || !editEvent.endDateTime) {
-      return;
-    }
-
-    try {
-      // 根据isJointActivity确定参与者
-      const participants = editEvent.isJointActivity && coupleUsers 
-        ? [coupleUsers.user1.id, coupleUsers.user2.id]
-        : user ? [user.id] : [];
-
-      if (participants.length === 0) {
-        return;
-      }
-
-      // 从startDateTime提取日期部分作为主要日期
-      const startDate = editEvent.startDateTime.split('T')[0];
-      
-      // 格式化时间显示（如果是同一天显示时间范围，如果跨天显示完整日期时间）
-      const startDateObj = new Date(editEvent.startDateTime);
-      const endDateObj = new Date(editEvent.endDateTime);
-      const isSameDay = startDate === editEvent.endDateTime.split('T')[0];
-      
-      const timeDisplay = isSameDay 
-        ? `${startDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
-        : `${startDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})} - ${endDateObj.toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}`;
-
-    const updatedEvent: Event = {
-      ...selectedEvent,
-      title: editEvent.title,
-        date: startDate,
-        time: timeDisplay,
-        participants: participants,
-        isRecurring: editEvent.repeat !== 'never',
-        recurrenceType: editEvent.repeat === 'never' ? undefined : 
-                       editEvent.repeat === 'custom' ? 'weekly' : // 自定义暂时默认为weekly
-                       editEvent.repeat as any,
-        recurrenceEnd: editEvent.endRepeat === 'on_date' ? editEvent.endRepeatDate : undefined,
-        originalDate: editEvent.repeat !== 'never' ? startDate : undefined,
-        color: getEventColor(participants)
-      };
-
-      if (user && coupleId && coupleUsers) {
-        // 确定参与者
-        const includesUser1 = updatedEvent.participants.includes(coupleUsers.user1.id);
-        const includesUser2 = updatedEvent.participants.includes(coupleUsers.user2.id);
-        
-        // 根据范围决定更新策略
-        let success = false;
-        const originalEventId = extractOriginalEventId(selectedEvent.id);
-        
-        if (selectedEvent.isRecurring) {
-          // 重复事件 - 使用智能更新策略
-          // 🔧 时区修复：转换为UTC时间格式
-          // 🎯 使用统一时区服务convertUserTimeToUTCTime
-          
-          const updateData = {
-            title: updatedEvent.title,
-            start_time: convertUserTimeToUTCTime(editEvent.startDateTime),
-            end_time: convertUserTimeToUTCTime(editEvent.endDateTime),
-            location: editEvent.location || undefined,
-            includes_user1: includesUser1,
-            includes_user2: includesUser2,
-          };
-
-          success = await eventService.updateRecurringEventInstances(
-            originalEventId,
-            scope,
-            selectedEvent.date,
-            updateData
-          );
-        } else {
-          // 非重复事件 - 直接更新
-          // 🔧 时区修复：转换为UTC时间格式
-          // 🎯 使用统一时区服务convertUserTimeToUTCTime
-          
-          success = await eventService.updateEvent(originalEventId, {
-            title: updatedEvent.title,
-            event_date: updatedEvent.date,
-            start_time: convertUserTimeToUTCTime(editEvent.startDateTime),
-            end_time: convertUserTimeToUTCTime(editEvent.endDateTime),
-            includes_user1: includesUser1,
-            includes_user2: includesUser2,
-            is_recurring: updatedEvent.isRecurring,
-            recurrence_type: updatedEvent.recurrenceType || undefined,
-            recurrence_end: updatedEvent.recurrenceEnd || undefined,
-            is_all_day: false
-          });
-        }
-        
-        if (success) {
-          // 刷新事件列表
-          await handleRefresh();
-    setShowDetailModal(false);
-    setIsEditing(false);
-    setSelectedEvent(null);
-        } else {
-          throw new Error('更新失败');
-        }
-      } else {
-        throw new Error('用户未登录或缺少必要信息');
-      }
-    } catch (error) {
-      console.error('更新事件失败:', error);
-      alert('更新事件失败，请重试');
-    }
-    
-    // 关闭重复事件操作对话框
-    setRecurringActionDialog(prev => ({ ...prev, open: false }));
-  };
+  // 🚫 旧的更新逻辑（已被handleEventSubmit替代）
 
   // 删除事件
   const handleDeleteEvent = () => {
@@ -1100,9 +1056,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       
       if (selectedEvent.isRecurring && scope !== 'this_only') {
         // 重复事件的批量删除
+        // 🔄 转换scope值以匹配新API
+        const apiScope = scope === 'this_and_future' ? 'this_and_following' : 
+                        scope === 'all_events' ? 'all' : scope;
         success = await eventService.deleteRecurringEventInstances(
           originalEventId,
-          scope,
+          apiScope,
           selectedEvent.date
         );
       } else {
@@ -2394,7 +2353,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 {selectedEvent.time && (
                     <DetailField
                       label={theme === 'pixel' ? 'TIME' : theme === 'modern' ? 'Time' : '时间'}
-                      value={formatTime(selectedEvent.time, selectedEvent.date)}
+                      value={formatDetailedTime(selectedEvent)}
                     />
                   )}
 

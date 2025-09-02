@@ -1,14 +1,20 @@
+// Events Service - 适配新的events表结构
 import { supabase } from '../lib/supabase';
+import { 
+  convertUserTimeToUTC, 
+  convertUTCToUserDateTimeLocal,
+  getUserTimezone 
+} from '../utils/timezoneService';
 
-// 简化的事件类型（与数据库表结构对应）
-export interface SimplifiedEvent {
+// 🎯 更新后的事件类型（对应events表结构）
+export interface SimplifiedEventV2 {
   id: string;
   couple_id: string;
   title: string;
   description?: string | null;
   event_date: string;
-  start_time?: string | null;
-  end_time?: string | null;
+  start_datetime?: string | null;     // 🆕 完整时间戳 (timestamptz)
+  end_datetime?: string | null;       // 🆕 完整时间戳 (timestamptz)
   is_all_day: boolean;
   location?: string | null;
   is_recurring: boolean;
@@ -18,22 +24,24 @@ export interface SimplifiedEvent {
   created_by: string;
   includes_user1: boolean;
   includes_user2: boolean;
-  created_timezone?: string | null;     // 创建者时区
-  timezone_aware?: boolean;            // 是否需要时区处理
   created_at: string;
   updated_at: string;
+  
+  // 🔄 向后兼容字段（自动计算）
+  start_time?: string | null;        // 从start_datetime提取
+  end_time?: string | null;          // 从end_datetime提取
 }
 
 // 事件创建参数
-export interface CreateEventParams {
+export interface CreateEventParamsV2 {
   couple_id: string;
   title: string;
   event_date: string;
   created_by: string;
   includes_user1: boolean;
   includes_user2: boolean;
-  start_time?: string | null;
-  end_time?: string | null;
+  start_datetime?: string | null;
+  end_datetime?: string | null;
   description?: string | null;
   is_all_day?: boolean;
   location?: string | null;
@@ -41,16 +49,14 @@ export interface CreateEventParams {
   recurrence_type?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null;
   recurrence_end?: string | null;
   original_date?: string | null;
-  created_timezone?: string | null;     // 创建者时区
-  timezone_aware?: boolean;            // 是否需要时区处理
 }
 
 // 事件更新参数
-export interface UpdateEventParams {
+export interface UpdateEventParamsV2 {
   title?: string;
   event_date?: string;
-  start_time?: string | null;
-  end_time?: string | null;
+  start_datetime?: string | null;
+  end_datetime?: string | null;
   description?: string | null;
   is_all_day?: boolean;
   location?: string | null;
@@ -61,28 +67,19 @@ export interface UpdateEventParams {
   recurrence_end?: string | null;
 }
 
+// 🔄 数据转换辅助函数
+function addCompatibilityFields(event: any): SimplifiedEventV2 {
+  // 为向后兼容，从timestamptz提取时间部分
+  if (event.start_datetime) {
+    event.start_time = new Date(event.start_datetime).toISOString().split('T')[1].split('.')[0];
+  }
+  if (event.end_datetime) {
+    event.end_time = new Date(event.end_datetime).toISOString().split('T')[1].split('.')[0];
+  }
+  return event;
+}
+
 export const eventService = {
-  // 获取情侣的所有事件
-  async getCoupleEvents(coupleId: string): Promise<SimplifiedEvent[]> {
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('couple_id', coupleId)
-        .order('event_date', { ascending: true });
-
-      if (error) {
-        console.error('获取情侣事件失败:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('获取情侣事件失败:', error);
-      throw error;
-    }
-  },
-
   // 创建新事件
   async createEvent(
     coupleId: string,
@@ -91,8 +88,8 @@ export const eventService = {
     createdBy: string,
     includesUser1: boolean,
     includesUser2: boolean,
-    startTime?: string | null,
-    endTime?: string | null,
+    startDateTime?: string | null,  // 用户本地时间
+    endDateTime?: string | null,    // 用户本地时间
     description?: string | null,
     isAllDay?: boolean,
     location?: string | null,
@@ -100,17 +97,28 @@ export const eventService = {
     recurrenceType?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null,
     recurrenceEnd?: string | null,
     originalDate?: string | null
-  ): Promise<SimplifiedEvent | null> {
+  ): Promise<SimplifiedEventV2 | null> {
     try {
-      const eventData: CreateEventParams = {
+      // 🎯 转换用户本地时间到UTC
+      let utcStartDateTime = null;
+      let utcEndDateTime = null;
+      
+      if (startDateTime && !isAllDay) {
+        utcStartDateTime = convertUserTimeToUTC(startDateTime);
+      }
+      if (endDateTime && !isAllDay) {
+        utcEndDateTime = convertUserTimeToUTC(endDateTime);
+      }
+
+      const eventData: CreateEventParamsV2 = {
         couple_id: coupleId,
         title,
         event_date: eventDate,
         created_by: createdBy,
         includes_user1: includesUser1,
         includes_user2: includesUser2,
-        start_time: startTime,
-        end_time: endTime,
+        start_datetime: utcStartDateTime,
+        end_datetime: utcEndDateTime,
         description,
         is_all_day: isAllDay || false,
         location,
@@ -131,66 +139,52 @@ export const eventService = {
         throw error;
       }
 
-      return data;
+      console.log('🎉 事件创建成功:', data);
+      return addCompatibilityFields(data);
     } catch (error) {
       console.error('创建事件失败:', error);
       throw error;
     }
   },
 
-  // 使用RPC函数创建事件（推荐方式）
-  async createEventRPC(
-    coupleId: string,
-    title: string,
-    eventDate: string,
-    createdBy: string,
-    includesUser1: boolean,
-    includesUser2: boolean,
-    startTime?: string | null,
-    endTime?: string | null,
-    description?: string | null,
-    isAllDay?: boolean,
-    location?: string | null,
-    isRecurring?: boolean,
-    recurrenceType?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null,
-    recurrenceEnd?: string | null
-  ): Promise<string | null> {
+  // 获取夫妻的所有事件
+  async getCoupleEvents(coupleId: string): Promise<SimplifiedEventV2[]> {
     try {
-      const { data, error } = await supabase.rpc('create_simple_event', {
-        p_couple_id: coupleId,
-        p_title: title,
-        p_event_date: eventDate,
-        p_created_by: createdBy,
-        p_includes_user1: includesUser1,
-        p_includes_user2: includesUser2,
-        p_start_time: startTime,
-        p_end_time: endTime,
-        p_description: description,
-        p_is_all_day: isAllDay || false,
-        p_location: location,
-        p_is_recurring: isRecurring || false,
-        p_recurrence_type: recurrenceType,
-        p_recurrence_end: recurrenceEnd
-      });
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('couple_id', coupleId)
+        .order('event_date', { ascending: true });
 
       if (error) {
-        console.error('使用RPC创建事件失败:', error);
+        console.error('获取事件失败:', error);
         throw error;
       }
 
-      return data; // 返回新事件的ID
+      // 添加兼容性字段
+      return (data || []).map(addCompatibilityFields);
     } catch (error) {
-      console.error('使用RPC创建事件失败:', error);
-      throw error;
+      console.error('获取事件失败:', error);
+      return [];
     }
   },
 
   // 更新事件
-  async updateEvent(eventId: string, updates: UpdateEventParams): Promise<boolean> {
+  async updateEvent(eventId: string, updates: UpdateEventParamsV2): Promise<boolean> {
     try {
+      // 🎯 如果有时间更新，转换为UTC
+      const updateData = { ...updates };
+      
+      if (updates.start_datetime && !updates.is_all_day) {
+        updateData.start_datetime = convertUserTimeToUTC(updates.start_datetime);
+      }
+      if (updates.end_datetime && !updates.is_all_day) {
+        updateData.end_datetime = convertUserTimeToUTC(updates.end_datetime);
+      }
+
       const { error } = await supabase
         .from('events')
-        .update(updates)
+        .update(updateData)
         .eq('id', eventId);
 
       if (error) {
@@ -198,6 +192,7 @@ export const eventService = {
         throw error;
       }
 
+      console.log('✅ 事件更新成功:', eventId);
       return true;
     } catch (error) {
       console.error('更新事件失败:', error);
@@ -218,6 +213,7 @@ export const eventService = {
         throw error;
       }
 
+      console.log('🗑️ 事件删除成功:', eventId);
       return true;
     } catch (error) {
       console.error('删除事件失败:', error);
@@ -225,355 +221,106 @@ export const eventService = {
     }
   },
 
-  // 删除重复事件的指定实例
+  // 批量删除重复事件实例
   async deleteRecurringEventInstances(
-    eventId: string, 
-    scope: 'this_only' | 'this_and_future' | 'all_events',
-    currentDate?: string
+    originalEventId: string,
+    scope: 'this_only' | 'this_and_following' | 'all',
+    instanceDate?: string
   ): Promise<boolean> {
     try {
-      // 首先获取原始事件信息
-      const { data: originalEvent, error: fetchError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .single();
-
-      if (fetchError || !originalEvent) {
-        console.error('获取原始事件失败:', fetchError);
-        return false;
-      }
-
-      if (scope === 'this_only') {
-        // 对于重复事件的单个实例删除，我们创建一个例外记录
-        // 在事件的 excluded_dates 字段中添加这个日期
-        if (!currentDate) return false;
-        
-        // 获取当前的排除日期列表
-        const excludedDates = originalEvent.excluded_dates || [];
-        const newExcludedDates = [...excludedDates, currentDate];
-        
-        // 更新原始事件，添加排除日期
-        const { error: updateError } = await supabase
-          .from('events')
-          .update({ excluded_dates: newExcludedDates })
-          .eq('id', eventId);
-
-        if (updateError) {
-          console.error('添加排除日期失败:', updateError);
-          return false;
-        }
-        return true;
-      } else if (scope === 'all_events') {
-        // 删除整个重复事件系列 - 直接删除原始记录
+      if (scope === 'all') {
+        // 删除所有相关的重复事件
         const { error } = await supabase
           .from('events')
           .delete()
-          .eq('id', eventId);
+          .or(`id.eq.${originalEventId},id.like.${originalEventId}-%`);
 
-        if (error) {
-          console.error('删除重复事件系列失败:', error);
-          return false;
-        }
-        return true;
-      } else if (scope === 'this_and_future') {
-        // 删除从当前日期开始的所有未来事件
-        if (!currentDate) return false;
-        
-        // 对于"此事件及未来事件"，我们设置重复结束日期为前一天
-        const endDate = new Date(currentDate);
-        endDate.setDate(endDate.getDate() - 1);
-        const newEndDate = endDate.toISOString().split('T')[0];
-        
+        if (error) throw error;
+      } else if (scope === 'this_only' && instanceDate) {
+        // 只删除特定日期的实例
+        const instanceId = `${originalEventId}-${instanceDate}`;
         const { error } = await supabase
           .from('events')
-          .update({ recurrence_end: newEndDate })
-          .eq('id', eventId);
+          .delete()
+          .eq('id', instanceId);
 
-        if (error) {
-          console.error('更新重复事件结束日期失败:', error);
-          return false;
-        }
-        return true;
+        if (error) throw error;
+      } else if (scope === 'this_and_following' && instanceDate) {
+        // 删除这个及之后的实例
+        const { error } = await supabase
+          .from('events')
+          .delete()
+          .or(`id.eq.${originalEventId}-${instanceDate},id.like.${originalEventId}-${instanceDate}%`)
+          .gte('event_date', instanceDate);
+
+        if (error) throw error;
       }
 
-      return false;
+      console.log('🗑️ 重复事件删除成功');
+      return true;
     } catch (error) {
-      console.error('删除重复事件实例失败:', error);
+      console.error('删除重复事件失败:', error);
       return false;
     }
   },
 
-  // 智能更新重复事件实例
+  // 更新重复事件实例
   async updateRecurringEventInstances(
-    eventId: string,
-    scope: 'this_only' | 'this_and_future' | 'all_events',
-    currentDate: string,
-    updateData: Partial<{
-      title: string;
-      start_time: string;
-      end_time: string;
-      location: string;
-      description: string;
-      includes_user1: boolean;
-      includes_user2: boolean;
-    }>
+    originalEventId: string,
+    scope: 'this_only' | 'this_and_following' | 'all',
+    instanceDate: string,
+    updates: UpdateEventParamsV2
   ): Promise<boolean> {
     try {
-      // 获取原始事件信息
-      const { data: originalEvent, error: fetchError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .single();
-
-      if (fetchError || !originalEvent) {
-        console.error('获取原始事件失败:', fetchError);
-        return false;
+      // 🎯 转换时间为UTC
+      const updateData = { ...updates };
+      if (updates.start_datetime && !updates.is_all_day) {
+        updateData.start_datetime = convertUserTimeToUTC(updates.start_datetime);
+      }
+      if (updates.end_datetime && !updates.is_all_day) {
+        updateData.end_datetime = convertUserTimeToUTC(updates.end_datetime);
       }
 
-      if (scope === 'all_events') {
-        // 更新整个系列 - 直接更新原记录
+      if (scope === 'all') {
+        // 更新所有相关的重复事件
         const { error } = await supabase
           .from('events')
           .update(updateData)
-          .eq('id', eventId);
+          .or(`id.eq.${originalEventId},id.like.${originalEventId}-%`);
 
-        if (error) {
-          console.error('更新整个系列失败:', error);
-          return false;
-        }
-        return true;
-      }
-
-      if (scope === 'this_only') {
-        // 单个实例修改 - 使用 modified_instances
-        const modifiedInstances = originalEvent.modified_instances || {};
-        modifiedInstances[currentDate] = updateData;
-
+        if (error) throw error;
+      } else if (scope === 'this_only') {
+        // 只更新特定日期的实例
+        const instanceId = `${originalEventId}-${instanceDate}`;
         const { error } = await supabase
           .from('events')
-          .update({ modified_instances: modifiedInstances })
-          .eq('id', eventId);
+          .update(updateData)
+          .eq('id', instanceId);
 
-        if (error) {
-          console.error('添加修改实例失败:', error);
-          
-          // 如果 modified_instances 字段不存在，回退到提示用户
-          if (error.message && error.message.includes('modified_instances')) {
-            console.log('⚠️ modified_instances 字段不存在，请执行数据库迁移');
-            alert('重复事件的单个实例修改功能需要数据库升级。请联系管理员添加 modified_instances 字段。\n\n暂时请选择"系列中的所有事件"来更新整个系列。');
-            return false;
-          }
-          
-          return false;
-        }
-        return true;
-      }
-
-      if (scope === 'this_and_future') {
-        // 未来事件修改 - 需要计算影响范围
-        const startDate = new Date(originalEvent.original_date || originalEvent.event_date);
-        const currentDateObj = new Date(currentDate);
-        const endDate = originalEvent.recurrence_end 
-          ? new Date(originalEvent.recurrence_end)
-          : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 默认1年
-
-        // 计算会受影响的实例数量
-        const affectedCount = this.calculateAffectedInstances(
-          currentDateObj,
-          endDate,
-          originalEvent.recurrence_type as any
-        );
-
-        const THRESHOLD = 10; // 阈值：超过10个实例就分割
-
-        if (affectedCount <= THRESHOLD) {
-          // 使用 modified_instances 策略
-          const modifiedInstances = originalEvent.modified_instances || {};
-          
-          // 为所有未来日期添加修改记录
-          let tempDate = new Date(currentDateObj);
-          while (tempDate <= endDate) {
-            const dateString = tempDate.toISOString().split('T')[0];
-            modifiedInstances[dateString] = updateData;
-            
-            // 计算下一个重复日期
-            this.addRecurrenceInterval(tempDate, originalEvent.recurrence_type as any);
-          }
-
-          const { error } = await supabase
-            .from('events')
-            .update({ modified_instances: modifiedInstances })
-            .eq('id', eventId);
-
-          if (error) {
-            console.error('批量添加修改实例失败:', error);
-            return false;
-          }
-          return true;
-        } else {
-          // 使用分割策略
-          return await this.splitRecurringSeries(originalEvent, currentDate, updateData);
-        }
-      }
-
-      return false;
-    } catch (error) {
-      console.error('智能更新重复事件实例失败:', error);
-      return false;
-    }
-  },
-
-  // 计算受影响的实例数量
-  calculateAffectedInstances(
-    startDate: Date,
-    endDate: Date,
-    recurrenceType: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
-  ): number {
-    let count = 0;
-    const tempDate = new Date(startDate);
-
-    while (tempDate <= endDate && count < 100) { // 最多计算100个
-      count++;
-      this.addRecurrenceInterval(tempDate, recurrenceType);
-    }
-
-    return count;
-  },
-
-  // 添加重复间隔
-  addRecurrenceInterval(date: Date, recurrenceType: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'): void {
-    switch (recurrenceType) {
-      case 'daily':
-        date.setDate(date.getDate() + 1);
-        break;
-      case 'weekly':
-        date.setDate(date.getDate() + 7);
-        break;
-      case 'biweekly':
-        date.setDate(date.getDate() + 14);
-        break;
-      case 'monthly':
-        date.setMonth(date.getMonth() + 1);
-        break;
-      case 'yearly':
-        date.setFullYear(date.getFullYear() + 1);
-        break;
-    }
-  },
-
-  // 分割重复事件系列
-  async splitRecurringSeries(
-    originalEvent: any,
-    splitDate: string,
-    newEventData: any
-  ): Promise<boolean> {
-    try {
-      // 1. 结束原系列到分割日期前一天
-      const previousDay = new Date(splitDate);
-      previousDay.setDate(previousDay.getDate() - 1);
-      const newEndDate = previousDay.toISOString().split('T')[0];
-
-      const { error: updateError } = await supabase
-        .from('events')
-        .update({ recurrence_end: newEndDate })
-        .eq('id', originalEvent.id);
-
-      if (updateError) {
-        console.error('结束原系列失败:', updateError);
-        return false;
-      }
-
-      // 2. 创建新的重复事件系列
-      const newEvent = {
-        ...originalEvent,
-        ...newEventData,
-        id: undefined, // 让数据库生成新ID
-        original_date: splitDate,
-        event_date: splitDate,
-        created_at: undefined,
-        updated_at: undefined,
-        modified_instances: null, // 新系列重置修改记录
-        excluded_dates: [] // 新系列重置排除记录
-      };
-
-      delete newEvent.id;
-      delete newEvent.created_at;
-      delete newEvent.updated_at;
-
-      const { error: createError } = await supabase
-        .from('events')
-        .insert(newEvent);
-
-      if (createError) {
-        console.error('创建新系列失败:', createError);
-        // 回滚：恢复原系列的结束日期
-        await supabase
+        if (error) throw error;
+      } else if (scope === 'this_and_following') {
+        // 更新这个及之后的实例
+        const { error } = await supabase
           .from('events')
-          .update({ recurrence_end: originalEvent.recurrence_end })
-          .eq('id', originalEvent.id);
-        return false;
+          .update(updateData)
+          .or(`id.eq.${originalEventId}-${instanceDate},id.like.${originalEventId}-${instanceDate}%`)
+          .gte('event_date', instanceDate);
+
+        if (error) throw error;
       }
 
-      console.log(`✅ 成功分割重复事件系列: ${originalEvent.title}`);
+      console.log('✅ 重复事件更新成功');
       return true;
     } catch (error) {
-      console.error('分割重复事件系列失败:', error);
+      console.error('更新重复事件失败:', error);
       return false;
-    }
-  },
-
-  // 获取用户的事件（基于参与情况）
-  async getUserEvents(
-    userId: string, 
-    isUser1: boolean,
-    startDate?: string,
-    endDate?: string
-  ): Promise<SimplifiedEvent[]> {
-    try {
-      let query = supabase
-        .from('events')
-        .select('*')
-        .eq(isUser1 ? 'includes_user1' : 'includes_user2', true)
-        .order('event_date', { ascending: true });
-
-      // 通过couple_id过滤（需要先获取用户的couple关系）
-      const { data: couples, error: coupleError } = await supabase
-        .from('couples')
-        .select('id')
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-        .eq('is_active', true);
-
-      if (coupleError) {
-        console.error('获取用户情侣关系失败:', coupleError);
-        throw coupleError;
-      }
-
-      if (couples && couples.length > 0) {
-        const coupleIds = couples.map(c => c.id);
-        query = query.in('couple_id', coupleIds);
-      }
-
-      if (startDate) {
-        query = query.gte('event_date', startDate);
-      }
-
-      if (endDate) {
-        query = query.lte('event_date', endDate);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('获取用户事件失败:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('获取用户事件失败:', error);
-      throw error;
     }
   }
 };
+
+// 🔄 为了最小化代码更改，导出一个兼容的接口
+// 导出默认服务实例
+export default eventService;
+export type SimplifiedEvent = SimplifiedEventV2;
+export type CreateEventParams = CreateEventParamsV2;
+export type UpdateEventParams = UpdateEventParamsV2;

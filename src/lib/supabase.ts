@@ -109,7 +109,7 @@ export type Database = {
           repeat_weekdays: number[] | null
           daily_time_start: string | null
           daily_time_end: string | null
-          status: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned'
+          status: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned' | 'pending_review'
           assignee_id: string | null
           completed_count: number
           current_streak: number
@@ -138,7 +138,7 @@ export type Database = {
           repeat_weekdays?: number[] | null
           daily_time_start?: string | null
           daily_time_end?: string | null
-          status?: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned'
+          status?: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned' | 'pending_review'
           assignee_id?: string | null
           completed_count?: number
           current_streak?: number
@@ -167,7 +167,7 @@ export type Database = {
           repeat_weekdays?: number[] | null
           daily_time_start?: string | null
           daily_time_end?: string | null
-          status?: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned'
+          status?: 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned' | 'pending_review'
           assignee_id?: string | null
           completed_count?: number
           current_streak?: number
