@@ -41,8 +41,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     switch (theme) {
       case 'pixel':
         return 'font-retro text-pixel-text uppercase tracking-wider';
-      case 'fresh':
-        return 'font-display text-fresh-text fresh-gradient-text';
       case 'modern':
         return 'text-foreground font-semibold';
       default:
@@ -55,8 +53,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     switch (theme) {
       case 'pixel':
         return 'border-4 border-pixel-border bg-pixel-card shadow-pixel';
-      case 'fresh':
-        return 'border border-fresh-border bg-fresh-card shadow-fresh rounded-fresh-lg';
       case 'modern':
         return 'bg-muted/50 border border-border rounded-lg';
       default:
@@ -74,12 +70,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           isActive 
             ? 'bg-pixel-accent text-black border-2 border-black' 
             : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent border-2 border-transparent'
-        }`;
-      case 'fresh':
-        return `${baseStyles} ${
-          isActive 
-            ? 'bg-fresh-accent text-white' 
-            : 'text-fresh-text hover:bg-fresh-primary/10 hover:text-fresh-accent'
         }`;
       case 'modern':
         return `${baseStyles} ${
@@ -131,8 +121,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                   <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
                     theme === 'pixel' 
                       ? 'bg-pixel-border text-pixel-text' 
-                      : theme === 'fresh'
-                      ? 'bg-fresh-border text-fresh-text'
+                      : false
+                      ? ' '
                       : theme === 'modern'
                       ? 'bg-muted text-muted-foreground'
                       : 'bg-gray-200 text-gray-600'

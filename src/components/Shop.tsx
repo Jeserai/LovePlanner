@@ -14,8 +14,8 @@ const Shop: React.FC = () => {
           <h2 className={`text-2xl sm:text-3xl font-bold ${
             theme === 'pixel' 
               ? 'font-retro text-pixel-text uppercase tracking-wider' 
-              : theme === 'fresh'
-              ? 'font-display text-fresh-text fresh-gradient-text'
+              : false
+              ? 'font-display  '
               : 'font-display text-gray-700'
           }`}>
             {theme === 'pixel' ? 'SHOP.EXE' : theme === 'modern' ? 'Personal Shop' : '个人商店'}
@@ -28,8 +28,8 @@ const Shop: React.FC = () => {
         <div className={`max-w-md w-full p-8 text-center ${
           theme === 'pixel' 
             ? 'bg-pixel-card border-4 border-pixel-border rounded-pixel shadow-pixel'
-            : theme === 'fresh'
-            ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh'
+            : false
+            ? ' border   shadow-fresh'
             : 'bg-white rounded-xl shadow-soft border border-gray-200'
         }`}>
           {/* Icon */}
@@ -42,12 +42,12 @@ const Shop: React.FC = () => {
               />
             ) : (
               <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
-                theme === 'fresh' 
-                  ? 'bg-fresh-primary border border-fresh-border'
+                false 
+                  ? ' border '
                   : 'bg-orange-100'
               }`}>
                 <ClockIcon className={`w-8 h-8 ${
-                  theme === 'fresh' ? 'text-fresh-accent' : 'text-orange-500'
+                  false ? '' : 'text-orange-500'
                 }`} />
               </div>
             )}
@@ -57,8 +57,8 @@ const Shop: React.FC = () => {
           <h3 className={`text-xl font-bold mb-4 ${
             theme === 'pixel' 
               ? 'text-pixel-text font-mono uppercase'
-              : theme === 'fresh'
-              ? 'text-fresh-text'
+              : false
+              ? ''
               : 'text-gray-800'
           }`}>
             {theme === 'pixel' ? 'UNDER_DEVELOPMENT' : theme === 'modern' ? 'Under Development' : '开发中'}
@@ -68,8 +68,8 @@ const Shop: React.FC = () => {
           <p className={`text-base leading-relaxed mb-6 ${
             theme === 'pixel' 
               ? 'text-pixel-textMuted font-mono'
-              : theme === 'fresh'
-              ? 'text-fresh-textMuted'
+              : false
+              ? ''
               : 'text-gray-600'
           }`}>
             {theme === 'pixel' 
@@ -84,15 +84,15 @@ const Shop: React.FC = () => {
           <div className={`inline-flex items-center justify-center w-12 h-12 ${
             theme === 'pixel'
               ? 'bg-pixel-panel border-2 border-pixel-border rounded-pixel'
-              : theme === 'fresh'
-              ? 'bg-fresh-primary rounded-fresh-full'
+              : false
+              ? ' '
               : 'bg-gray-100 rounded-full'
           }`}>
             {theme === 'pixel' ? (
               <PixelIcon name="shop" size="md" className="text-pixel-textMuted" />
             ) : (
               <ShoppingBagIcon className={`w-6 h-6 ${
-                theme === 'fresh' ? 'text-fresh-accent' : 'text-gray-400'
+                false ? '' : 'text-gray-400'
               }`} />
             )}
           </div>

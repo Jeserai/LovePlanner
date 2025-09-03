@@ -72,13 +72,13 @@ const UserProfile: React.FC = () => {
           size={size}
         />
       );
-    } else if (theme === 'fresh') {
+    } else if (false) {
       const emoji = userType === 'cat' ? '🐱' : '🐮';
       const color = userType === 'cat' ? '#06b6d4' : '#8b5cf6';
       const sizeMap = { sm: '1.5rem', md: '2rem', lg: '2.5rem' };
       return (
         <div 
-          className="inline-flex items-center justify-center rounded-fresh-full"
+          className="inline-flex items-center justify-center "
           style={{ 
             width: sizeMap[size],
             height: sizeMap[size],
@@ -115,7 +115,7 @@ const UserProfile: React.FC = () => {
   if (!profile && !loading) {
     return (
       <div className={`flex items-center justify-center p-8 ${
-        theme === 'pixel' ? 'text-pixel-text' : theme === 'fresh' ? 'text-fresh-text' : 'text-gray-600'
+        theme === 'pixel' ? 'text-pixel-text' : false ? '' : 'text-gray-600'
       }`}>
         <div className="text-center">
           <div className="text-lg mb-2">未找到用户资料</div>
@@ -147,10 +147,10 @@ const UserProfile: React.FC = () => {
             {getUserTypeIcon(currentUserType, 'lg')}
             <div>
               <h2 className="text-xl font-retro text-pixel-text uppercase tracking-wider">
-                {profile.display_name}
+                {profile?.display_name}
               </h2>
               <p className="text-pixel-textMuted font-mono text-sm">
-                @{profile.username}
+                @{profile?.username}
               </p>
             </div>
           </div>
@@ -205,7 +205,7 @@ const UserProfile: React.FC = () => {
                 />
               ) : (
                 <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
-                  {profile.display_name}
+                  {profile?.display_name}
                 </div>
               )}
             </div>
@@ -222,7 +222,7 @@ const UserProfile: React.FC = () => {
                 />
               ) : (
                 <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
-                  @{profile.username}
+                  @{profile?.username}
                 </div>
               )}
             </div>
@@ -231,7 +231,7 @@ const UserProfile: React.FC = () => {
             <div>
               <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Email</label>
               <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-textMuted rounded-pixel px-4 py-3 font-mono">
-                {profile.email}
+                {profile?.email}
               </div>
             </div>
 
@@ -247,7 +247,7 @@ const UserProfile: React.FC = () => {
                 />
               ) : (
                 <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
-                  {profile.birthday}
+                  {profile?.birthday}
                 </div>
               )}
             </div>
@@ -256,7 +256,7 @@ const UserProfile: React.FC = () => {
             <div>
               <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Points</label>
               <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
-                {profile.points} PTS
+                {profile?.points} PTS
               </div>
             </div>
 
@@ -264,7 +264,7 @@ const UserProfile: React.FC = () => {
             <div>
               <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Timezone</label>
               <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
-                {profile.timezone}
+                {profile?.timezone}
               </div>
             </div>
           </div>
@@ -274,19 +274,19 @@ const UserProfile: React.FC = () => {
   }
 
   // 清新主题渲染
-  if (theme === 'fresh') {
+  if (false) {
     return (
       <div className="space-y-6">
         {/* 头部信息 */}
-        <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-6">
+        <div className=" border   shadow-fresh p-6">
           <div className="flex items-center space-x-4 mb-6">
             {getUserTypeIcon(currentUserType, 'lg')}
             <div>
-              <h2 className="text-2xl font-bold text-fresh-text fresh-gradient-text">
-                {profile.display_name}
+              <h2 className="text-2xl font-bold  ">
+                {profile?.display_name}
               </h2>
-              <p className="text-fresh-textMuted">
-                @{profile.username}
+              <p className="">
+                @{profile?.username}
               </p>
             </div>
           </div>
@@ -297,16 +297,16 @@ const UserProfile: React.FC = () => {
               <div className="space-x-3">
                 <button
                   onClick={handleSave}
-                  className="px-4 py-2 bg-fresh-accent text-white rounded-fresh font-medium hover:shadow-fresh-sm transition-all"
+                  className="px-4 py-2  text-white rounded-fresh font-medium hover: transition-all"
                 >
                   保存
                 </button>
                 <button
                   onClick={() => {
                     setIsEditing(false);
-                    setEditForm(profile);
+                    if (profile) setEditForm(profile);
                   }}
-                  className="px-4 py-2 bg-fresh-textMuted text-white rounded-fresh font-medium hover:shadow-fresh-sm transition-all"
+                  className="px-4 py-2  text-white font-medium hover: transition-all"
                 >
                   取消
                 </button>
@@ -314,7 +314,7 @@ const UserProfile: React.FC = () => {
             ) : (
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-fresh-accent text-white rounded-fresh font-medium hover:shadow-fresh-sm transition-all"
+                className="px-4 py-2  text-white rounded-fresh font-medium hover: transition-all"
               >
                 编辑资料
               </button>
@@ -323,85 +323,85 @@ const UserProfile: React.FC = () => {
         </div>
 
         {/* 详细信息 */}
-        <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-6">
-          <h3 className="text-xl font-bold text-fresh-text mb-6 pb-3 border-b border-fresh-border">
+        <div className=" border   shadow-fresh p-6">
+          <h3 className="text-xl font-bold  mb-6 pb-3 border-b ">
             个人信息
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 显示名称 */}
             <div>
-              <label className="block text-fresh-text font-medium mb-2">显示名称</label>
+              <label className="block  font-medium mb-2">显示名称</label>
               {isEditing ? (
                 <input
                   type="text"
                   value={editForm.display_name || ''}
                   onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
-                  className="w-full border border-fresh-border bg-white text-fresh-text rounded-fresh px-4 py-3 focus:border-fresh-accent focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
+                  className="w-full border  bg-white  rounded-fresh px-4 py-3 focus: focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
                 />
               ) : (
-                <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
-                  {profile.display_name}
+                <div className="w-full border    rounded-fresh px-4 py-3">
+                  {profile?.display_name}
                 </div>
               )}
             </div>
 
             {/* 用户名 */}
             <div>
-              <label className="block text-fresh-text font-medium mb-2">用户名</label>
+              <label className="block  font-medium mb-2">用户名</label>
               {isEditing ? (
                 <input
                   type="text"
                   value={editForm.username || ''}
                   onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                  className="w-full border border-fresh-border bg-white text-fresh-text rounded-fresh px-4 py-3 focus:border-fresh-accent focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
+                  className="w-full border  bg-white  rounded-fresh px-4 py-3 focus: focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
                 />
               ) : (
-                <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
-                  @{profile.username}
+                <div className="w-full border    rounded-fresh px-4 py-3">
+                  @{profile?.username}
                 </div>
               )}
             </div>
 
             {/* 邮箱 */}
             <div>
-              <label className="block text-fresh-text font-medium mb-2">邮箱地址</label>
-              <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-textMuted rounded-fresh px-4 py-3">
-                {profile.email}
+              <label className="block  font-medium mb-2">邮箱地址</label>
+              <div className="w-full border    rounded-fresh px-4 py-3">
+                {profile?.email}
               </div>
             </div>
 
             {/* 生日 */}
             <div>
-              <label className="block text-fresh-text font-medium mb-2">生日</label>
+              <label className="block  font-medium mb-2">生日</label>
               {isEditing ? (
                 <input
                   type="date"
                   value={editForm.birthday || ''}
                   onChange={(e) => setEditForm({ ...editForm, birthday: e.target.value })}
-                  className="w-full border border-fresh-border bg-white text-fresh-text rounded-fresh px-4 py-3 focus:border-fresh-accent focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
+                  className="w-full border  bg-white  rounded-fresh px-4 py-3 focus: focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
                 />
               ) : (
-                <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
-                  {profile.birthday}
+                <div className="w-full border    rounded-fresh px-4 py-3">
+                  {profile?.birthday}
                 </div>
               )}
             </div>
 
             {/* 积分 */}
             <div>
-              <label className="block text-fresh-text font-medium mb-2">积分</label>
-              <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
-                <span className="font-bold text-fresh-accent">{profile.points}</span> 分
+              <label className="block  font-medium mb-2">积分</label>
+              <div className="w-full border    rounded-fresh px-4 py-3">
+                <span className="font-bold ">{profile?.points}</span> 分
               </div>
             </div>
           </div>
 
           {/* 时区 */}
           <div className="mt-6">
-            <label className="block text-fresh-text font-medium mb-2">时区</label>
-            <div className="w-full border border-fresh-border bg-fresh-panel text-fresh-text rounded-fresh px-4 py-3">
-              {profile.timezone}
+            <label className="block  font-medium mb-2">时区</label>
+            <div className="w-full border    rounded-fresh px-4 py-3">
+              {profile?.timezone}
             </div>
           </div>
         </div>
@@ -418,10 +418,10 @@ const UserProfile: React.FC = () => {
             {getUserTypeIcon(currentUserType, 'lg')}
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
-              {profile.display_name}
+              {profile?.display_name}
             </h2>
             <p className="text-gray-600">
-              @{profile.username}
+              @{profile?.username}
             </p>
           </div>
         </div>
@@ -476,7 +476,7 @@ const UserProfile: React.FC = () => {
               />
             ) : (
               <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
-                {profile.display_name}
+                {profile?.display_name}
               </div>
             )}
           </div>
@@ -493,7 +493,7 @@ const UserProfile: React.FC = () => {
               />
             ) : (
               <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
-                @{profile.username}
+                @{profile?.username}
               </div>
             )}
           </div>
@@ -502,7 +502,7 @@ const UserProfile: React.FC = () => {
           <div>
             <label className="block text-gray-700 font-medium mb-2">邮箱地址</label>
             <div className="w-full border border-gray-300 bg-gray-50 text-gray-600 rounded-lg px-4 py-3">
-              {profile.email}
+              {profile?.email}
             </div>
           </div>
 
@@ -518,7 +518,7 @@ const UserProfile: React.FC = () => {
               />
             ) : (
               <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
-                {profile.birthday}
+                {profile?.birthday}
               </div>
             )}
           </div>
@@ -527,7 +527,7 @@ const UserProfile: React.FC = () => {
           <div>
             <label className="block text-gray-700 font-medium mb-2">积分</label>
             <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
-              <span className="font-bold text-blue-600">{profile.points}</span> 分
+              <span className="font-bold text-blue-600">{profile?.points}</span> 分
             </div>
           </div>
         </div>
@@ -536,7 +536,7 @@ const UserProfile: React.FC = () => {
         <div className="mt-6">
           <label className="block text-gray-700 font-medium mb-2">时区</label>
           <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
-            {profile.timezone}
+            {profile?.timezone}
           </div>
         </div>
       </div>

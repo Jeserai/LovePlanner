@@ -102,9 +102,23 @@ export const eventService = {
       // 🎯 转换用户本地时间到UTC
       let utcStartDateTime = null;
       let utcEndDateTime = null;
+      let finalEventDate = eventDate; // 默认使用传入的日期
       
       if (startDateTime && !isAllDay) {
         utcStartDateTime = convertUserTimeToUTC(startDateTime);
+        
+        // ⚠️ 重要：确保event_date与UTC时间的日期部分一致
+        if (utcStartDateTime) {
+          const utcDate = new Date(utcStartDateTime);
+          finalEventDate = utcDate.toISOString().split('T')[0]; // 提取UTC日期部分
+          
+          console.log('📅 日期一致性检查:', {
+            原始事件日期: eventDate,
+            用户本地时间: startDateTime,
+            转换后UTC时间: utcStartDateTime,
+            最终事件日期: finalEventDate
+          });
+        }
       }
       if (endDateTime && !isAllDay) {
         utcEndDateTime = convertUserTimeToUTC(endDateTime);
@@ -113,7 +127,7 @@ export const eventService = {
       const eventData: CreateEventParamsV2 = {
         couple_id: coupleId,
         title,
-        event_date: eventDate,
+        event_date: finalEventDate, // 使用与UTC时间一致的日期
         created_by: createdBy,
         includes_user1: includesUser1,
         includes_user2: includesUser2,

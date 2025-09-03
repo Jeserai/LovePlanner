@@ -188,20 +188,20 @@ export type Database = {
           title: string
           description: string | null
           event_date: string
-          start_time: string | null
-          end_time: string | null
-          participants: string[]
-          couple_id: string
-          color: string
+          start_datetime: string | null         // 🔧 修复：使用正确的字段名
+          end_datetime: string | null           // 🔧 修复：使用正确的字段名
           is_all_day: boolean
+          location: string | null
           is_recurring: boolean
           recurrence_type: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null
           recurrence_end: string | null
           original_date: string | null
-          parent_event_id: string | null
           excluded_dates: string[] | null
           modified_instances: Record<string, any> | null
           created_by: string
+          includes_user1: boolean               // 🔧 修复：添加缺失字段
+          includes_user2: boolean               // 🔧 修复：添加缺失字段
+          couple_id: string
           created_at: string
           updated_at: string
         }
@@ -210,20 +210,20 @@ export type Database = {
           title: string
           description?: string | null
           event_date: string
-          start_time?: string | null
-          end_time?: string | null
-          participants: string[]
-          couple_id: string
-          color?: string
+          start_datetime?: string | null        // 🔧 修复：使用正确的字段名
+          end_datetime?: string | null          // 🔧 修复：使用正确的字段名
           is_all_day?: boolean
+          location?: string | null
           is_recurring?: boolean
           recurrence_type?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null
           recurrence_end?: string | null
           original_date?: string | null
-          parent_event_id?: string | null
           excluded_dates?: string[] | null
           modified_instances?: Record<string, any> | null
           created_by: string
+          includes_user1?: boolean              // 🔧 修复：添加缺失字段
+          includes_user2?: boolean              // 🔧 修复：添加缺失字段
+          couple_id: string
           created_at?: string
           updated_at?: string
         }
@@ -232,20 +232,20 @@ export type Database = {
           title?: string
           description?: string | null
           event_date?: string
-          start_time?: string | null
-          end_time?: string | null
-          participants?: string[]
-          couple_id?: string
-          color?: string
+          start_datetime?: string | null        // 🔧 修复：使用正确的字段名
+          end_datetime?: string | null          // 🔧 修复：使用正确的字段名
           is_all_day?: boolean
+          location?: string | null
           is_recurring?: boolean
           recurrence_type?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null
           recurrence_end?: string | null
           original_date?: string | null
-          parent_event_id?: string | null
           excluded_dates?: string[] | null
           modified_instances?: Record<string, any> | null
           created_by?: string
+          includes_user1?: boolean              // 🔧 修复：添加缺失字段
+          includes_user2?: boolean              // 🔧 修复：添加缺失字段
+          couple_id?: string
           created_at?: string
           updated_at?: string
         }

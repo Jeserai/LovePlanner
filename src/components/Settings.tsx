@@ -32,14 +32,7 @@ const Settings: React.FC = () => {
       preview: 'bg-gradient-to-br from-gray-500 to-slate-600',
       color: 'text-gray-600'
     },
-    {
-      id: 'fresh' as const,
-      name: theme === 'modern' ? 'Fresh & Elegant' : '清新淡雅',
-      description: theme === 'modern' ? 'Simple modern design style with fresh green color scheme' : '简约现代的设计风格，清新淡雅的绿色系配色',
-      icon: PaintBrushIcon,
-      preview: 'bg-gradient-to-br from-fresh-accent to-fresh-mint',
-      color: 'text-fresh-accent'
-    },
+
     {
       id: 'pixel' as const,
       name: '深色像素风',
@@ -58,11 +51,11 @@ const Settings: React.FC = () => {
         return (
           <div className="space-y-6">
             {/* Theme Selection */}
-            <div className={theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg p-8 neon-border pixel-matrix' : theme === 'fresh' ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-6' : 'card-cutesy p-6'}>
-              <h3 className={`text-xl font-bold mb-4 ${theme === 'pixel' ? 'text-pixel-text font-retro uppercase tracking-wider' : theme === 'fresh' ? 'text-fresh-text fresh-gradient-text' : 'text-gray-800'}`}>
+            <div className={theme === 'pixel' ? 'bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg p-8 neon-border pixel-matrix' : 'card-cutesy p-6'}>
+              <h3 className={`text-xl font-bold mb-4 ${theme === 'pixel' ? 'text-pixel-text font-retro uppercase tracking-wider' : false ? ' ' : 'text-gray-800'}`}>
                 {theme === 'pixel' ? '>>> SELECT THEME' : '选择主题风格'}
               </h3>
-              <p className={`text-sm mb-6 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'fresh' ? 'text-fresh-textMuted' : 'text-sage-600'}`}>
+              <p className={`text-sm mb-6 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : false ? '' : 'text-sage-600'}`}>
                 {theme === 'pixel' ? 'CHOOSE YOUR ADVENTURE STYLE!' : '选择你喜欢的视觉风格，设置会自动保存'}
               </p>
 
@@ -79,8 +72,8 @@ const Settings: React.FC = () => {
                       className={`p-6 cursor-pointer transition-all duration-300 ${
                         theme === 'pixel' 
                           ? `border-4 rounded-pixel ${isActive ? 'border-pixel-accent bg-pixel-card shadow-pixel-lg scale-105' : 'border-pixel-border bg-pixel-panel hover:border-pixel-accent hover:scale-102'}`
-                          : theme === 'fresh'
-                          ? `border rounded-fresh-lg ${isActive ? 'border-fresh-accent bg-fresh-primary shadow-fresh-lg' : 'border-fresh-border bg-fresh-card hover:border-fresh-accent hover:shadow-fresh-sm'}`
+                          : false
+                          ? `border  ${isActive ? '  ' : '  hover: hover:'}`
                           : `border-2 rounded-xl ${isActive ? 'border-primary-300 bg-primary-50' : 'border-gray-200 hover:border-primary-200'}`
                       }`}
                     >
@@ -88,13 +81,13 @@ const Settings: React.FC = () => {
                         {theme === 'pixel' ? (
                           <PixelIcon name="command" className={isActive ? 'text-pixel-accent' : 'text-pixel-text'} glow={isActive} />
                         ) : (
-                          <Icon className={`w-6 h-6 ${isActive ? themeOption.color : theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-500'}`} />
+                          <Icon className={`w-6 h-6 ${isActive ? themeOption.color : false ? '' : 'text-gray-500'}`} />
                         )}
                         <h4 className={`font-bold ${
                           theme === 'pixel' 
                             ? `font-retro uppercase ${isActive ? 'text-pixel-accent' : 'text-pixel-text'}`
-                            : theme === 'fresh'
-                            ? `${isActive ? 'text-fresh-accent' : 'text-fresh-text'}`
+                            : false
+                            ? `${isActive ? '' : ''}`
                             : `${isActive ? 'text-primary-700' : 'text-gray-700'}`
                         }`}>
                           {themeOption.name}
@@ -103,14 +96,14 @@ const Settings: React.FC = () => {
                       <p className={`text-sm mb-4 ${
                         theme === 'pixel' 
                           ? 'text-pixel-textMuted font-mono'
-                          : theme === 'fresh'
-                          ? 'text-fresh-textMuted'
+                          : false
+                          ? ''
                           : 'text-gray-600'
                       }`}>
                         {themeOption.description}
                       </p>
                       <div className={`h-20 rounded-lg ${themeOption.preview} border-2 ${
-                        theme === 'pixel' ? 'border-white' : theme === 'fresh' ? 'border-fresh-border' : 'border-gray-200'
+                        theme === 'pixel' ? 'border-white' : false ? '' : 'border-gray-200'
                       }`}></div>
                       
                       {/* 当前使用标识 */}
@@ -118,8 +111,8 @@ const Settings: React.FC = () => {
                         <div className={`mt-3 text-center text-sm font-medium ${
                           theme === 'pixel' 
                             ? 'text-pixel-accent font-mono'
-                            : theme === 'fresh'
-                            ? 'text-fresh-accent'
+                            : false
+                            ? ''
                             : 'text-primary-600'
                         }`}>
                           {theme === 'pixel' ? '>>> CURRENT THEME <<<' : '当前使用'}
@@ -161,34 +154,34 @@ const Settings: React.FC = () => {
 
 
 
-            {theme === 'fresh' && (
-              <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh-lg p-6 fresh-minimal">
-                <h3 className="text-xl font-bold mb-4 text-fresh-text fresh-gradient-text">
+            {false && (
+              <div className="border p-6">
+                <h3 className="text-xl font-bold mb-4  ">
                   主题预览
                 </h3>
                 
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
-                    <PaintBrushIcon className="w-6 h-6 text-fresh-accent" />
-                    <span className="text-fresh-text font-medium">清新淡雅主题</span>
+                    <PaintBrushIcon className="w-6 h-6 " />
+                    <span className=" font-medium">清新淡雅主题</span>
                   </div>
-                  <p className="text-fresh-textMuted text-sm leading-relaxed">
+                  <p className=" text-sm leading-relaxed">
                     追求简约现代的设计理念，采用清新淡雅的绿色系配色。<br/>
                     特色包括轻盈的阴影、简洁的线条和流畅的动画效果。<br/>
                     完美适合喜欢极简风格和自然色调的用户！
                   </p>
                   <div className="flex space-x-3 mt-4">
-                    <div className="w-6 h-6 bg-fresh-accent rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
-                    <div className="w-6 h-6 bg-fresh-catColor rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
-                    <div className="w-6 h-6 bg-fresh-cowColor rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
-                    <div className="w-6 h-6 bg-fresh-mint rounded-fresh-full border border-fresh-border shadow-fresh-sm"></div>
+                    <div className="w-6 h-6   border  "></div>
+                    <div className="w-6 h-6   border  "></div>
+                    <div className="w-6 h-6   border  "></div>
+                    <div className="w-6 h-6   border  "></div>
                   </div>
                   <div className="text-center mt-4">
                     <div className="flex justify-center space-x-2 opacity-50">
-                      <div className="w-2 h-2 bg-fresh-accent rounded-full animate-fresh-wave"></div>
-                      <div className="w-2 h-2 bg-fresh-accent rounded-full animate-fresh-breathe"></div>
-                      <div className="w-2 h-2 bg-fresh-accent rounded-full animate-fresh-bounce"></div>
-                      <div className="w-2 h-2 bg-fresh-accent rounded-full animate-fresh-wave" style={{animationDelay: '1s'}}></div>
+                      <div className="w-2 h-2  rounded-full "></div>
+                      <div className="w-2 h-2  rounded-full "></div>
+                      <div className="w-2 h-2  rounded-full "></div>
+                      <div className="w-2 h-2  rounded-full " style={{animationDelay: '1s'}}></div>
                     </div>
                   </div>
                 </div>
@@ -242,19 +235,19 @@ const Settings: React.FC = () => {
 
 
 
-  if (theme === 'fresh') {
+  if (false) {
     return (
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center space-x-3">
-          <Cog6ToothIcon className="w-8 h-8 text-fresh-accent" />
-          <h2 className="text-3xl font-display font-bold text-fresh-text fresh-gradient-text">
+          <Cog6ToothIcon className="w-8 h-8 " />
+          <h2 className="text-3xl font-display font-bold  ">
             设置中心
           </h2>
         </div>
 
         {/* Section Navigation */}
-        <div className="bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh p-4">
+        <div className="border p-4">
           <div className="grid grid-cols-2 gap-3">
             {sections.map((section) => {
               const Icon = section.icon;
@@ -262,10 +255,10 @@ const Settings: React.FC = () => {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`p-3 rounded-fresh font-medium transition-all duration-300 flex items-center space-x-3 ${
+                  className={`p-3 rounded font-medium transition-all duration-300 flex items-center space-x-3 ${
                     activeSection === section.id
-                      ? 'bg-fresh-accent text-white shadow-fresh-sm'
-                      : 'bg-fresh-panel text-fresh-text hover:bg-fresh-primary hover:shadow-fresh-sm'
+                      ? ' text-white '
+                      : '  hover: hover:'
                   }`}
                 >
                   <Icon className="w-5 h-5" />

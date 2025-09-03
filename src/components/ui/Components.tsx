@@ -171,15 +171,15 @@ export const ThemeFormField: React.FC<ThemeFormFieldProps> = ({
   
   const labelClasses = theme === 'pixel'
     ? 'block text-sm font-medium mb-2 text-pixel-text font-mono uppercase tracking-wide'
-    : theme === 'fresh'
-    ? 'block text-sm font-medium mb-2 text-fresh-text'
+    : false
+    ? 'block text-sm font-medium mb-2 '
     : theme === 'modern'
     ? 'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70'
     : 'block text-sm font-medium mb-2 text-gray-700';
     
   const errorClasses = theme === 'pixel'
     ? 'text-pixel-accent font-mono text-xs mt-1'
-    : theme === 'fresh'
+    : false
     ? 'text-red-500 text-xs mt-1'
     : theme === 'modern'
     ? 'text-sm text-destructive'
@@ -187,8 +187,8 @@ export const ThemeFormField: React.FC<ThemeFormFieldProps> = ({
     
   const descClasses = theme === 'pixel'
     ? 'text-pixel-textMuted font-mono text-xs mt-1'
-    : theme === 'fresh'
-    ? 'text-fresh-textMuted text-xs mt-1'
+    : false
+    ? ' text-xs mt-1'
     : theme === 'modern'
     ? 'text-sm text-muted-foreground'
     : 'text-gray-500 text-xs mt-1';
@@ -232,10 +232,10 @@ export const ThemeInput = React.forwardRef<HTMLInputElement, ThemeInputProps>(
           'placeholder:text-pixel-textMuted',
           error && 'border-pixel-accent'
         )
-      : theme === 'fresh'
+      : false
       ? cn(
-          'w-full px-3 py-2 border border-fresh-border bg-fresh-bg text-fresh-text rounded-fresh-lg',
-          'focus:ring-fresh-primary focus:border-fresh-primary',
+          'w-full px-3 py-2 border    ',
+          'focus:ring-fresh-primary focus:',
           error && 'border-red-500'
         )
       : theme === 'modern'
@@ -273,10 +273,10 @@ export const ThemeTextarea = React.forwardRef<HTMLTextAreaElement, ThemeTextarea
           'placeholder:text-pixel-textMuted resize-none',
           error && 'border-pixel-accent'
         )
-      : theme === 'fresh'
+      : false
       ? cn(
-          'w-full px-3 py-2 border border-fresh-border bg-fresh-bg text-fresh-text rounded-fresh-lg',
-          'focus:ring-fresh-primary focus:border-fresh-primary resize-none',
+          'w-full px-3 py-2 border    ',
+          'focus:ring-fresh-primary focus: resize-none',
           error && 'border-red-500'
         )
       : theme === 'modern'
@@ -312,10 +312,10 @@ export const ThemeSelect = React.forwardRef<HTMLSelectElement, ThemeSelectProps>
           'focus:border-pixel-accent focus:ring-2 focus:ring-pixel-accent/20 focus:outline-none',
           error && 'border-pixel-accent'
         )
-      : theme === 'fresh'
+      : false
       ? cn(
-          'w-full px-3 py-2 border border-fresh-border bg-fresh-bg text-fresh-text rounded-fresh-lg',
-          'focus:ring-fresh-primary focus:border-fresh-primary',
+          'w-full px-3 py-2 border    ',
+          'focus:ring-fresh-primary focus:',
           error && 'border-red-500'
         )
       : theme === 'modern'
@@ -356,9 +356,9 @@ export const ThemeCheckbox = React.forwardRef<HTMLInputElement, ThemeCheckboxPro
           'w-4 h-4 text-pixel-accent bg-pixel-card border-2 border-pixel-border rounded-pixel focus:ring-pixel-accent',
           error && 'border-pixel-accent'
         )
-      : theme === 'fresh'
+      : false
       ? cn(
-          'w-4 h-4 text-fresh-primary bg-fresh-bg border border-fresh-border rounded focus:ring-fresh-primary',
+          'w-4 h-4   border  rounded focus:ring-fresh-primary',
           error && 'border-red-500'
         )
       : theme === 'modern'
@@ -374,8 +374,8 @@ export const ThemeCheckbox = React.forwardRef<HTMLInputElement, ThemeCheckboxPro
         
     const labelClasses = theme === 'pixel'
       ? 'text-sm font-medium leading-none text-pixel-text font-mono uppercase'
-      : theme === 'fresh'
-      ? 'text-sm font-medium leading-none text-fresh-text'
+      : false
+      ? 'text-sm font-medium leading-none '
       : theme === 'modern'
       ? 'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70'
       : 'text-sm font-medium leading-none text-gray-700';
@@ -417,8 +417,8 @@ export const ThemeDialog: React.FC<ThemeDialogProps> = ({
   
   const dialogClasses = theme === 'pixel'
     ? 'bg-pixel-panel border-4 border-pixel-border rounded-pixel shadow-pixel-lg neon-border pixel-container'
-    : theme === 'fresh'
-    ? 'bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh-lg'
+    : false
+    ? ' border   '
     : theme === 'modern'
     ? 'bg-background text-foreground border border-border rounded-lg shadow-lg transition-all duration-200'
     : 'bg-white rounded-xl shadow-xl border border-gray-200';
@@ -479,7 +479,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <div>
           <h3 className={`text-lg font-semibold ${
             theme === 'pixel' ? 'text-pixel-text font-mono uppercase' :
-            theme === 'fresh' ? 'text-fresh-text' :
+            false ? '' :
             theme === 'modern' ? 'text-foreground' :
             'text-gray-900'
           }`}>
@@ -487,7 +487,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </h3>
           <p className={`text-sm ${
             theme === 'pixel' ? 'text-pixel-textMuted font-mono' :
-            theme === 'fresh' ? 'text-fresh-textMuted' :
+            false ? '' :
             theme === 'modern' ? 'text-muted-foreground' :
             'text-gray-600'
           }`}>
@@ -572,7 +572,7 @@ export const RecurringEventActionDialog: React.FC<RecurringEventActionDialogProp
         <div>
           <h3 className={`text-lg font-semibold ${
             theme === 'pixel' ? 'text-pixel-text font-mono uppercase' :
-            theme === 'fresh' ? 'text-fresh-text' :
+            false ? '' :
             theme === 'modern' ? 'text-foreground' :
             'text-gray-900'
           }`}>
@@ -580,7 +580,7 @@ export const RecurringEventActionDialog: React.FC<RecurringEventActionDialogProp
           </h3>
           <p className={`text-sm mb-4 ${
             theme === 'pixel' ? 'text-pixel-textMuted font-mono' :
-            theme === 'fresh' ? 'text-fresh-textMuted' :
+            false ? '' :
             theme === 'modern' ? 'text-muted-foreground' :
             'text-gray-600'
           }`}>
@@ -598,7 +598,7 @@ export const RecurringEventActionDialog: React.FC<RecurringEventActionDialogProp
               <span className="font-medium">{theme === 'pixel' ? actionText.thisOnly.toUpperCase() : actionText.thisOnly}</span>
               <span className={`text-xs ${
                 theme === 'pixel' ? 'text-pixel-textMuted font-mono' :
-                theme === 'fresh' ? 'text-fresh-textMuted' :
+                false ? '' :
                 theme === 'modern' ? 'text-muted-foreground' :
                 'text-gray-500'
               }`}>
@@ -616,7 +616,7 @@ export const RecurringEventActionDialog: React.FC<RecurringEventActionDialogProp
               <span className="font-medium">{theme === 'pixel' ? actionText.thisAndFuture.toUpperCase() : actionText.thisAndFuture}</span>
               <span className={`text-xs ${
                 theme === 'pixel' ? 'text-pixel-textMuted font-mono' :
-                theme === 'fresh' ? 'text-fresh-textMuted' :
+                false ? '' :
                 theme === 'modern' ? 'text-muted-foreground' :
                 'text-gray-500'
               }`}>
@@ -634,7 +634,7 @@ export const RecurringEventActionDialog: React.FC<RecurringEventActionDialogProp
               <span className="font-medium">{theme === 'pixel' ? actionText.allEvents.toUpperCase() : actionText.allEvents}</span>
               <span className={`text-xs ${
                 theme === 'pixel' ? 'text-pixel-textMuted font-mono' :
-                theme === 'fresh' ? 'text-fresh-textMuted' :
+                false ? '' :
                 theme === 'modern' ? 'text-muted-foreground' :
                 'text-gray-500'
               }`}>
@@ -664,7 +664,7 @@ export const DialogTitle: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <h2 className={`text-lg font-semibold ${
       theme === 'pixel' ? 'text-pixel-text font-mono uppercase' :
-      theme === 'fresh' ? 'text-fresh-text' :
+      false ? '' :
       theme === 'modern' ? 'text-foreground' :
       'text-gray-900'
     }`}>
@@ -688,7 +688,7 @@ export const DialogClose: React.FC<{ onClick?: () => void }> = ({ onClick }) => 
       onClick={onClick}
       className={`absolute top-4 right-4 p-1 rounded ${
         theme === 'pixel' ? 'text-pixel-textMuted hover:text-pixel-text' :
-        theme === 'fresh' ? 'text-fresh-textMuted hover:text-fresh-text' :
+        false ? ' hover:' :
         theme === 'modern' ? 'text-muted-foreground hover:text-foreground' :
         'text-gray-500 hover:text-gray-700'
       }`}
@@ -708,8 +708,8 @@ export const ThemeCardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = (
     // pixel/fresh 主题下的自定义样式
     const headerClasses = theme === 'pixel'
       ? 'mb-4 border-b-2 border-pixel-border pb-3'
-      : theme === 'fresh'
-      ? 'mb-4 border-b border-fresh-border pb-3'
+      : false
+      ? 'mb-4 border-b  pb-3'
       : 'mb-4 border-b border-gray-200 pb-3';
     
     return (
@@ -728,8 +728,8 @@ export const ThemeCardTitle: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   } else {
     const titleClasses = theme === 'pixel'
       ? 'text-lg font-bold text-pixel-text font-mono uppercase tracking-wider'
-      : theme === 'fresh'
-      ? 'text-lg font-semibold text-fresh-text'
+      : false
+      ? 'text-lg font-semibold '
       : 'text-lg font-semibold text-gray-900';
     
     return (
@@ -748,8 +748,8 @@ export const ThemeCardDescription: React.FC<React.HTMLAttributes<HTMLDivElement>
   } else {
     const descClasses = theme === 'pixel'
       ? 'text-sm text-pixel-textMuted font-mono mt-1'
-      : theme === 'fresh'
-      ? 'text-sm text-fresh-textMuted mt-1'
+      : false
+      ? 'text-sm  mt-1'
       : 'text-sm text-gray-600 mt-1';
     
     return (
@@ -782,8 +782,8 @@ export const ThemeCardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = (
   } else {
     const footerClasses = theme === 'pixel'
       ? 'mt-4 pt-3 border-t-2 border-pixel-border flex items-center justify-between'
-      : theme === 'fresh'
-      ? 'mt-4 pt-3 border-t border-fresh-border flex items-center justify-between'
+      : false
+      ? 'mt-4 pt-3 border-t  flex items-center justify-between'
       : 'mt-4 pt-3 border-t border-gray-200 flex items-center justify-between';
     
     return (

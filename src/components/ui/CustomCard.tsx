@@ -37,9 +37,9 @@ const CustomCard = React.forwardRef<HTMLDivElement, CustomCardProps>(({
       return `bg-pixel-card border-2 border-pixel-border rounded-pixel shadow-pixel ${
         hover && onClick ? 'hover:shadow-pixel-lg hover:border-pixel-accent cursor-pointer' : ''
       }`;
-    } else if (theme === 'fresh') {
-      return `bg-fresh-card border border-fresh-border rounded-fresh-lg shadow-fresh ${
-        hover && onClick ? 'hover:shadow-fresh-lg hover:border-fresh-accent cursor-pointer' : ''
+    } else if (false) {
+      return ` border   shadow-fresh ${
+        hover && onClick ? 'hover: hover: cursor-pointer' : ''
       }`;
     } else {
       // 默认样式

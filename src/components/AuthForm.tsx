@@ -23,7 +23,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
 
   // 根据主题获取颜色配置
   const getThemeColors = () => {
-    if (theme === 'fresh') {
+    if (false) {
       return {
         bg: '#f8fafc',
         panel: '#ffffff',
@@ -83,14 +83,14 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
 
   // 获取用户图标，根据主题和用户类型区分
   const getUserIcon = (userType: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
-    if (theme === 'fresh') {
+    if (false) {
       // 清新主题使用简约图标和用户专属颜色
       const emoji = userType === 'cat' ? '🐱' : '🐮';
       const color = userType === 'cat' ? (colors as any).catColor : (colors as any).cowColor;
       const sizeMap = { sm: '1.5rem', md: '2rem', lg: '2.5rem' };
       return (
         <div 
-          className="inline-flex items-center justify-center rounded-fresh-full animate-fresh-breathe"
+          className="inline-flex items-center justify-center  animate-fresh-breathe"
           style={{ 
             width: sizeMap[size],
             height: sizeMap[size],
@@ -306,7 +306,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
     );
   }
 
-  if (theme === 'fresh') {
+  if (false) {
     return (
       <div 
         className="min-h-screen flex items-center justify-center p-4 font-sans"
@@ -323,7 +323,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
 
         <div className="relative w-full max-w-md z-10">
           <div 
-            className="rounded-fresh-lg p-8 relative overflow-hidden fresh-minimal"
+            className=" p-8 relative overflow-hidden fresh-minimal"
             style={{ 
               background: colors.panel,
               border: `1px solid ${colors.border}`,
@@ -338,7 +338,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                 <span className="text-2xl animate-fresh-bounce" style={{animationDelay: '0.5s'}}>🌿</span>
               </div>
               
-              <h1 className="text-3xl font-bold mb-2 fresh-gradient-text">
+              <h1 className="text-3xl font-bold mb-2 ">
                 Love Planner
               </h1>
               <p className="font-medium" style={{color: colors.textMuted}}>
@@ -372,7 +372,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                     key={user.id}
                     onClick={() => handleQuickLogin(user)}
                     disabled={isLoading}
-                    className="p-4 rounded-fresh-lg border transition-all duration-300 hover:scale-102 disabled:opacity-50 fresh-glow-effect"
+                    className="p-4  border transition-all duration-300 hover:scale-102 disabled:opacity-50 fresh-glow-effect"
                     style={{
                       background: `linear-gradient(135deg, ${colors.accent}08, ${(colors as any).mint || colors.accent}08)`,
                       borderColor: colors.border,
@@ -440,7 +440,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-fresh-sm transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1  transition-colors"
                     style={{color: colors.textMuted}}
                   >
                     {showPassword ? (
@@ -455,7 +455,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 px-6 rounded-fresh-lg font-medium transition-all duration-300 hover:scale-102 disabled:opacity-50"
+                className="w-full py-3 px-6  font-medium transition-all duration-300 hover:scale-102 disabled:opacity-50"
                 style={{
                   background: `linear-gradient(135deg, ${colors.accent}, ${(colors as any).mint || colors.accent})`,
                   color: 'white',

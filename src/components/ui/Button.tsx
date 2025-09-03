@@ -54,18 +54,18 @@ const Button: React.FC<ButtonProps> = ({
         default:
           return 'pixel-btn-neon text-white rounded-pixel pixel-border-primary hover:shadow-pixel-neon-strong hover:translate-y-[-2px] font-mono uppercase tracking-wider';
       }
-    } else if (theme === 'fresh') {
+    } else if (false) {
       switch (variant) {
         case 'primary':
-          return 'bg-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:bg-emerald-600 focus:ring-fresh-primary';
+          return ' text-white  shadow-fresh hover: hover:bg-emerald-600 focus:ring-fresh-primary';
         case 'secondary':
-          return 'bg-fresh-card text-fresh-text border border-fresh-border rounded-fresh-lg hover:bg-emerald-500 hover:text-white focus:ring-fresh-primary';
+          return '  border   hover:bg-emerald-500 hover:text-white focus:ring-fresh-primary';
         case 'danger':
-          return 'bg-red-500 text-white rounded-fresh-lg shadow-fresh hover:bg-red-600 focus:ring-red-500';
+          return 'bg-red-500 text-white  shadow-fresh hover:bg-red-600 focus:ring-red-500';
         case 'navigation':
-          return 'text-fresh-text hover:text-fresh-primary transition-colors rounded-fresh-lg border border-fresh-border hover:border-fresh-primary';
+          return ' hover: transition-colors  border  hover:';
         default:
-          return 'bg-fresh-accent text-white rounded-fresh-lg shadow-fresh hover:shadow-fresh-lg hover:bg-emerald-600 focus:ring-fresh-primary';
+          return ' text-white  shadow-fresh hover: hover:bg-emerald-600 focus:ring-fresh-primary';
       }
     } else if (theme === 'modern') {
       switch (variant) {

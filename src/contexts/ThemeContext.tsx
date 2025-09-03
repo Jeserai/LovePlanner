@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-// 导入主题初始化工具
-import '../utils/themeInit.js';
 
-export type ThemeType = 'pixel' | 'fresh' | 'modern';
+export type ThemeType = 'pixel' | 'modern';
 
 interface ThemeContextType {
   theme: ThemeType;
@@ -30,7 +28,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
-    if (savedTheme && (savedTheme === 'pixel' || savedTheme === 'fresh' || savedTheme === 'modern')) {
+    if (savedTheme && (savedTheme === 'pixel' || savedTheme === 'modern')) {
       setThemeState(savedTheme);
     } else {
       // 默认使用现代主题
@@ -52,10 +50,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const toggleTheme = () => {
-    // 在三个主题之间循环切换
+    // 在两个主题之间循环切换
     if (theme === 'pixel') {
-      setThemeState('fresh');
-    } else if (theme === 'fresh') {
       setThemeState('modern');
     } else {
       setThemeState('pixel');

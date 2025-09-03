@@ -1,0 +1,265 @@
+/* FullCalendar shadcn/ui 样式定制 */
+
+/* 基础样式 */
+.fullcalendar-container {
+  @apply w-full;
+}
+
+.fc {
+  @apply font-sans text-sm;
+}
+
+/* 工具栏样式 */
+.fc-toolbar {
+  @apply mb-4;
+}
+
+.fc-toolbar-title {
+  @apply text-xl font-semibold text-gray-900;
+}
+
+/* 按钮样式 */
+.fc-button {
+  @apply bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium;
+  @apply hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500;
+  @apply transition-colors duration-200;
+}
+
+.fc-button-primary {
+  @apply bg-blue-600 border-blue-600 text-white;
+  @apply hover:bg-blue-700 hover:border-blue-700;
+}
+
+.fc-button:disabled {
+  @apply bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed;
+  @apply hover:bg-gray-100 hover:border-gray-200;
+}
+
+/* 表格样式 */
+.fc-scrollgrid {
+  @apply border border-gray-200 rounded-lg overflow-hidden;
+}
+
+.fc-col-header-cell {
+  @apply bg-gray-50 border-b border-gray-200 text-center py-2;
+}
+
+.fc-col-header-cell-cushion {
+  @apply text-xs font-medium text-gray-600 uppercase tracking-wide;
+}
+
+/* 日期单元格 */
+.fc-daygrid-day {
+  @apply border-r border-b border-gray-200 min-h-[120px];
+}
+
+.fc-daygrid-day:last-child {
+  @apply border-r-0;
+}
+
+.fc-daygrid-day.fc-day-today {
+  @apply bg-blue-50;
+}
+
+.fc-daygrid-day-number {
+  @apply text-sm font-medium text-gray-900 p-2;
+}
+
+.fc-day-today .fc-daygrid-day-number {
+  @apply text-blue-600 font-bold;
+}
+
+/* 事件样式 */
+.fc-event {
+  @apply border-0 shadow-sm rounded-md mb-1 cursor-pointer;
+  @apply transition-all duration-200 hover:shadow-md;
+}
+
+.fc-event:hover {
+  @apply transform scale-105;
+}
+
+.fc-event-title {
+  @apply text-xs font-medium truncate;
+}
+
+.fc-event-time {
+  @apply text-xs opacity-75;
+}
+
+/* 时间网格样式 */
+.fc-timegrid-slot {
+  @apply border-b border-gray-100;
+}
+
+.fc-timegrid-slot-minor {
+  @apply border-b border-gray-50;
+}
+
+.fc-timegrid-axis {
+  @apply text-xs text-gray-500 border-r border-gray-200;
+}
+
+.fc-timegrid-col {
+  @apply border-r border-gray-200;
+}
+
+.fc-timegrid-col:last-child {
+  @apply border-r-0;
+}
+
+/* 当前时间指示器 */
+.fc-timegrid-now-indicator-line {
+  @apply border-t-2 border-red-500;
+}
+
+.fc-timegrid-now-indicator-arrow {
+  @apply border-r-8 border-r-red-500;
+}
+
+/* 列表视图样式 */
+.fc-list-table {
+  @apply w-full;
+}
+
+.fc-list-day-cushion {
+  @apply bg-gray-50 p-2 font-medium text-gray-900;
+}
+
+.fc-list-event {
+  @apply border-b border-gray-100 hover:bg-gray-50;
+}
+
+.fc-list-event-time {
+  @apply text-sm text-gray-600 p-2;
+}
+
+.fc-list-event-title {
+  @apply text-sm text-gray-900 p-2;
+}
+
+/* Pixel主题样式 */
+.pixel-calendar .fc {
+  @apply font-mono;
+}
+
+.pixel-calendar .fc-button {
+  @apply border-2 border-black bg-white text-black px-2 py-1 rounded-none;
+  @apply hover:bg-black hover:text-white;
+  box-shadow: 2px 2px 0px #000;
+}
+
+.pixel-calendar .fc-button-primary {
+  @apply bg-black text-white border-black;
+  @apply hover:bg-gray-800;
+}
+
+.pixel-calendar .fc-scrollgrid {
+  @apply border-2 border-black rounded-none;
+}
+
+.pixel-calendar .fc-col-header-cell {
+  @apply bg-gray-200 border-b-2 border-black;
+}
+
+.pixel-calendar .fc-daygrid-day {
+  @apply border-r border-b border-black;
+}
+
+.pixel-calendar .fc-daygrid-day.fc-day-today {
+  @apply bg-green-200;
+}
+
+.pixel-calendar .fc-event {
+  @apply rounded-none shadow-none border border-black;
+  box-shadow: 2px 2px 0px #000;
+}
+
+.pixel-calendar .fc-event:hover {
+  @apply transform-none scale-100;
+  box-shadow: 3px 3px 0px #000;
+}
+
+/* Modern主题样式 */
+.modern-calendar .fc-scrollgrid {
+  @apply shadow-lg;
+}
+
+.modern-calendar .fc-event {
+  @apply shadow-md rounded-lg;
+}
+
+.modern-calendar .fc-event:hover {
+  @apply shadow-lg;
+}
+
+.modern-calendar .fc-col-header-cell {
+  @apply bg-gradient-to-b from-gray-50 to-gray-100;
+}
+
+.modern-calendar .fc-daygrid-day.fc-day-today {
+  @apply bg-gradient-to-br from-blue-50 to-indigo-50;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .fc-toolbar {
+    @apply flex-col space-y-2;
+  }
+  
+  .fc-toolbar-chunk {
+    @apply flex justify-center;
+  }
+  
+  .fc-button {
+    @apply text-xs px-2 py-1;
+  }
+  
+  .fc-daygrid-day {
+    @apply min-h-[80px];
+  }
+  
+  .fc-event-title {
+    @apply text-xs;
+  }
+}
+
+/* 自定义事件颜色 */
+.fc-event.shared-event {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+  border-color: #ec4899 !important;
+}
+
+.fc-event.my-event {
+  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%) !important;
+  border-color: #3b82f6 !important;
+}
+
+.fc-event.partner-event {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%) !important;
+  border-color: #f59e0b !important;
+}
+
+/* 加载状态 */
+.fc-loading {
+  @apply opacity-50 pointer-events-none;
+}
+
+/* 选择状态 */
+.fc-highlight {
+  @apply bg-blue-100 opacity-75;
+}
+
+/* 拖拽状态 */
+.fc-event-dragging {
+  @apply opacity-75 z-50;
+}
+
+/* 无事件状态 */
+.fc-list-empty {
+  @apply text-center py-8 text-gray-500;
+}
+
+.fc-list-empty::before {
+  content: "暂无日程安排";
+}

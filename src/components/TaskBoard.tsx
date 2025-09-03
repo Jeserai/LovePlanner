@@ -32,7 +32,8 @@ import {
 } from './ui/Components';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../contexts/UserContext';
-import { userService, pointService, taskService } from '../services/database';
+import { userService, pointService } from '../services/userService';
+import { taskService } from '../services/taskService';
 import { habitTaskService, calculateLatestJoinDate, canJoinHabitTask } from '../services/habitTaskService';
 import type { PersonalHabitChallenge } from '../services/habitTaskService';
 import { supabase } from '../lib/supabase';
@@ -44,21 +45,8 @@ import { getCurrentTime, getTodayString } from '../utils/testTimeManager';
 
 // 🎯 使用统一的Task类型，不再重复定义
 
-// 编辑任务的状态类型（使用新数据结构）
-interface EditTaskState {
-  title?: string;
-  description?: string;
-  task_type?: 'daily' | 'habit' | 'special';
-  points?: number;
-  requires_proof?: boolean;
-  repeat_frequency?: 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'forever';
-  earliest_start_time?: string;
-  task_deadline?: string;
-  required_count?: number;
-  daily_time_start?: string;
-  daily_time_end?: string;
-  repeat_weekdays?: number[];
-  
+// 🔧 优化：使用统一的EditTaskForm类型，添加UI控制字段
+interface EditTaskState extends Partial<EditTaskForm> {
   // UI控制字段
   isUnlimited?: boolean;
   endRepeat?: 'never' | 'on_date';
@@ -1813,7 +1801,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         <div className="flex items-start justify-between mb-2">
           <h4 className={`font-bold ${
               theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-              theme === 'fresh' ? 'text-fresh-text' : 'text-gray-800'
+              false ? '' : 'text-gray-800'
           }`}>
             {task.title}
           </h4>
@@ -1855,7 +1843,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
         <p className={`mb-3 ${
           theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 
-          theme === 'fresh' ? 'text-fresh-textMuted' : 'text-gray-600'
+          false ? '' : 'text-gray-600'
         }`}>
           {task.description}
         </p>

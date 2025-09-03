@@ -50,8 +50,8 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
           <div className={`mx-auto ${sizeClasses[size]} ${
             theme === 'pixel' 
               ? 'border-4 border-pixel-border border-t-pixel-accent animate-spin' 
-              : theme === 'fresh'
-              ? 'border-4 border-fresh-border border-t-fresh-primary animate-spin'
+              : false
+              ? 'border-4  border-t-fresh-primary animate-spin'
               : 'border-4 border-gray-200 border-t-primary-600 animate-spin'
           } rounded-full`}></div>
         )}

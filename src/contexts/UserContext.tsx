@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { userService } from '../services/database';
+import { userService } from '../services/userService';
 import { getUserDisplayInfo } from '../services/authService';
 import { globalEventService, GlobalEvents } from '../services/globalEventService';
 
@@ -57,6 +57,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       if (profile) {
+        // 获取用户的实际浏览器时区
+        const actualTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
         const formattedProfile: UserProfile = {
           id: profile.id,
           username: profile.username,
@@ -64,7 +67,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           email: profile.email,
           birthday: profile.birthday || '1990-01-01',
           points: profile.points || 0,
-          timezone: profile.timezone || 'UTC'
+          timezone: actualTimezone // 使用用户的实际时区而不是数据库中的值
         };
         
         setUserProfile(formattedProfile);

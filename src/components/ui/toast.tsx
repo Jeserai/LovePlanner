@@ -85,8 +85,8 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
   const getVariantClasses = () => {
     const baseClasses = theme === 'pixel'
       ? 'border-2 rounded-pixel font-mono shadow-pixel-lg'
-      : theme === 'fresh'
-      ? 'border rounded-fresh-lg shadow-fresh-lg'
+      : false
+      ? 'border  '
       : theme === 'modern'
       ? 'border rounded-lg shadow-lg'
       : 'border rounded-lg shadow-lg';
@@ -95,7 +95,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
       case 'success':
         return theme === 'pixel'
           ? `${baseClasses} bg-green-900 border-green-400 text-green-100`
-          : theme === 'fresh'
+          : false
           ? `${baseClasses} bg-green-50 border-green-200 text-green-800`
           : theme === 'modern'
           ? `${baseClasses} bg-green-50 border-green-200 text-green-800`
@@ -104,7 +104,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
       case 'error':
         return theme === 'pixel'
           ? `${baseClasses} bg-red-900 border-red-400 text-red-100`
-          : theme === 'fresh'
+          : false
           ? `${baseClasses} bg-red-50 border-red-200 text-red-800`
           : theme === 'modern'
           ? `${baseClasses} bg-red-50 border-red-200 text-red-800`
@@ -113,7 +113,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
       case 'warning':
         return theme === 'pixel'
           ? `${baseClasses} bg-yellow-900 border-yellow-400 text-yellow-100`
-          : theme === 'fresh'
+          : false
           ? `${baseClasses} bg-yellow-50 border-yellow-200 text-yellow-800`
           : theme === 'modern'
           ? `${baseClasses} bg-yellow-50 border-yellow-200 text-yellow-800`
@@ -122,8 +122,8 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
       default:
         return theme === 'pixel'
           ? `${baseClasses} bg-pixel-card border-pixel-border text-pixel-text`
-          : theme === 'fresh'
-          ? `${baseClasses} bg-fresh-card border-fresh-border text-fresh-text`
+          : false
+          ? `${baseClasses}   `
           : theme === 'modern'
           ? `${baseClasses} bg-background border-border text-foreground`
           : `${baseClasses} bg-white border-gray-200 text-gray-900`;

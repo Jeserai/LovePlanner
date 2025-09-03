@@ -74,7 +74,7 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
           <div className="flex-1">
             <h3 className={`text-lg font-semibold ${
               theme === 'pixel' ? 'text-pixel-text font-mono uppercase' :
-              theme === 'fresh' ? 'text-fresh-text' :
+              false ? '' :
               theme === 'modern' ? 'text-foreground' :
               'text-gray-900'
             }`}>
@@ -83,7 +83,7 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
             
             <p className={`text-sm mt-2 ${
               theme === 'pixel' ? 'text-pixel-textMuted font-mono' :
-              theme === 'fresh' ? 'text-fresh-textMuted' :
+              false ? '' :
               theme === 'modern' ? 'text-muted-foreground' :
               'text-gray-600'
             }`}>
@@ -96,7 +96,7 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
         {children && (
           <div className={`${
             theme === 'pixel' ? 'border-t-2 border-pixel-border pt-4' :
-            theme === 'fresh' ? 'border-t border-fresh-border pt-4' :
+            false ? 'border-t  pt-4' :
             theme === 'modern' ? 'border-t border-border pt-4' :
             'border-t border-gray-200 pt-4'
           }`}>

@@ -27,8 +27,8 @@ const NavigationButton: React.FC<NavigationButtonProps> = ({
   const getThemeStyles = () => {
     if (theme === 'pixel') {
       return 'text-pixel-text hover:text-pixel-accent rounded-pixel border-2 border-pixel-border hover:border-pixel-accent p-2 focus:ring-pixel-accent';
-    } else if (theme === 'fresh') {
-      return 'text-fresh-text hover:text-fresh-primary rounded-fresh-lg border border-fresh-border hover:border-fresh-primary p-2 focus:ring-fresh-primary';
+    } else if (false) {
+      return ' hover:  border  hover: p-2 focus:ring-fresh-primary';
     } else {
       // Default theme
       return 'text-gray-600 hover:text-gray-800 rounded-xl border border-gray-300 hover:border-gray-400 p-2 focus:ring-primary-500';

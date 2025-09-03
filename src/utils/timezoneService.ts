@@ -112,7 +112,10 @@ export function convertUTCToUserTime(utcTimeString: string, userTimezone?: strin
  * @returns 本地时间字符串，如"22:30:00"
  */
 export function convertUTCTimeToUserTime(utcTimeString: string, eventDate: string, userTimezone?: string): string {
-  if (!utcTimeString || !eventDate) return utcTimeString;
+  if (!utcTimeString || !eventDate) {
+    console.warn('convertUTCTimeToUserTime: 缺少必要参数', { utcTimeString, eventDate });
+    return utcTimeString || '';
+  }
   
   const timezone = userTimezone || getUserTimezone();
   
@@ -121,16 +124,30 @@ export function convertUTCTimeToUserTime(utcTimeString: string, eventDate: strin
     const utcDateTime = `${eventDate}T${utcTimeString}Z`;
     const utcDate = new Date(utcDateTime);
     
+    // 检查生成的Date对象是否有效
+    if (isNaN(utcDate.getTime())) {
+      console.error('无效的UTC日期时间:', { utcDateTime, utcTimeString, eventDate });
+      return utcTimeString;
+    }
+    
     // 转换到用户时区，只返回时间部分
-    return utcDate.toLocaleTimeString('en-GB', {
+    const converted = utcDate.toLocaleTimeString('en-GB', {
       timeZone: timezone,
       hour12: false,
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     });
+    
+    // 验证转换结果
+    if (!converted || converted === 'Invalid Date') {
+      console.error('时间转换结果无效:', { converted, utcDateTime, timezone });
+      return utcTimeString;
+    }
+    
+    return converted;
   } catch (error) {
-    console.error('时间转换失败:', error);
+    console.error('时间转换失败:', error, { utcTimeString, eventDate, timezone });
     return utcTimeString;
   }
 }
@@ -147,16 +164,36 @@ export function convertUserTimeToUTC(localDateTime: string, userTimezone?: strin
   const timezone = userTimezone || getUserTimezone();
   
   try {
-    // 创建在用户时区的日期对象
-    const localDate = new Date(localDateTime);
+    console.log('🔄 开始时间转换:', {
+      输入本地时间: localDateTime,
+      用户时区: timezone
+    });
     
-    // 获取用户时区偏移量
-    const offsetMinutes = getUserTimezoneOffset();
+    // ⚠️ 最简单的修复：直接使用Date构造函数
+    // datetime-local格式："2025-09-03T14:00" 被浏览器解释为本地时间
     
-    // 转换为UTC
-    const utcDate = new Date(localDate.getTime() - (offsetMinutes * 60 * 1000));
+    // 确保输入格式正确（添加秒数）
+    let dateTimeStr = localDateTime;
+    if (dateTimeStr.split(':').length === 2) {
+      dateTimeStr += ':00';
+    }
     
-    return utcDate.toISOString();
+    // 直接创建Date对象 - 浏览器会将其解释为本地时间
+    const localDate = new Date(dateTimeStr);
+    
+    // 直接转换为UTC ISO字符串
+    const result = localDate.toISOString();
+    
+    console.log('✅ 时间转换完成:', {
+      输入: localDateTime,
+      标准化输入: dateTimeStr,
+      本地Date对象: localDate.toString(),
+      本地时间戳: localDate.getTime(),
+      最终UTC: result,
+      验证: `本地${localDate.getHours()}:${localDate.getMinutes()} → UTC${new Date(result).getUTCHours()}:${new Date(result).getUTCMinutes()}`
+    });
+    
+    return result;
   } catch (error) {
     console.error('本地时间转UTC失败:', error);
     return localDateTime;
