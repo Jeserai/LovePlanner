@@ -24,6 +24,8 @@ import {
 } from './ui/Components'
 import TestTimezoneController from './TestTimezoneController'
 import type { Event, CalendarProps } from '../types/event'
+import { convertUserTimeToUTC } from '../utils/timezoneService'
+import { eventService } from '../services/eventService'
 
 const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   const { theme } = useTheme()
@@ -35,7 +37,8 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     user,
     eventData.coupleId,
     eventData.coupleUsers,
-    eventData.loadEvents
+    eventData.loadEvents,
+    eventData.events
   )
 
   // 状态管理
@@ -208,7 +211,11 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
       isAllDay: isAllDayEvent,
       description: '',
       includesUser1,
-      includesUser2
+      includesUser2,
+      isRecurring: false,
+      recurrenceType: 'daily',
+      recurrenceEnd: '',
+      originalDate: ''
     })
     
     setShowNewEventDialog(true)
@@ -218,10 +225,72 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 处理事件拖拽
   const handleEventDrop = useCallback(async (eventId: string, newDate: string, newTime?: string) => {
-    // 这里可以添加事件拖拽更新的逻辑
-    console.log('Event dropped:', { eventId, newDate, newTime })
-    // 可以调用eventService来更新事件
-  }, [])
+    console.log('🔄 事件拖拽更新:', { eventId, newDate, newTime });
+    
+    try {
+      // 查找要更新的事件
+      const eventToUpdate = eventData.events.find(e => e.id === eventId);
+      if (!eventToUpdate) {
+        console.error('❌ 找不到要更新的事件:', eventId);
+        return;
+      }
+
+      // 构造新的开始和结束时间
+      let newStartDateTime: string;
+      let newEndDateTime: string;
+
+      if (eventToUpdate.isAllDay) {
+        // 全天事件：只更新日期
+        newStartDateTime = `${newDate}T00:00:00`;
+        newEndDateTime = `${newDate}T23:59:59`;
+      } else {
+        // 有时间的事件
+        if (newTime) {
+          // 使用拖拽到的新时间
+          newStartDateTime = `${newDate}T${newTime}:00`;
+          // 保持原有的持续时间
+          const originalStart = new Date(eventToUpdate.rawStartTime ? `${eventToUpdate.date}T${eventToUpdate.rawStartTime}` : eventToUpdate.date);
+          const originalEnd = new Date(eventToUpdate.rawEndTime ? `${eventToUpdate.date}T${eventToUpdate.rawEndTime}` : eventToUpdate.date);
+          const durationMs = originalEnd.getTime() - originalStart.getTime();
+          
+          const newStart = new Date(`${newDate}T${newTime}:00`);
+          const newEnd = new Date(newStart.getTime() + durationMs);
+          
+          newEndDateTime = newEnd.toISOString().slice(0, 19);
+        } else {
+          // 没有具体时间，使用原有时间但更新日期
+          const originalTime = eventToUpdate.rawStartTime || '09:00:00';
+          const originalEndTime = eventToUpdate.rawEndTime || '10:00:00';
+          newStartDateTime = `${newDate}T${originalTime}`;
+          newEndDateTime = `${newDate}T${originalEndTime}`;
+        }
+      }
+
+      console.log('🕐 计算的新时间:', {
+        原始事件: eventToUpdate.title,
+        新开始时间: newStartDateTime,
+        新结束时间: newEndDateTime
+      });
+
+      // 转换为UTC时间存储
+      const utcStartDateTime = convertUserTimeToUTC(newStartDateTime);
+      const utcEndDateTime = convertUserTimeToUTC(newEndDateTime);
+
+      // 更新事件
+      const updated = await eventService.updateEvent(eventId, {
+        start_datetime: utcStartDateTime,
+        end_datetime: utcEndDateTime
+      });
+
+      if (updated) {
+        console.log('✅ 事件拖拽更新成功');
+        // 触发事件重新加载 - useEventForm中的useEffect会自动同步selectedEvent
+        await eventData.handleRefresh();
+      }
+    } catch (error) {
+      console.error('❌ 事件拖拽更新失败:', error);
+    }
+  }, [eventData.events, eventData.handleRefresh])
 
   // 处理新建事件
   const handleAddEvent = useCallback(() => {
@@ -243,7 +312,11 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
       isAllDay: false,
       description: '',
       includesUser1: true,
-      includesUser2: true
+      includesUser2: true,
+      isRecurring: false,
+      recurrenceType: 'daily',
+      recurrenceEnd: '',
+      originalDate: ''
     })
     
     setShowNewEventDialog(true)
@@ -329,7 +402,7 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
       isRecurring: false,
       recurrenceType: null,
       recurrenceEnd: null,
-      originalDate: null
+      originalDate: ''
     }
     
     console.log('🚀 从待办事项创建事件:', eventData)

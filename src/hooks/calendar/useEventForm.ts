@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { eventService } from '../../services/eventService';
 import { globalEventService, GlobalEvents } from '../../services/globalEventService';
 import type { Event, EditEventForm } from '../../types/event';
@@ -13,12 +13,30 @@ export const useEventForm = (
   user: any,
   coupleId: string | null,
   coupleUsers: {user1: any, user2: any} | null,
-  loadEvents: () => Promise<void>
+  loadEvents: () => Promise<void>,
+  events: Event[] = []
 ) => {
   // 表单状态
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+
+  // 🔧 同步selectedEvent：当events更新时，自动更新selectedEvent
+  useEffect(() => {
+    if (selectedEvent && events.length > 0) {
+      const updatedEvent = events.find(e => e.id === selectedEvent.id);
+      if (updatedEvent && 
+          (updatedEvent.date !== selectedEvent.date || 
+           updatedEvent.rawStartTime !== selectedEvent.rawStartTime || 
+           updatedEvent.rawEndTime !== selectedEvent.rawEndTime)) {
+        console.log('🔄 检测到事件更新，同步selectedEvent:', {
+          旧事件: { date: selectedEvent.date, startTime: selectedEvent.rawStartTime },
+          新事件: { date: updatedEvent.date, startTime: updatedEvent.rawStartTime }
+        });
+        setSelectedEvent(updatedEvent);
+      }
+    }
+  }, [events, selectedEvent]);
   
   // 新建事件表单
   const [newEvent, setNewEvent] = useState<EditEventForm>({
@@ -29,7 +47,11 @@ export const useEventForm = (
     isAllDay: false,
     description: '',
     includesUser1: true,
-    includesUser2: true
+    includesUser2: true,
+    isRecurring: false,
+    recurrenceType: 'daily',
+    recurrenceEnd: '',
+    originalDate: ''
   });
 
   // 编辑事件表单
@@ -41,7 +63,11 @@ export const useEventForm = (
     isAllDay: false,
     description: '',
     includesUser1: true,
-    includesUser2: true
+    includesUser2: true,
+    isRecurring: false,
+    recurrenceType: 'daily',
+    recurrenceEnd: '',
+    originalDate: ''
   });
 
   // 重复事件操作对话框
@@ -104,8 +130,9 @@ export const useEventForm = (
           location: eventData.location,
           includes_user1: includesUser1,
           includes_user2: includesUser2,
-          is_recurring: selectedEvent.isRecurring,
-          recurrence_type: selectedEvent.recurrenceType as "daily" | "weekly" | "biweekly" | "monthly" | "yearly" | null | undefined
+          is_recurring: eventData.isRecurring,
+          recurrence_type: eventData.recurrenceType as "daily" | "weekly" | "biweekly" | "monthly" | "yearly" | null | undefined,
+          recurrence_end: eventData.recurrenceEnd || null
         };
 
         let success = false;
@@ -233,7 +260,11 @@ export const useEventForm = (
       isAllDay: event.isAllDay || false,
       description: event.description || '',
       includesUser1: event.participants.includes(coupleUsers?.user1.id || ''),
-      includesUser2: event.participants.includes(coupleUsers?.user2.id || '')
+      includesUser2: event.participants.includes(coupleUsers?.user2.id || ''),
+      isRecurring: event.isRecurring || false,
+      recurrenceType: event.recurrenceType || 'daily',
+      recurrenceEnd: event.recurrenceEnd || '',
+      originalDate: event.originalDate || ''
     });
 
     setIsEditing(true);

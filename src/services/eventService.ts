@@ -127,9 +127,17 @@ export const eventService = {
         location,
         is_recurring: isRecurring || false,
         recurrence_type: recurrenceType,
-        recurrence_end: recurrenceEnd,
-        original_date: originalDate
+        // 🔧 修复：空字符串转换为null，避免PostgreSQL日期解析错误
+        recurrence_end: recurrenceEnd && recurrenceEnd.trim() !== '' ? recurrenceEnd : null,
+        original_date: originalDate && originalDate.trim() !== '' ? originalDate : null
       };
+
+      console.log('📝 创建事件参数:', {
+        recurrence_end: eventData.recurrence_end,
+        original_date: eventData.original_date,
+        recurrenceEnd原值: recurrenceEnd,
+        originalDate原值: originalDate
+      });
 
       const { data, error } = await supabase
         .from('events')
@@ -183,6 +191,11 @@ export const eventService = {
       }
       if (updates.end_datetime && !updates.is_all_day) {
         updateData.end_datetime = convertUserTimeToUTC(updates.end_datetime);
+      }
+      
+      // 🔧 修复：空字符串转换为null，避免PostgreSQL日期解析错误
+      if ('recurrence_end' in updateData && updateData.recurrence_end === '') {
+        updateData.recurrence_end = null;
       }
 
       const { error } = await supabase
@@ -282,6 +295,11 @@ export const eventService = {
       }
       if (updates.end_datetime && !updates.is_all_day) {
         updateData.end_datetime = convertUserTimeToUTC(updates.end_datetime);
+      }
+      
+      // 🔧 修复：空字符串转换为null，避免PostgreSQL日期解析错误
+      if ('recurrence_end' in updateData && updateData.recurrence_end === '') {
+        updateData.recurrence_end = null;
       }
 
       if (scope === 'all') {

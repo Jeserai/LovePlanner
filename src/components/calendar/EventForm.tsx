@@ -160,6 +160,52 @@ const EventForm: React.FC<EventFormProps> = ({
         />
       </ThemeFormField>
 
+      {/* 重复事件设置 */}
+      <ThemeFormField>
+        <ThemeCheckbox
+          checked={formData.isRecurring}
+          onChange={(e) => onFormChange({ isRecurring: e.target.checked })}
+          label={theme === 'pixel' ? 'RECURRING_EVENT' : theme === 'modern' ? 'Recurring Event' : '重复事件'}
+        />
+      </ThemeFormField>
+
+      {/* 重复事件选项 */}
+      {formData.isRecurring && (
+        <div className="space-y-4">
+          <ThemeFormField
+            label={theme === 'pixel' ? 'RECURRENCE_TYPE' : theme === 'modern' ? 'Recurrence Type' : '重复类型'}
+            required
+          >
+            <select
+              value={formData.recurrenceType || 'daily'}
+              onChange={(e) => onFormChange({ recurrenceType: e.target.value })}
+              className={`w-full px-3 py-2 border rounded-md ${
+                theme === 'pixel' ? 'border-pixel-border bg-pixel-background text-pixel-text' :
+                theme === 'modern' ? 'border-slate-300 bg-white text-slate-900' :
+                'border-gray-300 bg-white text-gray-900'
+              }`}
+            >
+              <option value="daily">{theme === 'pixel' ? 'DAILY' : theme === 'modern' ? 'Daily' : '每日'}</option>
+              <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : theme === 'modern' ? 'Weekly' : '每周'}</option>
+              <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : theme === 'modern' ? 'Monthly' : '每月'}</option>
+              <option value="yearly">{theme === 'pixel' ? 'YEARLY' : theme === 'modern' ? 'Yearly' : '每年'}</option>
+            </select>
+          </ThemeFormField>
+
+          <ThemeFormField
+            label={theme === 'pixel' ? 'RECURRENCE_END' : theme === 'modern' ? 'End Date' : '结束日期'}
+            description={theme === 'pixel' ? 'WHEN_STOP_REPEATING' : theme === 'modern' ? 'When to stop repeating (optional)' : '何时停止重复（可选）'}
+          >
+            <ThemeInput
+              type="date"
+              value={formData.recurrenceEnd}
+              onChange={(e) => onFormChange({ recurrenceEnd: e.target.value })}
+              min={selectedDate || new Date().toISOString().split('T')[0]}
+            />
+          </ThemeFormField>
+        </div>
+      )}
+
       {/* 按钮 */}
       <div className="flex justify-end space-x-2 pt-4">
         <ThemeButton type="button" variant="secondary" onClick={onCancel}>

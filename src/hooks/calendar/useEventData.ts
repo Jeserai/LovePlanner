@@ -3,7 +3,72 @@ import { eventService, type SimplifiedEvent } from '../../services/eventService'
 import { userService } from '../../services/userService';
 import { globalEventService, GlobalEvents } from '../../services/globalEventService';
 import type { Event } from '../../types/event';
-import { convertUTCToUserTime } from '../../utils/timezoneService';
+import { convertUTCToUserTime, convertUserTimeToUTC } from '../../utils/timezoneService';
+import { addDays, addWeeks, addMonths, addYears, format, parseISO, isBefore, isAfter } from 'date-fns';
+
+// 🔧 重复事件展开函数
+const expandRecurringEvent = (dbEvent: SimplifiedEvent): SimplifiedEvent[] => {
+  if (!dbEvent.is_recurring || !dbEvent.start_datetime || !dbEvent.recurrence_type) {
+    return [dbEvent];
+  }
+
+  const instances: SimplifiedEvent[] = [];
+  const startDate = parseISO(dbEvent.start_datetime);
+  const endDate = dbEvent.recurrence_end ? parseISO(dbEvent.recurrence_end) : addMonths(startDate, 6); // 默认展开6个月
+  
+  let currentDate = startDate;
+  let instanceCount = 0;
+  const maxInstances = 100; // 防止无限循环
+
+  while ((isBefore(currentDate, endDate) || currentDate.getTime() === endDate.getTime()) && instanceCount < maxInstances) {
+    // 计算这个实例的时间
+    const instanceStartTime = currentDate.toISOString();
+    const originalEnd = dbEvent.end_datetime ? parseISO(dbEvent.end_datetime) : addDays(currentDate, 1);
+    const duration = originalEnd.getTime() - startDate.getTime();
+    const instanceEndTime = new Date(currentDate.getTime() + duration).toISOString();
+
+    // 创建实例
+    const instance = {
+      ...dbEvent,
+      id: instanceCount === 0 ? dbEvent.id : `${dbEvent.id}-${format(currentDate, 'yyyy-MM-dd')}`,
+      start_datetime: instanceStartTime,
+      end_datetime: instanceEndTime,
+      original_date: format(startDate, 'yyyy-MM-dd')
+    };
+
+    instances.push(instance);
+
+    // 计算下一个实例的日期
+    switch (dbEvent.recurrence_type) {
+      case 'daily':
+        currentDate = addDays(currentDate, 1);
+        break;
+      case 'weekly':
+        currentDate = addWeeks(currentDate, 1);
+        break;
+      case 'monthly':
+        currentDate = addMonths(currentDate, 1);
+        break;
+      case 'yearly':
+        currentDate = addYears(currentDate, 1);
+        break;
+      default:
+        return instances; // 不支持的重复类型
+    }
+
+    instanceCount++;
+  }
+
+  console.log('🔄 重复事件展开:', {
+    原始事件: dbEvent.title,
+    重复类型: dbEvent.recurrence_type,
+    生成实例数: instances.length,
+    开始日期: format(startDate, 'yyyy-MM-dd'),
+    结束日期: format(endDate, 'yyyy-MM-dd')
+  });
+
+  return instances;
+};
 
 // 🎯 事件数据管理Hook
 export const useEventData = (user: any) => {
@@ -197,11 +262,24 @@ export const useEventData = (user: any) => {
           console.log('✅ coupleUsers状态已设置');
 
           // 🔧 修复：在设置coupleUsers后再转换事件
-                const dbEvents = await eventService.getCoupleEvents(coupleRelation.id);
-      console.log('🔍 数据库原始事件数据:', dbEvents);
-      
-      // 使用本地coupleUsers数据进行转换
-          const convertedEvents = dbEvents.map(dbEvent => {
+          const dbEvents = await eventService.getCoupleEvents(coupleRelation.id);
+          console.log('🔍 数据库原始事件数据:', dbEvents);
+          
+          // 🔧 展开重复事件为多个实例
+          const expandedEvents: SimplifiedEvent[] = [];
+          for (const dbEvent of dbEvents) {
+            const instances = expandRecurringEvent(dbEvent);
+            expandedEvents.push(...instances);
+          }
+          
+          console.log('📅 初始化事件展开结果:', {
+            原始事件数: dbEvents.length,
+            展开后事件数: expandedEvents.length,
+            重复事件: dbEvents.filter(e => e.is_recurring).map(e => ({ title: e.title, type: e.recurrence_type }))
+          });
+          
+          // 使用本地coupleUsers数据进行转换
+          const convertedEvents = expandedEvents.map(dbEvent => {
             const participants: string[] = [];
             if (dbEvent.includes_user1) participants.push(coupleUsersData.user1.id);
             if (dbEvent.includes_user2) participants.push(coupleUsersData.user2.id);
@@ -305,8 +383,21 @@ export const useEventData = (user: any) => {
     try {
       const dbEvents = await eventService.getCoupleEvents(coupleId);
       
+      // 🔧 展开重复事件为多个实例
+      const expandedEvents: SimplifiedEvent[] = [];
+      for (const dbEvent of dbEvents) {
+        const instances = expandRecurringEvent(dbEvent);
+        expandedEvents.push(...instances);
+      }
+      
+      console.log('📅 事件展开结果:', {
+        原始事件数: dbEvents.length,
+        展开后事件数: expandedEvents.length,
+        重复事件: dbEvents.filter(e => e.is_recurring).map(e => ({ title: e.title, type: e.recurrence_type }))
+      });
+      
       // 🔧 使用本地coupleUsers数据进行转换，避免竞态条件
-      const convertedEvents = dbEvents.map(dbEvent => {
+      const convertedEvents = expandedEvents.map(dbEvent => {
         const participants: string[] = [];
         if (dbEvent.includes_user1) participants.push(coupleUsers.user1.id);
         if (dbEvent.includes_user2) participants.push(coupleUsers.user2.id);
@@ -393,8 +484,15 @@ export const useEventData = (user: any) => {
     try {
       const dbEvents = await eventService.getCoupleEvents(coupleId);
       
+      // 🔧 展开重复事件为多个实例
+      const expandedEvents: SimplifiedEvent[] = [];
+      for (const dbEvent of dbEvents) {
+        const instances = expandRecurringEvent(dbEvent);
+        expandedEvents.push(...instances);
+      }
+      
       // 直接转换，避免依赖loadEvents
-      const convertedEvents = dbEvents.map(dbEvent => {
+      const convertedEvents = expandedEvents.map(dbEvent => {
         const participants: string[] = [];
         if (dbEvent.includes_user1) participants.push(coupleUsers.user1.id);
         if (dbEvent.includes_user2) participants.push(coupleUsers.user2.id);
