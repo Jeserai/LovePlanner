@@ -20,10 +20,13 @@ export const useEventData = (user: any) => {
     if (!coupleUsers) {
       return {
         id: dbEvent.id,
-        title: dbEvent.title,
-        description: dbEvent.description || undefined,
-        date: dbEvent.event_date,
-        time: dbEvent.start_datetime ? formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime) : undefined,
+              title: dbEvent.title,
+      description: dbEvent.description || undefined,
+      // 🔧 从start_datetime计算本地日期，避免event_date的时区混淆
+      date: dbEvent.start_datetime 
+        ? convertUTCToUserTime(dbEvent.start_datetime).split(' ')[0] || convertUTCToUserTime(dbEvent.start_datetime).split('T')[0]
+        : new Date().toISOString().split('T')[0], // 全天事件使用当前日期
+      time: dbEvent.start_datetime ? formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime) : undefined,
         location: dbEvent.location || undefined,
         participants: [],
         color: 'bg-gray-400',
@@ -61,25 +64,18 @@ export const useEventData = (user: any) => {
     // 🔧 时区修复：使用新的datetime字段构建时间显示
     const timeDisplay = formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime);
     
-    // 🐛 调试：事件转换信息
-    if (process.env.NODE_ENV === 'development' && dbEvent.start_datetime) {
-      console.log('📅 事件数据转换:', {
-        事件标题: dbEvent.title,
-        事件日期: dbEvent.event_date,
-        UTC开始时间: dbEvent.start_datetime,
-        UTC结束时间: dbEvent.end_datetime,
-        构建的时间显示: timeDisplay,
-        参与者1: dbEvent.includes_user1,
-        参与者2: dbEvent.includes_user2,
-        参与者数组: participants
-      });
-    }
+    // 🔧 从start_datetime计算本地日期
+    const localDate = dbEvent.start_datetime 
+      ? convertUTCToUserTime(dbEvent.start_datetime).split(' ')[0] || convertUTCToUserTime(dbEvent.start_datetime).split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    // 🔇 隐藏事件转换调试信息
     
     return {
       id: dbEvent.id,
       title: dbEvent.title,
       description: dbEvent.description || undefined,
-      date: dbEvent.event_date,
+      date: localDate,
       time: timeDisplay,
       location: dbEvent.location || undefined,
       participants: participants,
@@ -164,15 +160,22 @@ export const useEventData = (user: any) => {
   // 初始化数据
   useEffect(() => {
     const initializeData = async () => {
+      console.log('🚀 开始初始化事件数据:', { user: user?.id, userEmail: user?.email });
+      
       if (!user?.id) {
+        console.log('❌ 用户ID不存在，跳过初始化');
         setLoading(false);
         return;
       }
 
       try {
         // 获取情侣关系
+        console.log('🔍 获取情侣关系...');
         const coupleRelation = await userService.getCoupleRelation(user.id);
+        console.log('💑 情侣关系结果:', coupleRelation);
+        
         if (!coupleRelation) {
+          console.log('❌ 未找到情侣关系');
           setLoading(false);
           return;
         }
@@ -180,27 +183,117 @@ export const useEventData = (user: any) => {
         setCoupleId(coupleRelation.id);
 
         // 获取情侣用户信息
+        console.log('👥 获取情侣用户信息...');
         const users = await userService.getCoupleUsers(coupleRelation.id);
+        console.log('👥 情侣用户结果:', users);
+        
         if (users.length >= 2) {
-          setCoupleUsers({
+          const coupleUsersData = {
             user1: users[0],
             user2: users[1]
-          });
-        }
+          };
+          console.log('📝 准备设置coupleUsers状态:', coupleUsersData);
+          setCoupleUsers(coupleUsersData);
+          console.log('✅ coupleUsers状态已设置');
 
-        // 获取事件数据
-        const dbEvents = await eventService.getCoupleEvents(coupleRelation.id);
-        const convertedEvents = dbEvents.map(convertSimplifiedEventToEvent);
-        setEvents(convertedEvents);
+          // 🔧 修复：在设置coupleUsers后再转换事件
+                const dbEvents = await eventService.getCoupleEvents(coupleRelation.id);
+      console.log('🔍 数据库原始事件数据:', dbEvents);
+      
+      // 使用本地coupleUsers数据进行转换
+          const convertedEvents = dbEvents.map(dbEvent => {
+            const participants: string[] = [];
+            if (dbEvent.includes_user1) participants.push(coupleUsersData.user1.id);
+            if (dbEvent.includes_user2) participants.push(coupleUsersData.user2.id);
+            
+            // 🔧 修复：确保日期格式为ISO格式（YYYY-MM-DD）
+            let localDate: string;
+            if (dbEvent.start_datetime) {
+              const convertedTime = convertUTCToUserTime(dbEvent.start_datetime);
+              // convertUTCToUserTime返回 "2025/09/06 04:00:00" 格式
+              const datePart = convertedTime.split(' ')[0]; // "2025/09/06"
+              // 转换为ISO格式
+              localDate = datePart.replace(/\//g, '-'); // "2025-09-06"
+              console.log('🔧 日期格式转换:', {
+                原始UTC: dbEvent.start_datetime,
+                转换后: convertedTime,
+                提取日期: datePart,
+                ISO日期: localDate
+              });
+            } else {
+              localDate = new Date().toISOString().split('T')[0];
+            }
+            
+            const timeDisplay = formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime);
+            
+            console.log('🔧 事件参与者转换:', {
+            事件: dbEvent.title,
+            includes_user1: dbEvent.includes_user1,
+            includes_user2: dbEvent.includes_user2,
+            参与者数组: participants,
+            user1_id: coupleUsersData.user1.id,
+            user2_id: coupleUsersData.user2.id
+          });
+            
+            return {
+              id: dbEvent.id,
+              title: dbEvent.title,
+              description: dbEvent.description || undefined,
+              date: localDate,
+              time: timeDisplay,
+              location: dbEvent.location || undefined,
+              participants: participants,
+              color: getEventColor(participants),
+              isRecurring: dbEvent.is_recurring,
+              recurrenceType: dbEvent.recurrence_type || undefined,
+              recurrenceEnd: dbEvent.recurrence_end || undefined,
+              originalDate: dbEvent.original_date || undefined,
+              isAllDay: dbEvent.is_all_day || false,
+              createdBy: dbEvent.created_by || undefined,
+              createdAt: dbEvent.created_at || undefined,
+              excludedDates: dbEvent.excluded_dates || undefined,
+              modifiedInstances: dbEvent.modified_instances || undefined,
+              rawStartTime: dbEvent.start_datetime ? (() => {
+                const converted = convertUTCToUserTime(dbEvent.start_datetime);
+                try {
+                  const timePart = converted.split(' ')[1] || converted.split('T')[1];
+                  return timePart ? timePart.split('.')[0] : undefined;
+                } catch (e) {
+                  return undefined;
+                }
+              })() : undefined,
+              rawEndTime: dbEvent.end_datetime ? (() => {
+                const converted = convertUTCToUserTime(dbEvent.end_datetime);
+                try {
+                  const timePart = converted.split(' ')[1] || converted.split('T')[1];
+                  return timePart ? timePart.split('.')[0] : undefined;
+                } catch (e) {
+                  return undefined;
+                }
+              })() : undefined
+            };
+          });
+          
+          console.log('✅ 转换后的事件数据:', convertedEvents);
+          console.log('📝 准备设置events状态...');
+          setEvents(convertedEvents);
+          console.log('✅ events状态已设置');
+        }
       } catch (error) {
-        console.error('初始化事件数据失败:', error);
+        console.error('❌ 初始化事件数据失败:', error);
+        console.error('❌ 错误详情:', {
+          message: error instanceof Error ? error.message : '未知错误',
+          stack: error instanceof Error ? error.stack : undefined,
+          userId: user?.id
+        });
       } finally {
+        console.log('🏁 初始化完成，设置loading=false');
         setLoading(false);
       }
     };
 
     initializeData();
-  }, [user?.id, convertSimplifiedEventToEvent]);
+  }, [user?.id]); // 🔧 移除convertSimplifiedEventToEvent依赖，避免循环
 
   // 加载事件数据
   const loadEvents = useCallback(async () => {
@@ -210,41 +303,158 @@ export const useEventData = (user: any) => {
     }
 
     try {
-      console.log('🔄 开始加载事件数据...');
       const dbEvents = await eventService.getCoupleEvents(coupleId);
-      console.log('📋 从数据库获取的原始事件:', dbEvents);
       
-      const convertedEvents = dbEvents.map(convertSimplifiedEventToEvent);
-      console.log('✅ 转换后的事件:', convertedEvents);
+      // 🔧 使用本地coupleUsers数据进行转换，避免竞态条件
+      const convertedEvents = dbEvents.map(dbEvent => {
+        const participants: string[] = [];
+        if (dbEvent.includes_user1) participants.push(coupleUsers.user1.id);
+        if (dbEvent.includes_user2) participants.push(coupleUsers.user2.id);
+        
+        // 🔧 修复：确保日期格式为ISO格式（YYYY-MM-DD）
+        let localDate: string;
+        if (dbEvent.start_datetime) {
+          const convertedTime = convertUTCToUserTime(dbEvent.start_datetime);
+          const datePart = convertedTime.split(' ')[0]; // "2025/09/06"
+          localDate = datePart.replace(/\//g, '-'); // "2025-09-06"
+        } else {
+          localDate = new Date().toISOString().split('T')[0];
+        }
+        
+        const timeDisplay = formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime);
+        
+        return {
+          id: dbEvent.id,
+          title: dbEvent.title,
+          description: dbEvent.description || undefined,
+          date: localDate,
+          time: timeDisplay,
+          location: dbEvent.location || undefined,
+          participants: participants,
+          color: getEventColor(participants),
+          isRecurring: dbEvent.is_recurring,
+          recurrenceType: dbEvent.recurrence_type || undefined,
+          recurrenceEnd: dbEvent.recurrence_end || undefined,
+          originalDate: dbEvent.original_date || undefined,
+          isAllDay: dbEvent.is_all_day || false,
+          createdBy: dbEvent.created_by || undefined,
+          createdAt: dbEvent.created_at || undefined,
+          excludedDates: dbEvent.excluded_dates || undefined,
+          modifiedInstances: dbEvent.modified_instances || undefined,
+          rawStartTime: dbEvent.start_datetime ? (() => {
+            const converted = convertUTCToUserTime(dbEvent.start_datetime);
+            try {
+              const timePart = converted.split(' ')[1] || converted.split('T')[1];
+              return timePart ? timePart.split('.')[0] : undefined;
+            } catch (e) {
+              return undefined;
+            }
+          })() : undefined,
+          rawEndTime: dbEvent.end_datetime ? (() => {
+            const converted = convertUTCToUserTime(dbEvent.end_datetime);
+            try {
+              const timePart = converted.split(' ')[1] || converted.split('T')[1];
+              return timePart ? timePart.split('.')[0] : undefined;
+            } catch (e) {
+              return undefined;
+            }
+          })() : undefined
+        };
+      });
       
       setEvents(convertedEvents);
-      console.log('🎯 事件数据已设置到状态');
+      // 🔇 隐藏事件加载调试信息
     } catch (error) {
       console.error('加载事件失败:', error);
       setEvents([]);
     }
-  }, [coupleId, coupleUsers, convertSimplifiedEventToEvent]);
+  }, [coupleId, coupleUsers, getEventColor, formatTimeFromDatetime]);
 
   // 手动刷新
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
       if (coupleId && coupleUsers) {
-        const dbEvents = await eventService.getCoupleEvents(coupleId);
-        const convertedEvents = dbEvents.map(convertSimplifiedEventToEvent);
-        setEvents(convertedEvents);
+        await loadEvents();
       }
     } catch (error) {
       console.error('🔄 Calendar 手动刷新失败:', error);
     } finally {
       setTimeout(() => setIsRefreshing(false), 500);
     }
-  }, [coupleId, coupleUsers, convertSimplifiedEventToEvent]);
+  }, [coupleId, coupleUsers, loadEvents]);
 
-  // 创建事件更新处理函数
-  const handleEventsUpdated = useCallback(() => {
-    loadEvents();
-  }, [loadEvents]);
+  // 创建事件更新处理函数 - 直接实现，避免依赖循环
+  const handleEventsUpdated = useCallback(async () => {
+    if (!coupleId || !coupleUsers) {
+      return;
+    }
+
+    try {
+      const dbEvents = await eventService.getCoupleEvents(coupleId);
+      
+      // 直接转换，避免依赖loadEvents
+      const convertedEvents = dbEvents.map(dbEvent => {
+        const participants: string[] = [];
+        if (dbEvent.includes_user1) participants.push(coupleUsers.user1.id);
+        if (dbEvent.includes_user2) participants.push(coupleUsers.user2.id);
+        
+        // 🔧 修复：确保日期格式为ISO格式（YYYY-MM-DD）
+        let localDate: string;
+        if (dbEvent.start_datetime) {
+          const convertedTime = convertUTCToUserTime(dbEvent.start_datetime);
+          const datePart = convertedTime.split(' ')[0]; // "2025/09/06"
+          localDate = datePart.replace(/\//g, '-'); // "2025-09-06"
+        } else {
+          localDate = new Date().toISOString().split('T')[0];
+        }
+        
+        const timeDisplay = formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime);
+        
+        return {
+          id: dbEvent.id,
+          title: dbEvent.title,
+          description: dbEvent.description || undefined,
+          date: localDate,
+          time: timeDisplay,
+          location: dbEvent.location || undefined,
+          participants: participants,
+          color: getEventColor(participants),
+          isRecurring: dbEvent.is_recurring,
+          recurrenceType: dbEvent.recurrence_type || undefined,
+          recurrenceEnd: dbEvent.recurrence_end || undefined,
+          originalDate: dbEvent.original_date || undefined,
+          isAllDay: dbEvent.is_all_day || false,
+          createdBy: dbEvent.created_by || undefined,
+          createdAt: dbEvent.created_at || undefined,
+          excludedDates: dbEvent.excluded_dates || undefined,
+          modifiedInstances: dbEvent.modified_instances || undefined,
+          rawStartTime: dbEvent.start_datetime ? (() => {
+            const converted = convertUTCToUserTime(dbEvent.start_datetime);
+            try {
+              const timePart = converted.split(' ')[1] || converted.split('T')[1];
+              return timePart ? timePart.split('.')[0] : undefined;
+            } catch (e) {
+              return undefined;
+            }
+          })() : undefined,
+          rawEndTime: dbEvent.end_datetime ? (() => {
+            const converted = convertUTCToUserTime(dbEvent.end_datetime);
+            try {
+              const timePart = converted.split(' ')[1] || converted.split('T')[1];
+              return timePart ? timePart.split('.')[0] : undefined;
+            } catch (e) {
+              return undefined;
+            }
+          })() : undefined
+        };
+      });
+      
+      setEvents(convertedEvents);
+    } catch (error) {
+      console.error('全局事件更新失败:', error);
+    }
+  }, [coupleId, coupleUsers, getEventColor, formatTimeFromDatetime]);
 
   // 监听全局事件更新
   useEffect(() => {
@@ -256,6 +466,14 @@ export const useEventData = (user: any) => {
       }
     };
   }, [handleEventsUpdated]);
+
+  console.log('📤 useEventData返回状态:', {
+    events数量: events.length,
+    loading,
+    coupleId: !!coupleId,
+    coupleUsers存在: !!coupleUsers,
+    isRefreshing
+  });
 
   return {
     events,

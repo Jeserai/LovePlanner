@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../hooks/useAuth'
 import { useEventData } from '../hooks/calendar/useEventData'
@@ -9,6 +9,7 @@ import FullCalendarComponent from './FullCalendarComponent'
 import EventDetail from './calendar/EventDetail'
 import EventForm from './calendar/EventForm'
 import DayView from './calendar/DayView'
+import TodoList, { TodoListRef } from './calendar/TodoList'
 import Button from './ui/Button'
 import { Card } from './ui/card'
 import LoadingSpinner from './ui/LoadingSpinner'
@@ -41,6 +42,7 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   const [currentView, setCurrentView] = useState<'my' | 'partner' | 'shared'>('my')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showNewEventDialog, setShowNewEventDialog] = useState(false)
+  const todoListRef = useRef<TodoListRef>(null)
 
   const {
     events,
@@ -72,25 +74,31 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 获取过滤后的事件
   const getFilteredEvents = useCallback((allEvents: Event[]): Event[] => {
+    console.log('🔍 getFilteredEvents被调用:', {
+      allEvents数量: allEvents.length,
+      user存在: !!user,
+      coupleUsers存在: !!coupleUsers,
+      userId: user?.id,
+      coupleUsersData: coupleUsers ? {
+        user1: coupleUsers.user1.id,
+        user2: coupleUsers.user2.id
+      } : null
+    });
+
     if (!user || !coupleUsers) {
-      console.log('🚫 用户或情侣信息缺失')
+      console.log('🚫 用户或情侣信息缺失，返回空数组');
       return []
     }
-
+    
     console.log('🔍 开始过滤事件:', {
       总事件数: allEvents.length,
       当前视图: currentView,
-      当前用户ID: user.id,
-      当前用户名: user?.email,
-      情侣用户: coupleUsers,
       事件列表: allEvents.map(e => ({ 
         title: e.title, 
-        createdBy: e.createdBy, 
         participants: e.participants,
-        date: e.date,
-        time: e.time
+        date: e.date
       }))
-    })
+    });
 
     const currentUserId = user.id
     const partnerIdForFiltering = coupleUsers.user1.id === currentUserId 
@@ -102,29 +110,30 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     switch (currentView) {
       case 'my':
         filteredEvents = allEvents.filter(event => {
-          const isMyEvent = event.participants.includes(currentUserId) && 
-                           !event.participants.includes(partnerIdForFiltering)
+          const includesMe = event.participants.includes(currentUserId)
+          const includesPartner = event.participants.includes(partnerIdForFiltering)
+          const isMyEvent = includesMe && !includesPartner
+          
           console.log(`📋 我的事件过滤: ${event.title} - ${isMyEvent ? '✅' : '❌'}`, {
             事件参与者: event.participants,
             当前用户ID: currentUserId,
-            伙伴ID: partnerIdForFiltering
+            伙伴ID: partnerIdForFiltering,
+            包含我: includesMe,
+            包含伙伴: includesPartner,
+            是我的事件: isMyEvent
           })
           return isMyEvent
         })
         break
       case 'partner':
         filteredEvents = allEvents.filter(event => {
-          const isPartnerEvent = event.participants.includes(partnerIdForFiltering)
-          console.log(`👫 伙伴事件过滤: ${event.title} - ${isPartnerEvent ? '✅' : '❌'}`)
-          return isPartnerEvent
+          return event.participants.includes(partnerIdForFiltering)
         })
         break
       case 'shared':
         filteredEvents = allEvents.filter(event => {
-          const isSharedEvent = event.participants.includes(currentUserId) && 
-                               event.participants.includes(partnerIdForFiltering)
-          console.log(`🤝 共享事件过滤: ${event.title} - ${isSharedEvent ? '✅' : '❌'}`)
-          return isSharedEvent
+          return event.participants.includes(currentUserId) && 
+                 event.participants.includes(partnerIdForFiltering)
         })
         break
       default:
@@ -204,16 +213,7 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     
     setShowNewEventDialog(true)
     
-    console.log('📅 日期选择 -> 打开新建事件弹窗:', {
-      选择日期: date,
-      选择时间: selectedTime,
-      是否全天: isAllDay,
-      当前视图: currentView,
-      默认开始时间: defaultStart,
-      默认结束时间: defaultEnd,
-      是否全天事件: isAllDayEvent,
-      参与者设置: { includesUser1, includesUser2 }
-    })
+    // 🔇 隐藏日期选择调试信息
   }, [setNewEvent, coupleUsers, user, currentView])
 
   // 处理事件拖拽
@@ -256,6 +256,100 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     return filteredEvents.filter(event => event.date === selectedDate)
   }, [selectedDate, events, getFilteredEvents])
 
+  // 处理待办事项拖拽到日历
+  const handleTodoDrop = useCallback(async (todoData: any, date: string, time?: string | null) => {
+    console.log('📅 处理待办事项拖拽:', { todoData, date, time })
+    
+    // 验证日期格式
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      console.error('❌ 无效的日期格式:', date)
+      return
+    }
+    
+    // 设置默认时间
+    let startDateTime = ''
+    let endDateTime = ''
+    
+    if (time && /^\d{2}:\d{2}$/.test(time)) {
+      // 有具体时间且格式正确
+      startDateTime = `${date}T${time}:00`
+      const [hours, minutes] = time.split(':').map(Number)
+      
+      // 验证时间范围
+      if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        console.error('❌ 无效的时间值:', time)
+        return
+      }
+      
+      const endHour = hours + 1 > 23 ? 23 : hours + 1
+      endDateTime = `${date}T${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
+    } else {
+      // 没有时间或时间格式错误，设为当前时间+1小时
+      const now = new Date()
+      const startHour = (now.getHours() + 1) % 24
+      const endHour = (now.getHours() + 2) % 24
+      startDateTime = `${date}T${startHour.toString().padStart(2, '0')}:00:00`
+      endDateTime = `${date}T${endHour.toString().padStart(2, '0')}:00:00`
+    }
+    
+    console.log('🕐 构造的时间字符串:', {
+      开始时间: startDateTime,
+      结束时间: endDateTime
+    })
+    
+    // 验证构造的时间字符串
+    try {
+      const testStart = new Date(startDateTime)
+      const testEnd = new Date(endDateTime)
+      if (isNaN(testStart.getTime()) || isNaN(testEnd.getTime())) {
+        console.error('❌ 构造的时间字符串无效:', { startDateTime, endDateTime })
+        return
+      }
+    } catch (error) {
+      console.error('❌ 时间字符串验证失败:', error)
+      return
+    }
+
+    // 智能设置参与者
+    const isUser1 = coupleUsers && user && user.id === coupleUsers.user1.id
+    const includesUser1 = currentView === 'shared' ? true : (isUser1 ? true : false)
+    const includesUser2 = currentView === 'shared' ? true : (isUser1 ? false : true)
+    
+    // 创建事件数据
+    const eventData = {
+      title: todoData.title,
+      location: '',
+      startDateTime,
+      endDateTime,
+      isAllDay: false,
+      description: `从待办事项创建: ${todoData.title}`,
+      includesUser1,
+      includesUser2,
+      // 🗑️ 移除date字段，因为createEvent不再需要它
+      isRecurring: false,
+      recurrenceType: null,
+      recurrenceEnd: null,
+      originalDate: null
+    }
+    
+    console.log('🚀 从待办事项创建事件:', eventData)
+    
+    try {
+      // 使用现有的事件创建逻辑
+      await handleEventSubmit('create', eventData)
+      console.log('✅ 待办事项成功转换为事件')
+      
+      // 成功后从to-do list中移除待办事项
+      if (todoListRef.current && todoListRef.current.removeTodo) {
+        todoListRef.current.removeTodo(todoData.id)
+      }
+    } catch (error) {
+      console.error('❌ 待办事项转换失败:', error)
+    }
+  }, [currentView, user, coupleUsers, handleEventSubmit])
+
+
+
   // 获取视图显示名称
   const getViewDisplayName = () => {
     switch (currentView) {
@@ -274,7 +368,26 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     )
   }
 
+  console.log('📊 CalendarV3渲染状态:', {
+    events数量: events.length,
+    user存在: !!user,
+    coupleUsers存在: !!coupleUsers,
+    currentView,
+    loading
+  })
+
   const filteredEvents = getFilteredEvents(events)
+  
+  console.log('🎯 传递给FullCalendar的事件:', {
+    原始事件数: events.length,
+    过滤后事件数: filteredEvents.length,
+    过滤后事件: filteredEvents.map(e => ({ 
+      title: e.title, 
+      participants: e.participants,
+      date: e.date,
+      time: e.time
+    }))
+  })
 
   return (
     <div className="space-y-6">
@@ -347,60 +460,27 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
       </Card>
 
       {/* 主要内容区域 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* 左侧 To-Do List */}
+        <div className="lg:col-span-1">
+          <TodoList 
+            ref={todoListRef}
+            onTodoDropped={(todoId) => {
+              console.log('📝 待办事项已从列表中移除:', todoId)
+            }}
+          />
+        </div>
+
         {/* FullCalendar 主视图 */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <FullCalendarComponent
             events={filteredEvents}
             currentView={currentView}
             onEventClick={handleEventClick}
             onDateSelect={handleDateSelect}
             onEventDrop={handleEventDrop}
+            onTodoDrop={handleTodoDrop}
           />
-        </div>
-
-        {/* 右侧面板 */}
-        <div className="space-y-4">
-          {/* 选中日期的详细视图 */}
-          {selectedDate && (
-            <DayView
-              selectedDate={selectedDate}
-              events={getSelectedDateEvents()}
-              currentView={currentView}
-              user={user}
-              coupleUsers={coupleUsers}
-              onEventClick={handleEventClick}
-              getFilteredEvents={getFilteredEvents}
-            />
-          )}
-
-          {/* 统计信息 */}
-          <Card className="p-4">
-            <h3 className="font-semibold mb-2">
-              {theme === 'pixel' ? 'STATS' : '统计'}
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>我的日程:</span>
-                <span className="font-mono">
-                  {getFilteredEvents(events.filter(e => 
-                    e.participants.includes(user?.id || '') && 
-                    e.participants.length === 1
-                  )).length}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>共同日程:</span>
-                <span className="font-mono">
-                  {getFilteredEvents(events.filter(e => e.participants.length > 1)).length}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>本月总计:</span>
-                <span className="font-mono">{events.length}</span>
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
 

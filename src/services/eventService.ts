@@ -12,7 +12,7 @@ export interface SimplifiedEventV2 {
   couple_id: string;
   title: string;
   description?: string | null;
-  event_date: string;
+  // 🗑️ 移除event_date字段，避免时区混淆
   start_datetime?: string | null;     // 🆕 完整时间戳 (timestamptz)
   end_datetime?: string | null;       // 🆕 完整时间戳 (timestamptz)
   is_all_day: boolean;
@@ -26,6 +26,8 @@ export interface SimplifiedEventV2 {
   includes_user2: boolean;
   created_at: string;
   updated_at: string;
+  excluded_dates?: string[] | null;    // 🔧 添加缺失字段
+  modified_instances?: Record<string, any> | null; // 🔧 添加缺失字段
   
   // 🔄 向后兼容字段（自动计算）
   start_time?: string | null;        // 从start_datetime提取
@@ -36,7 +38,7 @@ export interface SimplifiedEventV2 {
 export interface CreateEventParamsV2 {
   couple_id: string;
   title: string;
-  event_date: string;
+  // 🗑️ 移除event_date字段，避免时区混淆
   created_by: string;
   includes_user1: boolean;
   includes_user2: boolean;
@@ -54,7 +56,7 @@ export interface CreateEventParamsV2 {
 // 事件更新参数
 export interface UpdateEventParamsV2 {
   title?: string;
-  event_date?: string;
+  // 🗑️ 移除event_date字段
   start_datetime?: string | null;
   end_datetime?: string | null;
   description?: string | null;
@@ -84,7 +86,7 @@ export const eventService = {
   async createEvent(
     coupleId: string,
     title: string,
-    eventDate: string,
+    // 🗑️ 移除eventDate参数，不再需要单独的日期字段
     createdBy: string,
     includesUser1: boolean,
     includesUser2: boolean,
@@ -102,23 +104,10 @@ export const eventService = {
       // 🎯 转换用户本地时间到UTC
       let utcStartDateTime = null;
       let utcEndDateTime = null;
-      let finalEventDate = eventDate; // 默认使用传入的日期
       
       if (startDateTime && !isAllDay) {
         utcStartDateTime = convertUserTimeToUTC(startDateTime);
-        
-        // ⚠️ 重要：确保event_date与UTC时间的日期部分一致
-        if (utcStartDateTime) {
-          const utcDate = new Date(utcStartDateTime);
-          finalEventDate = utcDate.toISOString().split('T')[0]; // 提取UTC日期部分
-          
-          console.log('📅 日期一致性检查:', {
-            原始事件日期: eventDate,
-            用户本地时间: startDateTime,
-            转换后UTC时间: utcStartDateTime,
-            最终事件日期: finalEventDate
-          });
-        }
+        // 🔇 隐藏时间转换调试信息
       }
       if (endDateTime && !isAllDay) {
         utcEndDateTime = convertUserTimeToUTC(endDateTime);
@@ -127,7 +116,7 @@ export const eventService = {
       const eventData: CreateEventParamsV2 = {
         couple_id: coupleId,
         title,
-        event_date: finalEventDate, // 使用与UTC时间一致的日期
+        // 🗑️ 移除event_date字段
         created_by: createdBy,
         includes_user1: includesUser1,
         includes_user2: includesUser2,
@@ -153,7 +142,7 @@ export const eventService = {
         throw error;
       }
 
-      console.log('🎉 事件创建成功:', data);
+      // 🔇 隐藏事件创建调试信息
       return addCompatibilityFields(data);
     } catch (error) {
       console.error('创建事件失败:', error);
@@ -168,7 +157,7 @@ export const eventService = {
         .from('events')
         .select('*')
         .eq('couple_id', coupleId)
-        .order('event_date', { ascending: true });
+        .order('start_datetime', { ascending: true, nullsFirst: false });
 
       if (error) {
         console.error('获取事件失败:', error);

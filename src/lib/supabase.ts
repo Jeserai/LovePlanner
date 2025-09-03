@@ -187,7 +187,7 @@ export type Database = {
           id: string
           title: string
           description: string | null
-          event_date: string
+          // 🗑️ 移除event_date字段，避免时区混淆
           start_datetime: string | null         // 🔧 修复：使用正确的字段名
           end_datetime: string | null           // 🔧 修复：使用正确的字段名
           is_all_day: boolean
@@ -209,7 +209,7 @@ export type Database = {
           id?: string
           title: string
           description?: string | null
-          event_date: string
+          // 🗑️ 移除event_date字段
           start_datetime?: string | null        // 🔧 修复：使用正确的字段名
           end_datetime?: string | null          // 🔧 修复：使用正确的字段名
           is_all_day?: boolean
@@ -231,7 +231,7 @@ export type Database = {
           id?: string
           title?: string
           description?: string | null
-          event_date?: string
+          // 🗑️ 移除event_date字段
           start_datetime?: string | null        // 🔧 修复：使用正确的字段名
           end_datetime?: string | null          // 🔧 修复：使用正确的字段名
           is_all_day?: boolean

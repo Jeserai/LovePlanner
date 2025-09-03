@@ -164,34 +164,42 @@ export function convertUserTimeToUTC(localDateTime: string, userTimezone?: strin
   const timezone = userTimezone || getUserTimezone();
   
   try {
-    console.log('🔄 开始时间转换:', {
-      输入本地时间: localDateTime,
-      用户时区: timezone
-    });
+    // 🔇 隐藏常规调试信息
     
     // ⚠️ 最简单的修复：直接使用Date构造函数
     // datetime-local格式："2025-09-03T14:00" 被浏览器解释为本地时间
     
+    // 验证输入格式
+    if (!localDateTime || typeof localDateTime !== 'string') {
+      console.error('❌ 无效的时间输入:', localDateTime);
+      return '';
+    }
+    
     // 确保输入格式正确（添加秒数）
-    let dateTimeStr = localDateTime;
+    let dateTimeStr = localDateTime.trim();
     if (dateTimeStr.split(':').length === 2) {
       dateTimeStr += ':00';
+    }
+    
+    // 验证datetime-local格式：YYYY-MM-DDTHH:MM:SS
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(dateTimeStr)) {
+      console.error('❌ 时间格式不正确，期望格式：YYYY-MM-DDTHH:MM:SS，实际:', dateTimeStr);
+      return '';
     }
     
     // 直接创建Date对象 - 浏览器会将其解释为本地时间
     const localDate = new Date(dateTimeStr);
     
+    // 验证Date对象是否有效
+    if (isNaN(localDate.getTime())) {
+      console.error('❌ 无法解析时间字符串:', dateTimeStr);
+      return '';
+    }
+    
     // 直接转换为UTC ISO字符串
     const result = localDate.toISOString();
     
-    console.log('✅ 时间转换完成:', {
-      输入: localDateTime,
-      标准化输入: dateTimeStr,
-      本地Date对象: localDate.toString(),
-      本地时间戳: localDate.getTime(),
-      最终UTC: result,
-      验证: `本地${localDate.getHours()}:${localDate.getMinutes()} → UTC${new Date(result).getUTCHours()}:${new Date(result).getUTCMinutes()}`
-    });
+    // 🔇 隐藏时间转换调试信息
     
     return result;
   } catch (error) {

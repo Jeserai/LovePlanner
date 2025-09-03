@@ -96,7 +96,7 @@ export const useEventForm = (
         // 编辑模式
         const updateData = {
           title: eventData.title,
-          event_date: eventData.date || selectedEvent.date,
+          // 🗑️ 移除event_date字段
           start_datetime: eventData.startDateTime,
           end_datetime: eventData.endDateTime,
           description: eventData.description,
@@ -136,23 +136,12 @@ export const useEventForm = (
         }
       } else {
         // 创建模式
-        console.log('🚀 准备创建事件:', {
-          coupleId,
-          title: eventData.title,
-          date: eventData.date,
-          createdBy: user.id,
-          includesUser1,
-          includesUser2,
-          startDateTime: eventData.startDateTime,
-          endDateTime: eventData.endDateTime,
-          isAllDay: eventData.isAllDay,
-          完整eventData: eventData
-        });
+        // 🔇 隐藏事件创建调试信息
         
         const savedEvent = await eventService.createEvent(
           coupleId,
           eventData.title,
-          eventData.date,
+          // 🗑️ 移除eventDate参数
           user.id,
           includesUser1,
           includesUser2,
@@ -167,10 +156,7 @@ export const useEventForm = (
           eventData.originalDate
         );
         
-        console.log('💾 事件创建结果:', savedEvent);
-        
         if (savedEvent) {
-          console.log('🔄 重新加载事件列表...');
           await loadEvents();
           globalEventService.emit(GlobalEvents.EVENTS_UPDATED);
         }

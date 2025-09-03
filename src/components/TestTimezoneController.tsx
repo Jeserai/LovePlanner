@@ -7,6 +7,7 @@ const TestTimezoneController: React.FC = () => {
   const [isTestMode, setIsTestMode] = useState(false);
   const [selectedTimezone, setSelectedTimezone] = useState<string>('');
   const [status, setStatus] = useState(testTimezoneManager.getStatus());
+  const [isMinimized, setIsMinimized] = useState(false); // 🆕 最小化状态
 
   // 更新状态
   const updateStatus = () => {
@@ -77,25 +78,38 @@ const TestTimezoneController: React.FC = () => {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 border border-gray-200 min-w-80 z-50">
-      <div className="space-y-4">
-        {/* 标题 */}
+    <div className={`fixed bottom-4 right-4 bg-white shadow-lg rounded-lg border border-gray-200 z-50 transition-all duration-300 ${
+      isMinimized ? 'w-12 h-12' : 'min-w-80'
+    }`}>
+      <div className={isMinimized ? 'p-2' : 'p-4'}>
+        {/* 标题和最小化按钮 */}
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">🌍 时区测试控制器</h3>
-          <button
-            onClick={toggleTestMode}
-            className={`px-3 py-1 rounded text-sm font-medium ${
-              isTestMode 
-                ? 'bg-red-500 text-white hover:bg-red-600' 
-                : 'bg-green-500 text-white hover:bg-green-600'
-            }`}
-          >
-            {isTestMode ? '禁用测试' : '启用测试'}
-          </button>
+          {!isMinimized && <h3 className="font-semibold text-gray-800">🌍 时区测试控制器</h3>}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setIsMinimized(!isMinimized)}
+              className="px-2 py-1 rounded text-xs bg-gray-100 hover:bg-gray-200 text-gray-600"
+              title={isMinimized ? '展开' : '最小化'}
+            >
+              {isMinimized ? '📅' : '➖'}
+            </button>
+            {!isMinimized && (
+              <button
+                onClick={toggleTestMode}
+                className={`px-3 py-1 rounded text-sm font-medium ${
+                  isTestMode 
+                    ? 'bg-red-500 text-white hover:bg-red-600' 
+                    : 'bg-green-500 text-white hover:bg-green-600'
+                }`}
+              >
+                {isTestMode ? '禁用测试' : '启用测试'}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* 当前状态 */}
-        <div className="text-sm space-y-1">
+        {/* 当前状态 - 只在非最小化时显示 */}
+        {!isMinimized && <div className="text-sm space-y-1">
           <div className="flex justify-between">
             <span className="text-gray-600">模式:</span>
             <span className={isTestMode ? 'text-green-600 font-medium' : 'text-gray-800'}>
@@ -117,10 +131,10 @@ const TestTimezoneController: React.FC = () => {
               {Math.abs(status.currentOffset / 60)}
             </span>
           </div>
-        </div>
+        </div>}
 
-        {/* 手动设置时区 */}
-        {isTestMode && (
+        {/* 手动设置时区 - 只在非最小化时显示 */}
+        {!isMinimized && isTestMode && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
               设置当前用户时区:
@@ -169,14 +183,14 @@ const TestTimezoneController: React.FC = () => {
           </div>
         )}
 
-        {/* 说明 */}
-        <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+        {/* 说明 - 只在非最小化时显示 */}
+        {!isMinimized && <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
           <p><strong>使用说明:</strong></p>
           <p>1. 启用测试模式</p>
           <p>2. 为不同用户设置不同时区</p>
           <p>3. 切换账号查看时区效果</p>
           <p>4. 共同事件会显示本地时间</p>
-        </div>
+        </div>}
       </div>
     </div>
   );

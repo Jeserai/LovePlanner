@@ -19,6 +19,7 @@ interface FullCalendarComponentProps {
   onEventClick?: (event: Event) => void
   onDateSelect?: (date: string, selectedTime?: string | null, isAllDay?: boolean) => void
   onEventDrop?: (eventId: string, newDate: string, newTime?: string) => void
+  onTodoDrop?: (todoData: any, date: string, time?: string | null) => void
   className?: string
 }
 
@@ -28,6 +29,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
   onEventClick,
   onDateSelect,
   onEventDrop,
+  onTodoDrop,
   className = ''
 }) => {
   const { theme } = useTheme()
@@ -129,20 +131,26 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
     }
   }, [updateCalendarTitle])
 
-  // 将事件转换为FullCalendar格式
+    // 将事件转换为FullCalendar格式
   const fullCalendarEvents = useMemo(() => {
-    console.log('🔄 转换事件到FullCalendar格式:', events.length, '个事件')
-  console.log('📋 接收到的事件详情:', events.map(e => ({
-    id: e.id,
-    title: e.title,
-    date: e.date,
-    time: e.time,
-    rawStartTime: e.rawStartTime,
-    rawEndTime: e.rawEndTime,
-    isAllDay: e.isAllDay,
-    participants: e.participants,
-    createdBy: e.createdBy
-  })))
+    console.log('🔄 FullCalendar接收事件:', events.length, '个事件')
+    
+    if (!events || events.length === 0) {
+      console.log('⚠️ FullCalendar没有接收到事件数据')
+      return []
+    }
+    
+    console.log('📋 接收到的事件详情:', events.map(e => ({
+      id: e.id,
+      title: e.title,
+      date: e.date,
+      time: e.time,
+      rawStartTime: e.rawStartTime,
+      rawEndTime: e.rawEndTime,
+      isAllDay: e.isAllDay,
+      participants: e.participants,
+      createdBy: e.createdBy
+    })))
     
     // 移除测试事件，完全基于真实数据库数据
     
@@ -201,43 +209,30 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         }
       }
       
-      console.log('📅 转换事件:', {
-        原始: { 
-          title: event.title, 
-          date: event.date, 
-          rawStartTime: event.rawStartTime,
-          rawEndTime: event.rawEndTime,
-          time: event.time,
-          isAllDay: event.isAllDay,
-          完整事件: event
-        },
-        转换后: { 
-          title: fcEvent.title, 
-          start: fcEvent.start, 
+      console.log('📅 单个事件转换结果:', {
+        原始事件: event.title,
+        FullCalendar格式: {
+          id: fcEvent.id,
+          title: fcEvent.title,
+          start: fcEvent.start,
           end: fcEvent.end,
-          allDay: fcEvent.allDay,
-          完整FC事件: fcEvent
+          allDay: fcEvent.allDay
         }
-      })
+      });
       
       return fcEvent
     })
     
     console.log('✅ FullCalendar事件转换完成:', converted.length, '个事件')
-    
-    // 只使用真实事件数据
-    const allEvents = converted
-    console.log('🎯 最终事件列表:', allEvents.length, '个事件')
-    console.log('📊 详细事件数据:', allEvents.map(e => ({
+    console.log('🎯 最终传递给FullCalendar的事件:', converted.map(e => ({
       id: e.id,
       title: e.title,
       start: e.start,
       end: e.end,
-      allDay: e.allDay,
-      backgroundColor: e.backgroundColor
-    })))
+      allDay: e.allDay
+    })));
     
-    return allEvents
+    return converted
   }, [events, currentView, theme, getEventBackgroundColor, getEventBorderColor, getEventTextColor])
 
   // 处理事件点击
@@ -287,13 +282,161 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
     }
   }, [onEventDrop])
 
+
+
+  // 处理事件接收（当外部元素被拖拽并创建事件时）
+  const handleEventReceive = useCallback((eventInfo: any) => {
+    console.log('📅 FullCalendar接收到新事件:', {
+      完整eventInfo: eventInfo,
+      event: eventInfo.event,
+      draggedEl: eventInfo.draggedEl,
+      eventStart: eventInfo.event?.start,
+      eventStartStr: eventInfo.event?.startStr
+    })
+    
+    // 伴侣视图下不允许拖拽创建
+    if (currentView === 'partner') {
+      console.log('🚫 伴侣日历视图下不允许拖拽创建事件')
+      eventInfo.revert()
+      return
+    }
+    
+    try {
+      const draggedEl = eventInfo.draggedEl
+      const todoId = draggedEl?.getAttribute('data-todo-id')
+      const todoTitle = draggedEl?.getAttribute('data-todo-title')
+      
+      if (todoId && todoTitle && onTodoDrop) {
+        // 从事件对象获取日期时间
+        const event = eventInfo.event
+        let dropDate: string
+        let dropTime: string | null = null
+        
+        if (event.start) {
+          // 详细的时区调试信息
+          const startDate = event.start
+          console.log('🕐 详细时间分析:', {
+            原始event_start: startDate,
+            start_toString: startDate.toString(),
+            start_toISOString: startDate.toISOString(),
+            start_getTime: startDate.getTime(),
+            本地年: startDate.getFullYear(),
+            本地月: startDate.getMonth() + 1,
+            本地日: startDate.getDate(),
+            本地时: startDate.getHours(),
+            本地分: startDate.getMinutes(),
+            时区偏移: startDate.getTimezoneOffset(),
+            用户时区: Intl.DateTimeFormat().resolvedOptions().timeZone
+          })
+          
+          // 检查startDate是否为UTC时间（通过时区偏移判断）
+          const timezoneOffset = new Date().getTimezoneOffset() // 分钟
+          const isLikelyUTC = Math.abs(startDate.getTimezoneOffset()) < 60 && timezoneOffset !== 0
+          
+          let actualDate: Date
+          if (isLikelyUTC && timezoneOffset !== 0) {
+            // 如果startDate看起来是UTC时间，需要转换为本地时间
+            console.log('⚠️ 检测到可能的UTC时间，进行本地转换')
+            actualDate = new Date(startDate.getTime() - (timezoneOffset * 60000))
+          } else {
+            // 直接使用startDate
+            actualDate = startDate
+          }
+          
+          // 使用调整后的时间
+          const year = actualDate.getFullYear()
+          const month = (actualDate.getMonth() + 1).toString().padStart(2, '0')
+          const day = actualDate.getDate().toString().padStart(2, '0')
+          dropDate = `${year}-${month}-${day}`
+          
+          if (!event.allDay) {
+            const hours = actualDate.getHours().toString().padStart(2, '0')
+            const minutes = actualDate.getMinutes().toString().padStart(2, '0')
+            dropTime = `${hours}:${minutes}`
+          }
+          
+          console.log('🔧 时区调整分析:', {
+            原始startDate: startDate,
+            startDate时区偏移: startDate.getTimezoneOffset(),
+            本地时区偏移: timezoneOffset,
+            是否疑似UTC: isLikelyUTC,
+            调整后时间: actualDate,
+            最终日期: dropDate,
+            最终时间: dropTime
+          })
+          
+          console.log('✅ 最终解析结果:', {
+            dropDate,
+            dropTime,
+            构造的本地时间: dropTime ? `${dropDate}T${dropTime}:00` : `${dropDate} (全天)`
+          })
+        } else {
+          console.error('❌ 无法从事件获取开始时间')
+          return
+        }
+        
+        console.log('📅 从FullCalendar事件解析:', {
+          todoId,
+          todoTitle,
+          解析后日期: dropDate,
+          解析后时间: dropTime,
+          是否全天: event.allDay,
+          原始start: event.start
+        })
+        
+        // 阻止FullCalendar自动创建事件，我们手动处理
+        eventInfo.revert()
+        
+        // 传递待办事项数据到我们的处理函数
+        onTodoDrop({ id: todoId, title: todoTitle }, dropDate, dropTime)
+      }
+    } catch (error) {
+      console.error('事件接收处理失败:', error)
+      eventInfo.revert()
+    }
+  }, [onTodoDrop, currentView])
+
   // 自定义事件内容渲染
   const renderEventContent = (eventInfo: any) => {
-    const { event } = eventInfo
+    const { event, view } = eventInfo
     const isShared = event.extendedProps.isShared
     const points = event.extendedProps.points
     const category = event.extendedProps.category
+    const location = event.extendedProps.location
 
+    // 列表视图显示更详细的信息
+    if (view.type === 'listWeek') {
+      return (
+        <div className={`
+          flex flex-col space-y-1 p-2 rounded text-sm w-full
+          ${theme === 'pixel' ? 'font-mono' : 'font-sans'}
+        `}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 flex-1 min-w-0">
+              {isShared && <span className="text-xs">💕</span>}
+              {category === 'date' && <span className="text-xs">🌹</span>}
+              {category === 'task' && <span className="text-xs">🎯</span>}
+              <span className="font-medium truncate">{event.title}</span>
+            </div>
+            {points > 0 && (
+              <span className="ml-2 bg-yellow-200 text-yellow-800 px-1 rounded text-xs flex-shrink-0">
+                +{points}
+              </span>
+            )}
+          </div>
+          {location && (
+            <div className={`text-xs flex items-center space-x-1 ${
+              theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
+            }`}>
+              <span>📍</span>
+              <span className="truncate">{location}</span>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    // 其他视图保持原有样式
     return (
       <div className={`
         flex items-center justify-between p-1 rounded text-xs
@@ -420,16 +563,19 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           eventClick={handleEventClick}
           select={handleDateSelect}
           eventDrop={handleEventDrop}
+          eventReceive={handleEventReceive}
           eventContent={renderEventContent}
           selectable={currentView !== 'partner'}
           selectMirror={currentView !== 'partner'}
           dayMaxEvents={true}
           weekends={true}
           editable={currentView !== 'partner'}
-          droppable={false}
+          droppable={true}
           height="auto"
           aspectRatio={1.35}
           locale="zh-cn"
+          timeZone="local" // 使用本地时区
+          forceEventDuration={true} // 强制事件持续时间
           firstDay={1} // 周一开始
           eventDisplay="block"
           displayEventTime={true}
