@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Draggable } from '@fullcalendar/interaction';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Card } from '../ui/card';
-import Button from '../ui/Button';
 import { ThemeButton, ThemeInput } from '../ui/Components';
 
 interface TodoItem {
@@ -73,6 +72,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
   
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false); // 🔧 控制是否显示已完成项目
   const todoListRef = useRef<HTMLDivElement>(null);
   const draggableRef = useRef<Draggable | null>(null);
 
@@ -90,6 +90,11 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
   useEffect(() => {
     saveTodosToStorage(todos);
   }, [todos, saveTodosToStorage]);
+
+  // 🔧 过滤待办事项：默认隐藏已完成项目
+  const filteredTodos = useMemo(() => {
+    return showCompleted ? todos : todos.filter(todo => !todo.completed);
+  }, [todos, showCompleted]);
 
   // 添加新待办
   const handleAddTodo = useCallback(() => {
@@ -182,17 +187,31 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
     <Card className={`p-4 ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className={`font-semibold ${
-          theme === 'pixel' ? 'font-mono text-green-400' : 'text-gray-900'
+          theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'
         }`}>
           {theme === 'pixel' ? 'TODO_LIST.EXE' : 'To-Do 列表'}
         </h3>
-        <Button
-          onClick={() => setShowAddForm(!showAddForm)}
-          variant="secondary"
-          size="sm"
-        >
-          {theme === 'pixel' ? 'ADD' : '添加'}
-        </Button>
+        <div className="flex items-center space-x-2">
+          {/* 🔧 显示/隐藏已完成项目按钮 */}
+          <ThemeButton
+            onClick={() => setShowCompleted(!showCompleted)}
+            variant="secondary"
+            size="sm"
+            className="text-xs"
+          >
+            {showCompleted 
+              ? (theme === 'pixel' ? 'HIDE_DONE' : '隐藏已完成') 
+              : (theme === 'pixel' ? 'SHOW_DONE' : '显示已完成')
+            }
+          </ThemeButton>
+          <ThemeButton
+            onClick={() => setShowAddForm(!showAddForm)}
+            variant="secondary"
+            size="sm"
+          >
+            {theme === 'pixel' ? 'ADD' : '添加'}
+          </ThemeButton>
+        </div>
       </div>
       
       {/* 添加待办表单 */}
@@ -233,18 +252,24 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       
       {/* 待办事项列表 */}
       <div ref={todoListRef} className="space-y-2 max-h-96 overflow-y-auto">
-        {todos.length === 0 ? (
+        {filteredTodos.length === 0 ? (
           <div className={`text-sm text-center py-8 ${
-            theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
+            theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-muted-foreground'
           }`}>
-            {theme === 'pixel' ? 'NO_TODOS_FOUND' : '暂无待办事项'}
+            {showCompleted 
+              ? (theme === 'pixel' ? 'NO_TODOS_FOUND' : '暂无待办事项')
+              : (theme === 'pixel' ? 'NO_PENDING_TODOS' : '暂无未完成的待办事项')
+            }
             <br />
             <span className="text-xs">
-              {theme === 'pixel' ? 'DRAG_TO_CALENDAR' : '拖拽到日历创建日程'}
+              {!showCompleted && todos.some(t => t.completed) 
+                ? (theme === 'pixel' ? 'CLICK_SHOW_DONE' : '点击"显示已完成"查看全部')
+                : (theme === 'pixel' ? 'DRAG_TO_CALENDAR' : '拖拽到日历创建日程')
+              }
             </span>
           </div>
         ) : (
-          todos.map((todo) => (
+          filteredTodos.map((todo) => (
             <div
               key={todo.id}
               className={`
@@ -252,7 +277,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
                 ${todo.completed ? 'opacity-60' : 'cursor-move'}
                 ${theme === 'pixel' 
                   ? 'border-pixel-border bg-pixel-panel hover:bg-pixel-hover' 
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
+                  : 'border-border bg-card hover:bg-accent/50'
                 }
                 ${!todo.completed ? 'hover:shadow-md transition-all duration-200' : ''}
               `}
@@ -283,20 +308,20 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
               <div className="flex items-center space-x-2">
                 {!todo.completed && (
                   <span className={`text-xs ${
-                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-400'
+                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-muted-foreground'
                   } opacity-0 group-hover:opacity-100 transition-opacity`}>
                     {theme === 'pixel' ? 'DRAG' : '拖拽'}
                   </span>
                 )}
                 <div style={{ pointerEvents: 'auto' }}>
-                  <Button
+                  <ThemeButton
                     onClick={() => handleDeleteTodo(todo.id)}
                     variant="secondary"
                     size="sm"
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     {theme === 'pixel' ? 'DEL' : '删除'}
-                  </Button>
+                  </ThemeButton>
                 </div>
               </div>
             </div>

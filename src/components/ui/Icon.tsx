@@ -35,7 +35,9 @@ import {
   LogOut,
   AlertTriangle,
   Sparkles,
-  AtSign
+  AtSign,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Heroicons 导入 (用于清新主题)
@@ -68,7 +70,9 @@ import {
   ArrowRightOnRectangleIcon,
   ExclamationTriangleIcon,
   SparklesIcon,
-  AtSymbolIcon
+  AtSymbolIcon,
+  SunIcon,
+  MoonIcon
 } from '@heroicons/react/24/outline';
 
 // 图标名称类型定义
@@ -104,7 +108,9 @@ export type IconName =
   | 'logout'
   | 'warning'
   | 'sparkles'
-  | 'at-sign';
+  | 'at-sign'
+  | 'sun'
+  | 'moon';
 
 interface IconProps {
   name: IconName;
@@ -177,7 +183,9 @@ const Icon: React.FC<IconProps> = ({
       'logout': LogOut,
       'warning': AlertTriangle,
       'sparkles': Sparkles,
-      'at-sign': AtSign
+      'at-sign': AtSign,
+      'sun': Sun,
+      'moon': Moon
     };
 
     const LucideIcon = lucideIcons[name];
@@ -224,7 +232,9 @@ const Icon: React.FC<IconProps> = ({
     'logout': ArrowRightOnRectangleIcon,
     'warning': ExclamationTriangleIcon,
     'sparkles': SparklesIcon,
-    'at-sign': AtSymbolIcon
+    'at-sign': AtSymbolIcon,
+    'sun': SunIcon,
+    'moon': MoonIcon
   };
 
   const HeroIcon = heroIcons[name];

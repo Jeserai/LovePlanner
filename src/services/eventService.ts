@@ -219,12 +219,12 @@ export const eventService = {
   // 删除事件
   async deleteEvent(eventId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId);
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId);
 
-      if (error) {
+    if (error) {
         console.error('删除事件失败:', error);
         throw error;
       }

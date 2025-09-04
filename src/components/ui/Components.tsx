@@ -2,7 +2,7 @@ import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { cn } from '../../lib/utils';
 import CustomCard from './CustomCard';
-import Button from './Button';
+// import { Button } from './button'; // 暂时移除
 
 // 导出新的反馈组件
 export { ToastProvider, useToast } from './toast';
@@ -127,23 +127,44 @@ ThemeCard.displayName = 'ThemeCard';
 
 // 统一的主题适配按钮组件
 export interface ThemeButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'navigation';
+  variant?: 'primary' | 'secondary' | 'danger' | 'navigation' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
 }
 
 export const ThemeButton = React.forwardRef<HTMLButtonElement, ThemeButtonProps>(
   ({ variant = 'primary', size = 'md', className, children, ...props }, ref) => {
+    const { theme } = useTheme();
+    
+    // 基础样式
+    const baseStyles = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+    
+    // 变体样式
+    const variantStyles = {
+      primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+      secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+      danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+      navigation: "hover:bg-accent hover:text-accent-foreground",
+      ghost: "hover:bg-accent hover:text-accent-foreground"
+    };
+    
+    // 尺寸样式
+    const sizeStyles = {
+      sm: "h-9 rounded-md px-3",
+      md: "h-10 px-4 py-2",
+      lg: "h-11 rounded-md px-8"
+    };
+    
     return (
-      <Button
-        variant={variant}
-        size={size}
-        className={className}
+      <button
+        ref={ref}
+        className={cn(baseStyles, variantStyles[variant], sizeStyles[size], className)}
         onClick={props.onClick as () => void}
         disabled={props.disabled}
         type={props.type as 'button' | 'submit' | 'reset'}
+        {...props}
       >
         {children}
-      </Button>
+      </button>
     );
   }
 );

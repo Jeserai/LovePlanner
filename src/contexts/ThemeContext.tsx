@@ -6,6 +6,12 @@ interface ThemeContextType {
   theme: ThemeType;
   setTheme: (theme: ThemeType) => void;
   toggleTheme: () => void;
+  isDarkMode: boolean;
+  setDarkMode: (isDark: boolean) => void;
+  toggleDarkMode: () => void;
+  useSidebarLayout: boolean;
+  setSidebarLayout: (useSidebar: boolean) => void;
+  toggleLayout: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -24,26 +30,39 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeType>('modern');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [useSidebarLayout, setUseSidebarLayout] = useState(true);
 
-  // Load theme from localStorage on mount
+  // Load theme and dark mode from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
-    if (savedTheme && (savedTheme === 'pixel' || savedTheme === 'modern')) {
-      setThemeState(savedTheme);
-    } else {
-      // 默认使用现代主题
-      setThemeState('modern');
-      localStorage.setItem('theme', 'modern');
-    }
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    const savedLayout = localStorage.getItem('sidebarLayout') === 'true';
+    
+    // 强制使用现代主题，隐藏像素主题选项
+    setThemeState('modern');
+    localStorage.setItem('theme', 'modern');
+    
+    setIsDarkMode(savedDarkMode);
+    setUseSidebarLayout(savedLayout);
   }, []);
 
-  // Update localStorage and document class when theme changes
+  // Update localStorage and document class when theme or dark mode changes
   useEffect(() => {
     localStorage.setItem('theme', theme);
-    document.documentElement.className = theme;
+    localStorage.setItem('darkMode', isDarkMode.toString());
+    localStorage.setItem('sidebarLayout', useSidebarLayout.toString());
+    
+    // 构建类名
+    const classes: string[] = [theme];
+    if (isDarkMode && theme === 'modern') {
+      classes.push('dark');
+    }
+    
+    document.documentElement.className = classes.join(' ');
     // 确保body也有对应的类名
-    document.body.className = `${theme}-theme`;
-  }, [theme]);
+    document.body.className = `${theme}-theme${isDarkMode && theme === 'modern' ? ' dark' : ''}`;
+  }, [theme, isDarkMode, useSidebarLayout]);
 
   const setTheme = (newTheme: ThemeType) => {
     setThemeState(newTheme);
@@ -58,10 +77,32 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   };
 
+  const setDarkMode = (isDark: boolean) => {
+    setIsDarkMode(isDark);
+  };
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
+  const setSidebarLayout = (useSidebar: boolean) => {
+    setUseSidebarLayout(useSidebar);
+  };
+
+  const toggleLayout = () => {
+    setUseSidebarLayout(!useSidebarLayout);
+  };
+
   const value = {
     theme,
     setTheme,
-    toggleTheme
+    toggleTheme,
+    isDarkMode,
+    setDarkMode,
+    toggleDarkMode,
+    useSidebarLayout,
+    setSidebarLayout,
+    toggleLayout
   };
 
   return (

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../hooks/useAuth'
 import { useEventData } from '../hooks/calendar/useEventData'
@@ -10,7 +10,7 @@ import EventDetail from './calendar/EventDetail'
 import EventForm from './calendar/EventForm'
 import DayView from './calendar/DayView'
 import TodoList, { TodoListRef } from './calendar/TodoList'
-import Button from './ui/Button'
+import { ThemeButton } from './ui/Components'
 import { Card } from './ui/card'
 import LoadingSpinner from './ui/LoadingSpinner'
 import { 
@@ -26,6 +26,7 @@ import TestTimezoneController from './TestTimezoneController'
 import type { Event, CalendarProps } from '../types/event'
 import { convertUserTimeToUTC } from '../utils/timezoneService'
 import { eventService } from '../services/eventService'
+import { colorService, CoupleColors } from '../services/colorService'
 
 const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   const { theme } = useTheme()
@@ -42,9 +43,10 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   )
 
   // 状态管理
-  const [currentView, setCurrentView] = useState<'my' | 'partner' | 'shared'>('my')
+  const [currentView, setCurrentView] = useState<'all' | 'my' | 'partner' | 'shared'>('all')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showNewEventDialog, setShowNewEventDialog] = useState(false)
+  const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null)
   const todoListRef = useRef<TodoListRef>(null)
 
   const {
@@ -74,6 +76,15 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     openEventDetail,
     closeDetailModal
   } = eventForm
+
+  // 加载情侣颜色配置
+  useEffect(() => {
+    const loadCoupleColors = async () => {
+      setCoupleColors(colorService.getDefaultColors())
+    }
+    
+    loadCoupleColors()
+  }, [coupleUsers])
 
   // 获取过滤后的事件
   const getFilteredEvents = useCallback((allEvents: Event[]): Event[] => {
@@ -111,6 +122,18 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     let filteredEvents: Event[] = []
     
     switch (currentView) {
+      case 'all':
+        // 显示所有相关事件（我的 + 伴侣的 + 共同的）
+        filteredEvents = allEvents.filter(event => {
+          return event.participants.includes(currentUserId) || 
+                 event.participants.includes(partnerIdForFiltering)
+        })
+        console.log('📋 全部事件过滤:', {
+          原始数量: allEvents.length,
+          过滤后数量: filteredEvents.length,
+          过滤后事件: filteredEvents.map(e => e.title)
+        })
+        break
       case 'my':
         filteredEvents = allEvents.filter(event => {
           const includesMe = event.participants.includes(currentUserId)
@@ -456,11 +479,69 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   // 获取视图显示名称
   const getViewDisplayName = () => {
     switch (currentView) {
+      case 'all': return '全部日程'
       case 'my': return '我的日程'
       case 'partner': return '伴侣日程'
       case 'shared': return '共同日程'
       default: return '所有日程'
     }
+  }
+
+  // 获取视图按钮的颜色样式
+  const getViewThemeButtonStyle = (view: 'all' | 'my' | 'partner' | 'shared', isActive: boolean) => {
+    if (!isActive) {
+      return 'bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+    }
+
+    // "全部"视图保持系统颜色
+    if (view === 'all') {
+      return 'bg-primary text-primary-foreground'
+    }
+
+    // 其他视图使用对应的用户颜色
+    if (coupleColors && user && coupleUsers) {
+      const user1Id = coupleUsers.user1.id
+      const user2Id = coupleUsers.user2.id
+      const currentUserId = user.id
+
+      switch (view) {
+        case 'my':
+          const myColor = currentUserId === user1Id ? coupleColors.user1Color : coupleColors.user2Color
+          return `text-white hover:opacity-90`
+        case 'partner':
+          const partnerColor = currentUserId === user1Id ? coupleColors.user2Color : coupleColors.user1Color
+          return `text-white hover:opacity-90`
+        case 'shared':
+          return `text-white hover:opacity-90`
+      }
+    }
+
+    // 降级到系统颜色
+    return 'bg-primary text-primary-foreground'
+  }
+
+  // 获取视图按钮的背景颜色
+  const getViewThemeButtonBackground = (view: 'all' | 'my' | 'partner' | 'shared', isActive: boolean) => {
+    if (!isActive || view === 'all') return {}
+
+    if (coupleColors && user && coupleUsers) {
+      const user1Id = coupleUsers.user1.id
+      const user2Id = coupleUsers.user2.id
+      const currentUserId = user.id
+
+      switch (view) {
+        case 'my':
+          const myColor = currentUserId === user1Id ? coupleColors.user1Color : coupleColors.user2Color
+          return { backgroundColor: myColor }
+        case 'partner':
+          const partnerColor = currentUserId === user1Id ? coupleColors.user2Color : coupleColors.user1Color
+          return { backgroundColor: partnerColor }
+        case 'shared':
+          return { backgroundColor: coupleColors.sharedColor }
+      }
+    }
+
+    return {}
   }
 
   if (loading) {
@@ -497,79 +578,91 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
       {/* 测试时区控制器 */}
       {process.env.NODE_ENV === 'development' && <TestTimezoneController />}
       
-      {/* 页面标题和控制 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-        <h1 className={`text-2xl font-bold ${
-          theme === 'pixel' ? 'font-mono text-green-400' : 'text-gray-900'
-        }`}>
-          {theme === 'pixel' ? 'CALENDAR_V3.EXE' : 'FullCalendar 日历'}
-        </h1>
-
-        <div className="flex items-center space-x-2">
-          <Button
-            onClick={handleRefresh}
-            variant="secondary"
-            size="sm"
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? '刷新中...' : '刷新'}
-          </Button>
-          
-          <Button
-            onClick={handleAddEvent}
-            variant="primary"
-            size="sm"
-          >
-            添加日程
-          </Button>
-        </div>
-      </div>
-
-      {/* 视图切换 */}
-      <Card className="p-4">
-        <div className="flex flex-wrap gap-2 items-center">
-          {(['my', 'partner', 'shared'] as const).map((view) => (
-            <Button
-              key={view}
-              onClick={() => setCurrentView(view)}
-              variant={currentView === view ? 'primary' : 'secondary'}
-              size="sm"
-            >
-              {view === 'my' && (theme === 'pixel' ? 'MY' : '我的')}
-              {view === 'partner' && (theme === 'pixel' ? 'PARTNER' : '伴侣')}
-              {view === 'shared' && (theme === 'pixel' ? 'SHARED' : '共同')}
-            </Button>
-          ))}
-          
-          {/* 只读模式提示 */}
-          {currentView === 'partner' && (
-            <div className={`ml-4 text-xs px-2 py-1 rounded ${
-              theme === 'pixel' 
-                ? 'bg-pixel-panel text-pixel-textMuted font-mono border border-pixel-border'
-                : theme === 'modern'
-                ? 'bg-muted text-muted-foreground'
-                : 'bg-gray-100 text-gray-500'
+      {/* 页面头部 */}
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className={`text-3xl font-bold ${
+              theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'
             }`}>
-              {theme === 'pixel' ? 'READ_ONLY' : '只读模式'}
+              {theme === 'pixel' ? 'CALENDAR_V3.EXE' : '日历'}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {getViewDisplayName()} • {filteredEvents.length} 个事件
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            {/* 视图切换按钮组 */}
+            <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1">
+              {(['all', 'my', 'partner', 'shared'] as const).map((view) => {
+                const isActive = currentView === view
+                return (
+                  <button
+                    key={view}
+                    onClick={() => setCurrentView(view)}
+                    className={`
+                      h-8 px-3 rounded-md text-sm font-medium transition-all duration-200
+                      ${getViewThemeButtonStyle(view, isActive)}
+                    `}
+                    style={getViewThemeButtonBackground(view, isActive)}
+                  >
+                    {view === 'all' && (theme === 'pixel' ? 'ALL' : '全部')}
+                    {view === 'my' && (theme === 'pixel' ? 'MY' : '我的')}
+                    {view === 'partner' && (theme === 'pixel' ? 'PTN' : '伴侣')}
+                    {view === 'shared' && (theme === 'pixel' ? 'SHR' : '共同')}
+                  </button>
+                )
+              })}
             </div>
-          )}
+            
+            {/* 操作按钮组 */}
+            <div className="flex items-center space-x-2">
+              <ThemeButton
+                onClick={handleRefresh}
+                variant="secondary"
+                size="sm"
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? '刷新中...' : '刷新'}
+              </ThemeButton>
+              
+              <ThemeButton
+                onClick={handleAddEvent}
+                variant="primary"
+                size="sm"
+              >
+                添加日程
+              </ThemeButton>
+            </div>
+          </div>
         </div>
         
-        <div className="mt-2 text-sm text-gray-600">
-          当前显示: {getViewDisplayName()} ({filteredEvents.length} 个事件)
-        </div>
-      </Card>
+        {/* 只读模式提示 */}
+        {currentView === 'partner' && (
+          <div className={`mt-3 inline-flex items-center text-xs px-3 py-1.5 rounded-full ${
+            theme === 'pixel' 
+              ? 'bg-pixel-panel text-pixel-textMuted font-mono border border-pixel-border'
+              : 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
+          }`}>
+            <span className="mr-1">⚠️</span>
+            {theme === 'pixel' ? 'READ_ONLY_MODE' : '只读模式 - 查看伴侣日程'}
+          </div>
+        )}
+      </div>
 
       {/* 主要内容区域 */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* 左侧 To-Do List */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative">
+        {/* 左侧 To-Do List - 粘性定位 */}
         <div className="lg:col-span-1">
-          <TodoList 
-            ref={todoListRef}
-            onTodoDropped={(todoId) => {
-              console.log('📝 待办事项已从列表中移除:', todoId)
-            }}
-          />
+          <div className="sticky top-6 z-20">
+            <TodoList 
+              ref={todoListRef}
+              onTodoDropped={(todoId) => {
+                console.log('📝 待办事项已从列表中移除:', todoId)
+              }}
+            />
+          </div>
         </div>
 
         {/* FullCalendar 主视图 */}
@@ -577,6 +670,8 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
           <FullCalendarComponent
             events={filteredEvents}
             currentView={currentView}
+            user={user}
+            coupleUsers={coupleUsers}
             onEventClick={handleEventClick}
             onDateSelect={handleDateSelect}
             onEventDrop={handleEventDrop}

@@ -15,13 +15,13 @@
 }
 
 .fc-toolbar-title {
-  @apply text-xl font-semibold text-gray-900;
+  @apply text-xl font-semibold text-foreground;
 }
 
 /* 按钮样式 */
 .fc-button {
-  @apply bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium;
-  @apply hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500;
+  @apply bg-card border border-border text-card-foreground px-3 py-1.5 rounded-md text-sm font-medium;
+  @apply hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring;
   @apply transition-colors duration-200;
 }
 
@@ -31,21 +31,21 @@
 }
 
 .fc-button:disabled {
-  @apply bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed;
-  @apply hover:bg-gray-100 hover:border-gray-200;
+  @apply bg-muted border-border text-muted-foreground cursor-not-allowed;
+  @apply hover:bg-muted hover:border-border;
 }
 
 /* 表格样式 */
 .fc-scrollgrid {
-  @apply border border-gray-200 rounded-lg overflow-hidden;
+  @apply border border-border rounded-lg overflow-hidden;
 }
 
 .fc-col-header-cell {
-  @apply bg-gray-50 border-b border-gray-200 text-center py-2;
+  @apply bg-muted border-b border-border text-center py-2;
 }
 
 .fc-col-header-cell-cushion {
-  @apply text-xs font-medium text-gray-600 uppercase tracking-wide;
+  @apply text-xs font-medium text-muted-foreground uppercase tracking-wide;
 }
 
 /* 日期单元格 */
@@ -62,7 +62,7 @@
 }
 
 .fc-daygrid-day-number {
-  @apply text-sm font-medium text-gray-900 p-2;
+  @apply text-sm font-medium text-foreground p-2;
 }
 
 .fc-day-today .fc-daygrid-day-number {
@@ -97,7 +97,7 @@
 }
 
 .fc-timegrid-axis {
-  @apply text-xs text-gray-500 border-r border-gray-200;
+  @apply text-xs text-muted-foreground border-r border-border;
 }
 
 .fc-timegrid-col {
@@ -262,4 +262,253 @@
 
 .fc-list-empty::before {
   content: "暂无日程安排";
+}
+
+/* 深色主题支持 */
+.dark-calendar .fc-toolbar-title {
+  @apply text-foreground;
+}
+
+.dark-calendar .fc-button {
+  @apply bg-card border-border text-card-foreground;
+  @apply hover:bg-accent hover:text-accent-foreground;
+}
+
+.dark-calendar .fc-button-primary {
+  @apply bg-primary border-primary text-primary-foreground;
+  @apply hover:bg-primary/90;
+}
+
+.dark-calendar .fc-button:disabled {
+  @apply bg-muted border-border text-muted-foreground cursor-not-allowed;
+  @apply hover:bg-muted hover:border-border;
+}
+
+.dark-calendar .fc-scrollgrid {
+  @apply border-border;
+}
+
+.dark-calendar .fc-col-header-cell {
+  @apply bg-muted border-border;
+}
+
+.dark-calendar .fc-col-header-cell-cushion {
+  @apply text-muted-foreground;
+}
+
+.dark-calendar .fc-daygrid-day {
+  @apply border-border;
+}
+
+.dark-calendar .fc-daygrid-day-frame {
+  @apply bg-card;
+}
+
+.dark-calendar .fc-day-today {
+  @apply bg-accent/20;
+}
+
+.dark-calendar .fc-daygrid-day-number {
+  @apply text-foreground;
+}
+
+.dark-calendar .fc-timegrid-slot {
+  @apply border-border;
+}
+
+.dark-calendar .fc-timegrid-axis {
+  @apply border-border;
+}
+
+.dark-calendar .fc-timegrid-axis-cushion {
+  @apply text-muted-foreground;
+}
+
+.dark-calendar .fc-timegrid-slot-label-cushion {
+  @apply text-muted-foreground;
+}
+
+.dark-calendar .fc-list-table {
+  @apply border-border;
+}
+
+.dark-calendar .fc-list-day-cushion {
+  @apply bg-muted text-foreground;
+}
+
+.dark-calendar .fc-list-event {
+  @apply border-border;
+}
+
+.dark-calendar .fc-list-event:hover {
+  @apply bg-accent/50;
+}
+
+.dark-calendar .fc-list-event-title {
+  @apply text-foreground;
+}
+
+.dark-calendar .fc-list-event-time {
+  @apply text-muted-foreground;
+}
+
+.dark-calendar .fc-popover {
+  @apply bg-popover border-border text-popover-foreground;
+}
+
+.dark-calendar .fc-popover-header {
+  @apply bg-muted text-foreground border-border;
+}
+
+.dark-calendar .fc-more-link {
+  @apply text-primary hover:text-primary/80;
+}
+
+.dark-calendar .fc-list-empty {
+  @apply text-muted-foreground;
+}
+
+/* 确保事件颜色正确显示，移除所有边框 */
+.fc-event {
+  border: none !important;
+  border-width: 0 !important;
+}
+
+.fc-event .fc-event-main {
+  color: inherit !important;
+  border: none !important;
+}
+
+/* 清理默认样式，移除边框 */
+.fc-event {
+  border: none !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+/* 移除内部元素的背景和边框，确保透明 */
+.fc-event .fc-event-main,
+.fc-event .fc-event-main-frame {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 用户1事件 - 青色 (Cyan 500) */
+.fc-event.event-user1 {
+  background-color: #06b6d4 !important;
+  border: none !important;
+  color: white !important;
+}
+
+/* 用户2事件 - 紫色 (Violet 500) */  
+.fc-event.event-user2 {
+  background-color: #8b5cf6 !important;
+  border: none !important;
+  color: white !important;
+}
+
+/* 共同事件 - 绿色 (Emerald 500) */
+.fc-event.event-shared {
+  background-color: #10b981 !important;
+  border: none !important;
+  color: white !important;
+}
+
+/* 默认事件 - 蓝色 (Blue 500) */
+.fc-event.event-default {
+  background-color: #3b82f6 !important;
+  border: none !important;
+  color: white !important;
+}
+
+/* 强制移除所有可能的边框 */
+.fc-event,
+.fc-event.fc-daygrid-event,
+.fc-event.fc-timegrid-event {
+  border: none !important;
+  border-width: 0 !important;
+}
+
+/* 统一的hover效果 - 应用到整个事件容器 */
+.modern-calendar .fc-event {
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  position: relative !important;
+}
+
+/* hover效果应用到整个事件，不仅仅是内部 */
+.modern-calendar .fc-event:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+  transform: translateY(-2px) scale(1.02) !important;
+  z-index: 1000 !important;
+}
+
+/* 确保内部元素不干扰hover效果 */
+.modern-calendar .fc-event:hover .fc-event-main,
+.modern-calendar .fc-event:hover .fc-event-main-frame {
+  background: transparent !important;
+}
+
+/* 确保文本颜色正确 - 覆盖所有可能的文本元素 */
+.fc-event .fc-event-title,
+.fc-event .fc-event-time,
+.fc-event .fc-event-main,
+.fc-event .fc-event-main-frame,
+.fc-event a,
+.fc-event span {
+  color: white !important;
+}
+
+/* 特别确保不同类型事件的文本颜色 */
+.fc-event.event-user1 .fc-event-title,
+.fc-event.event-user1 .fc-event-time,
+.fc-event.event-user2 .fc-event-title,
+.fc-event.event-user2 .fc-event-time,
+.fc-event.event-shared .fc-event-title,
+.fc-event.event-shared .fc-event-time,
+.fc-event.event-default .fc-event-title,
+.fc-event.event-default .fc-event-time {
+  color: white !important;
+}
+
+/* 移除FullCalendar默认的内部样式 */
+.fc-event .fc-event-main-frame {
+  padding: 4px 6px !important;
+  border: none !important;
+}
+
+.fc-event .fc-event-title-container {
+  flex-grow: 1 !important;
+}
+
+/* 强制覆盖所有可能的边框样式 */
+.fc .fc-event,
+.fc .fc-event.fc-daygrid-event,
+.fc .fc-event.fc-timegrid-event,
+.fc .fc-event.fc-list-event,
+.fc-theme-standard .fc-event,
+.fc-theme-bootstrap .fc-event {
+  border: none !important;
+  border-width: 0 !important;
+  border-color: transparent !important;
+}
+
+/* 确保内部所有元素都没有边框，但保持高度计算 */
+.fc-event .fc-event-main,
+.fc-event .fc-event-main-frame {
+  border: none !important;
+  height: 100% !important;
+  min-height: inherit !important;
+}
+
+/* 确保时间网格事件保持正确的高度 */
+.fc-timegrid-event {
+  min-height: auto !important;
+}
+
+.fc-timegrid-event .fc-event-main {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
 }

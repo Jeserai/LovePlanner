@@ -6,7 +6,6 @@ import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import PixelIcon from './PixelIcon';
 import LoadingSpinner from './ui/LoadingSpinner';
 import PointsDisplay from './PointsDisplay';
-import Button from './ui/Button';
 import PageHeader from './ui/PageHeader';
 // import Card from './ui/Card'; // 已删除，使用ThemeCard替代
 import NavigationButton from './ui/NavigationButton';

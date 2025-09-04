@@ -43,16 +43,6 @@ const EventForm: React.FC<EventFormProps> = ({
     onSubmit(eventData);
   };
 
-  const getCurrentLocalDateTimeString = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -102,7 +92,6 @@ const EventForm: React.FC<EventFormProps> = ({
               type="datetime-local"
               value={formData.startDateTime}
               onChange={(e) => onFormChange({ startDateTime: e.target.value })}
-              min={getCurrentLocalDateTimeString()}
               required
             />
           </ThemeFormField>
@@ -115,7 +104,7 @@ const EventForm: React.FC<EventFormProps> = ({
               type="datetime-local"
               value={formData.endDateTime}
               onChange={(e) => onFormChange({ endDateTime: e.target.value })}
-              min={formData.startDateTime || getCurrentLocalDateTimeString()}
+              min={formData.startDateTime}
               required
             />
           </ThemeFormField>
@@ -181,8 +170,8 @@ const EventForm: React.FC<EventFormProps> = ({
               onChange={(e) => onFormChange({ recurrenceType: e.target.value })}
               className={`w-full px-3 py-2 border rounded-md ${
                 theme === 'pixel' ? 'border-pixel-border bg-pixel-background text-pixel-text' :
-                theme === 'modern' ? 'border-slate-300 bg-white text-slate-900' :
-                'border-gray-300 bg-white text-gray-900'
+                theme === 'modern' ? 'border-border bg-background text-foreground' :
+                'border-border bg-background text-foreground'
               }`}
             >
               <option value="daily">{theme === 'pixel' ? 'DAILY' : theme === 'modern' ? 'Daily' : '每日'}</option>

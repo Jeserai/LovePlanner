@@ -10,12 +10,15 @@ import { EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../hooks/useAuth'
 import type { Event } from '../types/event'
-import Button from './ui/Button'
+import { ThemeButton } from './ui/Components'
 import { Card } from './ui/card'
+import { colorService, CoupleColors } from '../services/colorService'
 
 interface FullCalendarComponentProps {
   events: Event[]
-  currentView: 'my' | 'partner' | 'shared'
+  currentView: 'all' | 'my' | 'partner' | 'shared'
+  user?: any
+  coupleUsers?: {user1: any, user2: any} | null
   onEventClick?: (event: Event) => void
   onDateSelect?: (date: string, selectedTime?: string | null, isAllDay?: boolean) => void
   onEventDrop?: (eventId: string, newDate: string, newTime?: string) => void
@@ -26,19 +29,104 @@ interface FullCalendarComponentProps {
 const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
   events,
   currentView,
+  user,
+  coupleUsers,
   onEventClick,
   onDateSelect,
   onEventDrop,
   onTodoDrop,
   className = ''
 }) => {
-  const { theme } = useTheme()
-  const { user } = useAuth()
+  const { theme, isDarkMode } = useTheme()
   const [currentCalendarView, setCurrentCalendarView] = useState('timeGridWeek')
+  const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null)
   const calendarRef = useRef<FullCalendar>(null)
+
+  // 加载情侣颜色配置
+  useEffect(() => {
+    const loadCoupleColors = async () => {
+      // 直接使用默认颜色配置，因为数据库中可能没有存储颜色配置
+      // 后续可以根据需要从数据库加载自定义颜色
+      setCoupleColors(colorService.getDefaultColors())
+      
+      console.log('🎨 已加载默认颜色配置:', colorService.getDefaultColors())
+    }
+    
+    loadCoupleColors()
+  }, [coupleUsers])
+
+  // 判断事件是否包含指定用户
+  const eventIncludesUser = useCallback((event: Event, userId: string) => {
+    return event.participants.includes(userId)
+  }, [])
 
   // 获取事件背景色
   const getEventBackgroundColor = useCallback((event: Event): string => {
+    console.log('🎨 获取事件背景色:', {
+      eventTitle: event.title,
+      currentView,
+      hasColors: !!coupleColors,
+      hasUser: !!user,
+      hasCoupleUsers: !!coupleUsers,
+      participants: event.participants
+    })
+    
+    // 如果在"全部"视图下且有颜色配置，使用基于用户的颜色编码
+    if (currentView === 'all' && coupleColors && user && coupleUsers) {
+      const user1Id = coupleUsers.user1.id
+      const user2Id = coupleUsers.user2.id
+      
+      console.log('🔍 颜色判断条件:', {
+        user1Id,
+        user2Id,
+        currentUserId: user.id,
+        participants: event.participants
+      })
+      
+      const eventColor = colorService.getEventColor(
+        event.participants,
+        user1Id,
+        user2Id,
+        coupleColors,
+        eventIncludesUser
+      )
+      
+      console.log('🎯 计算出的事件颜色:', eventColor)
+      
+      // 为像素主题保持原有风格
+      if (theme === 'pixel') {
+        return eventColor
+      }
+      
+      // Modern主题使用纯色（FullCalendar不支持渐变）
+      const hasUser1 = eventIncludesUser(event, user1Id)
+      const hasUser2 = eventIncludesUser(event, user2Id)
+      
+      console.log('👥 用户参与情况:', {
+        hasUser1,
+        hasUser2,
+        user1Id,
+        user2Id
+      })
+      
+      if (hasUser1 && hasUser2) {
+        // 共同事件
+        console.log('💚 共同事件颜色:', coupleColors.sharedColor)
+        return coupleColors.sharedColor
+      } else if (hasUser1) {
+        // 用户1的事件
+        console.log('💙 用户1事件颜色:', coupleColors.user1Color)
+        return coupleColors.user1Color
+      } else if (hasUser2) {
+        // 用户2的事件  
+        console.log('💜 用户2事件颜色:', coupleColors.user2Color)
+        return coupleColors.user2Color
+      }
+    }
+    
+    console.log('⚪ 使用默认颜色逻辑')
+    
+    // 其他视图或无颜色配置时的默认逻辑
     if (theme === 'pixel') {
       if (event.participants.length > 1) return '#ec4899' // pink-500
       return '#3b82f6' // blue-500
@@ -49,18 +137,70 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       return 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' // pink to purple
     }
     return 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)' // blue to cyan
-  }, [theme])
+  }, [theme, currentView, coupleColors, user, coupleUsers, eventIncludesUser])
 
   // 获取事件边框色
   const getEventBorderColor = useCallback((event: Event): string => {
+    // 在"全部"视图下使用与背景色匹配的边框色
+    if (currentView === 'all' && coupleColors && user && coupleUsers) {
+      const user1Id = coupleUsers.user1.id
+      const user2Id = coupleUsers.user2.id
+      
+      const borderColor = colorService.getEventColor(
+        event.participants,
+        user1Id,
+        user2Id,
+        coupleColors,
+        eventIncludesUser
+      )
+      
+      console.log('🔲 边框颜色:', borderColor)
+      return borderColor
+    }
+    
+    // 默认逻辑
     if (event.participants.length > 1) return '#ec4899'
     return '#3b82f6'
-  }, [])
+  }, [currentView, coupleColors, user, coupleUsers, eventIncludesUser])
 
   // 获取事件文字色
   const getEventTextColor = useCallback((event: Event): string => {
     return '#ffffff'
   }, [])
+
+  // 获取事件CSS类名
+  const getEventClassName = useCallback((event: Event): string => {
+    // 为所有视图应用颜色编码，不仅仅是'all'视图
+    if (coupleColors && user && coupleUsers) {
+      const user1Id = coupleUsers.user1.id
+      const user2Id = coupleUsers.user2.id
+      const hasUser1 = eventIncludesUser(event, user1Id)
+      const hasUser2 = eventIncludesUser(event, user2Id)
+      
+      console.log('🎨 事件分类:', {
+        eventTitle: event.title,
+        user1Id,
+        user2Id,
+        hasUser1,
+        hasUser2,
+        participants: event.participants,
+        currentView
+      })
+      
+      if (hasUser1 && hasUser2) {
+        console.log('💚 共同事件:', event.title)
+        return 'event-shared'
+      } else if (hasUser1) {
+        console.log('💙 用户1事件:', event.title)
+        return 'event-user1'
+      } else if (hasUser2) {
+        console.log('💜 用户2事件:', event.title)
+        return 'event-user2'
+      }
+    }
+    console.log('⚪ 默认事件:', event.title)
+    return 'event-default'
+  }, [coupleColors, user, coupleUsers, eventIncludesUser])
 
   // 标题状态
   const [calendarTitle, setCalendarTitle] = useState('日历')
@@ -195,9 +335,9 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         start: startTime,
         end: endTime,
         allDay: isAllDay,
-        backgroundColor: getEventBackgroundColor(event),
-        borderColor: getEventBorderColor(event),
+        // 移除backgroundColor和borderColor，完全依赖CSS类名
         textColor: getEventTextColor(event),
+        className: getEventClassName(event),
         extendedProps: {
           description: event.description,
           location: event.location,
@@ -211,12 +351,17 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       
       console.log('📅 单个事件转换结果:', {
         原始事件: event.title,
+        参与者: event.participants,
+        文字色: fcEvent.textColor,
+        CSS类名: fcEvent.className,
         FullCalendar格式: {
           id: fcEvent.id,
           title: fcEvent.title,
           start: fcEvent.start,
           end: fcEvent.end,
-          allDay: fcEvent.allDay
+          allDay: fcEvent.allDay,
+          textColor: fcEvent.textColor,
+          className: fcEvent.className
         }
       });
       
@@ -426,7 +571,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           </div>
           {location && (
             <div className={`text-xs flex items-center space-x-1 ${
-              theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-600'
+              theme === 'pixel' ? 'text-pixel-textMuted' : 'text-muted-foreground'
             }`}>
               <span>📍</span>
               <span className="truncate">{location}</span>
@@ -467,92 +612,124 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
 
   return (
     <Card className={`p-4 ${className}`}>
-      {/* 自定义工具栏 */}
-      <div className="flex flex-col space-y-4 mb-4">
-        {/* 第一行：导航和标题 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Button
-              onClick={handlePrev}
-              variant="secondary"
-              size="sm"
-            >
-              {theme === 'pixel' ? '<' : '←'}
-            </Button>
-            <Button
-              onClick={handleNext}
-              variant="secondary"
-              size="sm"
-            >
-              {theme === 'pixel' ? '>' : '→'}
-            </Button>
-            <Button
+      {/* 自定义工具栏 - 粘性定位 */}
+      <div className="sticky top-6 z-30 bg-card/95 backdrop-blur-sm border-b pb-4 mb-6 -mx-4 px-4 -mt-4 pt-4">
+        {/* 主工具栏：导航、标题、视图切换 */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+          {/* 左侧：导航按钮组 */}
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1">
+              <ThemeButton
+                onClick={handlePrev}
+                variant="secondary"
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                {theme === 'pixel' ? '<' : '←'}
+              </ThemeButton>
+              <ThemeButton
+                onClick={handleNext}
+                variant="secondary"
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                {theme === 'pixel' ? '>' : '→'}
+              </ThemeButton>
+            </div>
+            <ThemeButton
               onClick={handleToday}
               variant="secondary"
               size="sm"
             >
               {theme === 'pixel' ? 'TODAY' : '今天'}
-            </Button>
+            </ThemeButton>
           </div>
 
-          {/* 当前月份年份显示 */}
+          {/* 中间：当前日期标题 */}
           <div className={`
-            text-xl font-bold
-            ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-gray-900'}
+            text-2xl font-bold text-center
+            ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'}
           `}>
             {calendarTitle}
           </div>
 
-          {/* 视图状态指示器 */}
-          <div className="flex items-center space-x-2">
-            <div className={`
-              px-2 py-1 rounded text-xs
-              ${theme === 'pixel' ? 'bg-gray-800 text-green-400 font-mono' : 'bg-gray-100 text-gray-600'}
-            `}>
-              {currentView === 'my' && '我的日程'}
-              {currentView === 'partner' && '伴侣日程'}
-              {currentView === 'shared' && '共同日程'}
-            </div>
+          {/* 右侧：视图切换按钮组 */}
+          <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1">
+            <ThemeButton
+              onClick={() => handleViewChange('dayGridMonth')}
+              variant={currentCalendarView === 'dayGridMonth' ? 'primary' : 'secondary'}
+              size="sm"
+              className="h-8"
+            >
+              {theme === 'pixel' ? 'MON' : '月'}
+            </ThemeButton>
+            <ThemeButton
+              onClick={() => handleViewChange('timeGridWeek')}
+              variant={currentCalendarView === 'timeGridWeek' ? 'primary' : 'secondary'}
+              size="sm"
+              className="h-8"
+            >
+              {theme === 'pixel' ? 'WEK' : '周'}
+            </ThemeButton>
+            <ThemeButton
+              onClick={() => handleViewChange('timeGridDay')}
+              variant={currentCalendarView === 'timeGridDay' ? 'primary' : 'secondary'}
+              size="sm"
+              className="h-8"
+            >
+              {theme === 'pixel' ? 'DAY' : '日'}
+            </ThemeButton>
+            <ThemeButton
+              onClick={() => handleViewChange('listWeek')}
+              variant={currentCalendarView === 'listWeek' ? 'primary' : 'secondary'}
+              size="sm"
+              className="h-8"
+            >
+              {theme === 'pixel' ? 'LST' : '列表'}
+            </ThemeButton>
           </div>
         </div>
-
-        {/* 第二行：视图切换 */}
-        <div className="flex items-center space-x-2">
-          <Button
-            onClick={() => handleViewChange('dayGridMonth')}
-            variant={currentCalendarView === 'dayGridMonth' ? 'primary' : 'secondary'}
-            size="sm"
-          >
-            {theme === 'pixel' ? 'MONTH' : '月'}
-          </Button>
-          <Button
-            onClick={() => handleViewChange('timeGridWeek')}
-            variant={currentCalendarView === 'timeGridWeek' ? 'primary' : 'secondary'}
-            size="sm"
-          >
-            {theme === 'pixel' ? 'WEEK' : '周'}
-          </Button>
-          <Button
-            onClick={() => handleViewChange('timeGridDay')}
-            variant={currentCalendarView === 'timeGridDay' ? 'primary' : 'secondary'}
-            size="sm"
-          >
-            {theme === 'pixel' ? 'DAY' : '日'}
-          </Button>
-          <Button
-            onClick={() => handleViewChange('listWeek')}
-            variant={currentCalendarView === 'listWeek' ? 'primary' : 'secondary'}
-            size="sm"
-          >
-            {theme === 'pixel' ? 'LIST' : '列表'}
-          </Button>
-        </div>
+        
+        {/* 颜色图例 - 仅在全部视图下显示 */}
+        {currentView === 'all' && coupleColors && user && coupleUsers && (
+          <div className="flex items-center justify-center gap-6 mt-4 p-3 bg-muted/30 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <div 
+                className="w-4 h-4 rounded"
+                style={{ backgroundColor: coupleColors.user1Color }}
+              />
+              <span className="text-sm text-muted-foreground">
+                {coupleUsers.user1.display_name || '用户1'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div 
+                className="w-4 h-4 rounded"
+                style={{ backgroundColor: coupleColors.user2Color }}
+              />
+              <span className="text-sm text-muted-foreground">
+                {coupleUsers.user2.display_name || '用户2'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div 
+                className="w-4 h-4 rounded"
+                style={{ backgroundColor: coupleColors.sharedColor }}
+              />
+              <span className="text-sm text-muted-foreground">
+                {theme === 'pixel' ? 'SHARED' : '共同活动'}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* FullCalendar组件 */}
       <div className={`
         fullcalendar-container
-        ${theme === 'pixel' ? 'pixel-calendar' : 'modern-calendar'}
+        ${theme === 'pixel' ? 'pixel-calendar' : 
+          theme === 'modern' ? `modern-calendar ${isDarkMode ? 'dark-calendar' : 'light-calendar'}` : 
+          'modern-calendar'}
       `}>
         <FullCalendar
           ref={calendarRef}

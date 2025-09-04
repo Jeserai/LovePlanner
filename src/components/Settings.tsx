@@ -26,21 +26,13 @@ const Settings: React.FC = () => {
   const themes = [
     {
       id: 'modern' as const,
-      name: theme === 'modern' ? 'Modern Theme (Default)' : '现代主题（默认）',
-      description: theme === 'modern' ? 'Based on shadcn/ui design system, clean and elegant interface style' : '基于shadcn/ui的现代设计系统，简洁优雅的界面风格',
+      name: 'Modern Theme',
+      description: '基于shadcn/ui的现代设计系统，简洁优雅的界面风格',
       icon: PaintBrushIcon,
       preview: 'bg-gradient-to-br from-gray-500 to-slate-600',
       color: 'text-gray-600'
-    },
-
-    {
-      id: 'pixel' as const,
-      name: '深色像素风',
-      description: '经典8位游戏风格，深色背景配霓虹色彩',
-      icon: CommandLineIcon,
-      preview: 'bg-gradient-to-br from-pixel-accent to-pixel-purple',
-      color: 'text-pixel-accent'
     }
+    // 隐藏像素主题选项
   ];
 
   const renderSectionContent = () => {
@@ -108,14 +100,8 @@ const Settings: React.FC = () => {
                       
                       {/* 当前使用标识 */}
                       {isActive && (
-                        <div className={`mt-3 text-center text-sm font-medium ${
-                          theme === 'pixel' 
-                            ? 'text-pixel-accent font-mono'
-                            : false
-                            ? ''
-                            : 'text-primary-600'
-                        }`}>
-                          {theme === 'pixel' ? '>>> CURRENT THEME <<<' : '当前使用'}
+                        <div className="mt-3 text-center text-sm font-medium text-primary-600">
+                          当前使用
                         </div>
                       )}
                     </div>

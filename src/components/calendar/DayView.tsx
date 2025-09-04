@@ -7,7 +7,7 @@ import type { Event } from '../../types/event';
 interface DayViewProps {
   selectedDate: string | null;
   events: Event[];
-  currentView: 'my' | 'partner' | 'shared';
+  currentView: 'all' | 'my' | 'partner' | 'shared';
   user: any;
   coupleUsers: {user1: any, user2: any} | null;
   onEventClick: (event: Event) => void;
@@ -28,6 +28,8 @@ const DayView: React.FC<DayViewProps> = ({
   // 获取视图显示名称
   const getViewDisplayName = () => {
     switch (currentView) {
+      case 'all':
+        return theme === 'pixel' ? 'ALL_SCHEDULE' : '全部日程';
       case 'my':
         return theme === 'pixel' ? 'MY_SCHEDULE' : '我的日程';
       case 'partner':
@@ -68,6 +70,8 @@ const DayView: React.FC<DayViewProps> = ({
   // 获取无事件时的文本
   const getNoEventsText = () => {
     switch (currentView) {
+      case 'all':
+        return theme === 'pixel' ? 'NO_EVENTS_TODAY' : '今天没有任何日程';
       case 'my':
         return theme === 'pixel' ? 'NO_EVENTS_TODAY' : '今天没有您的日程';
       case 'partner':

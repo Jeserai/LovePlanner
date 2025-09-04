@@ -13,7 +13,7 @@ interface EventDetailProps {
   onEdit: () => void;
   onDelete: () => void;
   onClose?: () => void;
-  currentView?: 'my' | 'partner' | 'shared';
+  currentView?: 'all' | 'my' | 'partner' | 'shared';
 }
 
 const EventDetail: React.FC<EventDetailProps> = ({
@@ -177,37 +177,6 @@ const EventDetail: React.FC<EventDetailProps> = ({
         />
       )}
 
-      {/* 操作按钮 */}
-      {hasEditPermission && !isPartnerViewReadOnly && (
-        <div className="flex justify-end space-x-2 pt-4 border-t">
-          <ThemeButton
-            variant="secondary"
-            onClick={onEdit}
-            className="flex items-center space-x-2"
-          >
-            {theme === 'pixel' ? (
-              <PixelIcon name="edit" />
-            ) : (
-              <PencilIcon className="w-4 h-4" />
-            )}
-            <span>{theme === 'pixel' ? 'EDIT' : theme === 'modern' ? 'Edit' : '编辑'}</span>
-          </ThemeButton>
-
-          <ThemeButton
-            variant="danger"
-            onClick={onDelete}
-            className="flex items-center space-x-2"
-          >
-            {theme === 'pixel' ? (
-              <PixelIcon name="delete" />
-            ) : (
-              <TrashIcon className="w-4 h-4" />
-            )}
-            <span>{theme === 'pixel' ? 'DELETE' : theme === 'modern' ? 'Delete' : '删除'}</span>
-          </ThemeButton>
-        </div>
-      )}
-
       {/* 只读模式提示 */}
       {(isPartnerViewReadOnly || !hasEditPermission) && (
         <div className={`text-sm p-3 rounded-lg ${
@@ -215,7 +184,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
             ? 'bg-pixel-panel border border-pixel-border text-pixel-textMuted font-mono' 
             : theme === 'modern'
             ? 'bg-muted text-muted-foreground border'
-            : 'bg-gray-50 text-gray-500 border'
+            : 'bg-muted text-muted-foreground border'
         }`}>
           {isPartnerViewReadOnly 
             ? (theme === 'pixel' ? 'PARTNER_VIEW_READONLY' : theme === 'modern' ? 'Partner view - Read only' : '伴侣日历视图 - 只读模式')
@@ -224,14 +193,46 @@ const EventDetail: React.FC<EventDetailProps> = ({
         </div>
       )}
       
-      {/* 关闭按钮 */}
-      {onClose && (
-        <div className="flex justify-end pt-4 border-t">
+      {/* 🔧 统一的操作按钮区域 */}
+      <div className="flex justify-end space-x-2 pt-4 border-t">
+        {/* 编辑和删除按钮（仅在有权限且非只读模式时显示） */}
+        {hasEditPermission && !isPartnerViewReadOnly && (
+          <>
+            <ThemeButton
+              variant="secondary"
+              onClick={onEdit}
+              className="flex items-center space-x-2"
+            >
+              {theme === 'pixel' ? (
+                <PixelIcon name="edit" />
+              ) : (
+                <PencilIcon className="w-4 h-4" />
+              )}
+              <span>{theme === 'pixel' ? 'EDIT' : theme === 'modern' ? 'Edit' : '编辑'}</span>
+            </ThemeButton>
+
+            <ThemeButton
+              variant="danger"
+              onClick={onDelete}
+              className="flex items-center space-x-2"
+            >
+              {theme === 'pixel' ? (
+                <PixelIcon name="delete" />
+              ) : (
+                <TrashIcon className="w-4 h-4" />
+              )}
+              <span>{theme === 'pixel' ? 'DELETE' : theme === 'modern' ? 'Delete' : '删除'}</span>
+            </ThemeButton>
+          </>
+        )}
+        
+        {/* 关闭按钮（始终显示在最右侧） */}
+        {onClose && (
           <ThemeButton variant="secondary" onClick={onClose}>
             {theme === 'pixel' ? 'CLOSE' : theme === 'modern' ? 'Close' : '关闭'}
           </ThemeButton>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 
