@@ -8,6 +8,19 @@ import {
   debugTimezone
 } from '../../utils/timezoneService';
 
+// 🔧 重复事件ID辅助函数
+const getOriginalEventId = (eventId: string): string => {
+  // 如果是展开的实例ID (格式: originalId-YYYY-MM-DD)，提取原始ID
+  return eventId.includes('-') && eventId.match(/-\d{4}-\d{2}-\d{2}$/) 
+    ? eventId.split('-').slice(0, -3).join('-')  // 移除最后的日期部分
+    : eventId; // 原始事件ID
+};
+
+const isExpandedInstance = (eventId: string): boolean => {
+  // 检查是否是展开的实例ID
+  return eventId.includes('-') && eventId.match(/-\d{4}-\d{2}-\d{2}$/) !== null;
+};
+
 // 🎯 事件表单管理Hook
 export const useEventForm = (
   user: any,
@@ -138,14 +151,28 @@ export const useEventForm = (
         let success = false;
 
         if (selectedEvent.isRecurring && scope) {
-          // 处理重复事件
-          const apiScope = scope === 'all_events' ? 'all' : 'this_and_following';
-          success = await eventService.updateRecurringEventInstances(
-            selectedEvent.id.split('-')[0],
-            apiScope,
-            selectedEvent.originalDate || selectedEvent.date,
-            updateData
-          );
+          const originalEventId = getOriginalEventId(selectedEvent.id);
+          
+          console.log('🔧 重复事件编辑参数:', {
+            原始ID: originalEventId,
+            选中事件ID: selectedEvent.id,
+            是否展开实例: isExpandedInstance(selectedEvent.id),
+            操作范围: scope
+          });
+          
+          if (scope === 'all_events') {
+            // 更新原始重复事件（影响所有实例）
+            success = await eventService.updateEvent(originalEventId, updateData);
+          } else if (scope === 'this_only') {
+            // 🔧 修改单个实例：添加到modified_instances
+            const instanceDate = selectedEvent.originalDate || selectedEvent.date;
+            success = await eventService.modifyRecurringEventInstance(originalEventId, instanceDate, updateData);
+          } else {
+            // this_and_future 暂时不支持
+            console.log('⚠️ 暂不支持编辑"此事件及之后"，请选择"仅此事件"或"所有重复事件"');
+            alert('暂不支持编辑"此事件及之后"，请选择"仅此事件"或"所有重复事件"');
+            return;
+          }
         } else {
           // 处理单个事件
           success = await eventService.updateEvent(selectedEvent.id, updateData);
@@ -205,8 +232,8 @@ export const useEventForm = (
     }
   }, [user, coupleId, coupleUsers, selectedEvent, loadEvents]);
 
-  // 开始编辑操作的辅助函数
-  const startEditWithScope = useCallback(async (scope: 'this_only' | 'this_and_future' | 'all_events') => {
+  // 🔧 开始编辑操作的辅助函数 - 只负责设置编辑状态，不执行具体操作
+  const startEditWithScope = useCallback(() => {
     if (!selectedEvent) return;
     
     // 预填充编辑表单数据
@@ -287,11 +314,29 @@ export const useEventForm = (
       let success = false;
 
       if (selectedEvent.isRecurring) {
-        const originalEventId = selectedEvent.id.split('-')[0];
+        const originalEventId = getOriginalEventId(selectedEvent.id);
         const instanceDate = selectedEvent.originalDate || selectedEvent.date;
-        // 映射scope参数到API期望的值
-        const apiScope = scope === 'all_events' ? 'all' : scope === 'this_and_future' ? 'this_and_following' : 'this_only';
-        success = await eventService.deleteRecurringEventInstances(originalEventId, apiScope, instanceDate);
+        
+        console.log('🗑️ 重复事件删除参数:', {
+          原始ID: originalEventId,
+          选中事件ID: selectedEvent.id,
+          是否展开实例: isExpandedInstance(selectedEvent.id),
+          实例日期: instanceDate,
+          操作范围: scope
+        });
+        
+        if (scope === 'all_events') {
+          // 删除原始重复事件（数据库中的真实记录）
+          success = await eventService.deleteEvent(originalEventId);
+        } else if (scope === 'this_only') {
+          // 🔧 删除单个实例：添加到excluded_dates
+          success = await eventService.excludeRecurringEventInstance(originalEventId, instanceDate);
+        } else {
+          // this_and_future 暂时不支持，因为需要更复杂的逻辑
+          console.log('⚠️ 暂不支持删除"此事件及之后"，请选择"仅此事件"或"所有重复事件"');
+          alert('暂不支持删除"此事件及之后"，请选择"仅此事件"或"所有重复事件"');
+          return;
+        }
       } else {
         success = await eventService.deleteEvent(selectedEvent.id);
       }

@@ -24,38 +24,72 @@ export interface TodoListRef {
 const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '', onTodoDropped }, ref) => {
   const { theme } = useTheme();
   
-  // 初始化一些测试待办事项
-  const [todos, setTodos] = useState<TodoItem[]>([
-    {
-      id: 'test-morning-7',
-      title: '🌅 测试早上7点拖拽',
-      completed: false,
-      createdAt: new Date()
-    },
-    {
-      id: 'test-evening-18',
-      title: '🌆 测试下午18点拖拽',
-      completed: false,
-      createdAt: new Date()
-    },
-    {
-      id: 'test-2', 
-      title: '准备会议材料',
-      completed: false,
-      createdAt: new Date()
-    },
-    {
-      id: 'test-3',
-      title: '已完成的任务',
-      completed: true,
-      createdAt: new Date()
+  // 🔧 从localStorage加载待办事项，如果没有则使用默认的测试数据
+  const loadTodosFromStorage = (): TodoItem[] => {
+    try {
+      const stored = localStorage.getItem('calendar-todos');
+      if (stored) {
+        const parsedTodos = JSON.parse(stored);
+        // 转换createdAt字符串回Date对象
+        return parsedTodos.map((todo: any) => ({
+          ...todo,
+          createdAt: new Date(todo.createdAt)
+        }));
+      }
+    } catch (error) {
+      console.warn('加载待办事项失败:', error);
     }
-  ]);
+    
+    // 返回默认的测试待办事项
+    return [
+      {
+        id: 'test-morning-7',
+        title: '🌅 测试早上7点拖拽',
+        completed: false,
+        createdAt: new Date()
+      },
+      {
+        id: 'test-evening-18',
+        title: '🌆 测试下午18点拖拽',
+        completed: false,
+        createdAt: new Date()
+      },
+      {
+        id: 'test-2', 
+        title: '准备会议材料',
+        completed: false,
+        createdAt: new Date()
+      },
+      {
+        id: 'test-3',
+        title: '已完成的任务',
+        completed: true,
+        createdAt: new Date()
+      }
+    ];
+  };
+
+  const [todos, setTodos] = useState<TodoItem[]>(loadTodosFromStorage);
   
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const todoListRef = useRef<HTMLDivElement>(null);
   const draggableRef = useRef<Draggable | null>(null);
+
+  // 🔧 保存待办事项到localStorage
+  const saveTodosToStorage = useCallback((todosToSave: TodoItem[]) => {
+    try {
+      localStorage.setItem('calendar-todos', JSON.stringify(todosToSave));
+      console.log('✅ 待办事项已保存到localStorage');
+    } catch (error) {
+      console.warn('保存待办事项失败:', error);
+    }
+  }, []);
+
+  // 🔧 当todos变化时自动保存
+  useEffect(() => {
+    saveTodosToStorage(todos);
+  }, [todos, saveTodosToStorage]);
 
   // 添加新待办
   const handleAddTodo = useCallback(() => {

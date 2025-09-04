@@ -336,6 +336,98 @@ export const eventService = {
       console.error('更新重复事件失败:', error);
       return false;
     }
+  },
+
+  // 🔧 新增：排除重复事件的特定实例（添加到excluded_dates）
+  async excludeRecurringEventInstance(eventId: string, excludeDate: string): Promise<boolean> {
+    try {
+      // 获取原始事件
+      const { data: event, error: fetchError } = await supabase
+        .from('events')
+        .select('excluded_dates')
+        .eq('id', eventId)
+        .single();
+
+      if (fetchError) {
+        console.error('获取事件失败:', fetchError);
+        return false;
+      }
+
+      // 添加新的排除日期
+      const currentExcludedDates = event.excluded_dates || [];
+      const updatedExcludedDates = [...currentExcludedDates, excludeDate];
+
+      // 更新数据库
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({ excluded_dates: updatedExcludedDates })
+        .eq('id', eventId);
+
+      if (updateError) {
+        console.error('更新excluded_dates失败:', updateError);
+        return false;
+      }
+
+      console.log('✅ 成功排除重复事件实例:', { eventId, excludeDate });
+      return true;
+    } catch (error) {
+      console.error('排除重复事件实例失败:', error);
+      return false;
+    }
+  },
+
+  // 🔧 新增：修改重复事件的特定实例（添加到modified_instances）
+  async modifyRecurringEventInstance(
+    eventId: string, 
+    modifyDate: string, 
+    modifications: Partial<UpdateEventParamsV2>
+  ): Promise<boolean> {
+    try {
+      // 获取原始事件
+      const { data: event, error: fetchError } = await supabase
+        .from('events')
+        .select('modified_instances')
+        .eq('id', eventId)
+        .single();
+
+      if (fetchError) {
+        console.error('获取事件失败:', fetchError);
+        return false;
+      }
+
+      // 转换时间为UTC（如果有时间修改）
+      const processedModifications = { ...modifications };
+      if (modifications.start_datetime && !modifications.is_all_day) {
+        processedModifications.start_datetime = convertUserTimeToUTC(modifications.start_datetime);
+      }
+      if (modifications.end_datetime && !modifications.is_all_day) {
+        processedModifications.end_datetime = convertUserTimeToUTC(modifications.end_datetime);
+      }
+
+      // 添加新的修改实例数据
+      const currentModifiedInstances = event.modified_instances || {};
+      const updatedModifiedInstances = {
+        ...currentModifiedInstances,
+        [modifyDate]: processedModifications
+      };
+
+      // 更新数据库
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({ modified_instances: updatedModifiedInstances })
+        .eq('id', eventId);
+
+      if (updateError) {
+        console.error('更新modified_instances失败:', updateError);
+        return false;
+      }
+
+      console.log('✅ 成功修改重复事件实例:', { eventId, modifyDate, modifications: processedModifications });
+      return true;
+    } catch (error) {
+      console.error('修改重复事件实例失败:', error);
+      return false;
+    }
   }
 };
 

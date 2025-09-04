@@ -184,12 +184,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     if (selectedEvent.isRecurring) {
       setRecurringActionDialog({
         open: true,
-        onThisOnly: () => startEditWithScope('this_only'),
-        onThisAndFuture: () => startEditWithScope('this_and_future'),
-        onAllEvents: () => startEditWithScope('all_events')
+        onThisOnly: () => startEditWithScope(),
+        onThisAndFuture: () => startEditWithScope(),
+        onAllEvents: () => startEditWithScope()
       });
     } else {
-      startEditWithScope('this_only');
+      startEditWithScope();
     }
   };
 

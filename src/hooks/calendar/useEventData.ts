@@ -16,21 +16,71 @@ const expandRecurringEvent = (dbEvent: SimplifiedEvent): SimplifiedEvent[] => {
   const startDate = parseISO(dbEvent.start_datetime);
   const endDate = dbEvent.recurrence_end ? parseISO(dbEvent.recurrence_end) : addMonths(startDate, 6); // 默认展开6个月
   
+  // 🔧 获取排除的日期列表
+  const excludedDates = new Set(dbEvent.excluded_dates || []);
+  
+  // 🔧 获取修改的实例数据
+  const modifiedInstances = dbEvent.modified_instances || {};
+  
   let currentDate = startDate;
   let instanceCount = 0;
   const maxInstances = 100; // 防止无限循环
 
   while ((isBefore(currentDate, endDate) || currentDate.getTime() === endDate.getTime()) && instanceCount < maxInstances) {
+    const currentDateStr = format(currentDate, 'yyyy-MM-dd');
+    
+    // 🔧 跳过被排除的日期
+    if (excludedDates.has(currentDateStr)) {
+      console.log('⏭️ 跳过被排除的日期:', currentDateStr);
+      // 继续到下一个日期
+      switch (dbEvent.recurrence_type) {
+        case 'daily':
+          currentDate = addDays(currentDate, 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, 1);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, 1);
+          break;
+        case 'yearly':
+          currentDate = addYears(currentDate, 1);
+          break;
+        default:
+          return instances;
+      }
+      instanceCount++;
+      continue;
+    }
+
     // 计算这个实例的时间
-    const instanceStartTime = currentDate.toISOString();
+    let instanceStartTime = currentDate.toISOString();
     const originalEnd = dbEvent.end_datetime ? parseISO(dbEvent.end_datetime) : addDays(currentDate, 1);
     const duration = originalEnd.getTime() - startDate.getTime();
-    const instanceEndTime = new Date(currentDate.getTime() + duration).toISOString();
+    let instanceEndTime = new Date(currentDate.getTime() + duration).toISOString();
+
+    // 🔧 检查是否有修改的实例数据
+    let instanceData = { ...dbEvent };
+    if (modifiedInstances[currentDateStr]) {
+      const modifications = modifiedInstances[currentDateStr];
+      console.log('🔧 应用修改的实例数据:', { date: currentDateStr, modifications });
+      
+      // 应用修改的数据
+      instanceData = { ...instanceData, ...modifications };
+      
+      // 如果修改了时间，重新计算
+      if (modifications.start_datetime) {
+        instanceStartTime = modifications.start_datetime;
+      }
+      if (modifications.end_datetime) {
+        instanceEndTime = modifications.end_datetime;
+      }
+    }
 
     // 创建实例
     const instance = {
-      ...dbEvent,
-      id: instanceCount === 0 ? dbEvent.id : `${dbEvent.id}-${format(currentDate, 'yyyy-MM-dd')}`,
+      ...instanceData,
+      id: instanceCount === 0 ? dbEvent.id : `${dbEvent.id}-${currentDateStr}`,
       start_datetime: instanceStartTime,
       end_datetime: instanceEndTime,
       original_date: format(startDate, 'yyyy-MM-dd')
@@ -63,6 +113,8 @@ const expandRecurringEvent = (dbEvent: SimplifiedEvent): SimplifiedEvent[] => {
     原始事件: dbEvent.title,
     重复类型: dbEvent.recurrence_type,
     生成实例数: instances.length,
+    排除日期数: excludedDates.size,
+    修改实例数: Object.keys(modifiedInstances).length,
     开始日期: format(startDate, 'yyyy-MM-dd'),
     结束日期: format(endDate, 'yyyy-MM-dd')
   });

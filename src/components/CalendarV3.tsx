@@ -235,6 +235,24 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
         return;
       }
 
+      // 🔧 检查是否是重复事件的展开实例
+      const isExpandedInstance = eventId.includes('-') && eventId.match(/-\d{4}-\d{2}-\d{2}$/) !== null;
+      const originalEventId = isExpandedInstance 
+        ? eventId.split('-').slice(0, -3).join('-')  // 提取原始ID
+        : eventId;
+
+      console.log('🔄 事件拖拽分析:', {
+        事件ID: eventId,
+        是否展开实例: isExpandedInstance,
+        原始ID: originalEventId,
+        是否重复事件: eventToUpdate.isRecurring
+      });
+
+      // 🔧 重复事件实例拖拽现在支持单实例修改
+      if (eventToUpdate.isRecurring && isExpandedInstance) {
+        console.log('📅 重复事件实例拖拽 - 将修改单个实例');
+      }
+
       // 构造新的开始和结束时间
       let newStartDateTime: string;
       let newEndDateTime: string;
@@ -276,11 +294,25 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
       const utcStartDateTime = convertUserTimeToUTC(newStartDateTime);
       const utcEndDateTime = convertUserTimeToUTC(newEndDateTime);
 
-      // 更新事件
-      const updated = await eventService.updateEvent(eventId, {
-        start_datetime: utcStartDateTime,
-        end_datetime: utcEndDateTime
-      });
+      // 🔧 更新事件 - 区分重复事件的处理方式
+      let updated = false;
+      
+      if (eventToUpdate.isRecurring && isExpandedInstance) {
+        // 重复事件的展开实例 - 修改单个实例
+        const instanceDate = eventToUpdate.originalDate || eventToUpdate.date;
+        updated = await eventService.modifyRecurringEventInstance(originalEventId, instanceDate, {
+          start_datetime: newStartDateTime, // 使用本地时间，函数内部会转换为UTC
+          end_datetime: newEndDateTime,
+          is_all_day: eventToUpdate.isAllDay
+        });
+      } else {
+        // 非重复事件或原始重复事件 - 直接更新
+        const targetEventId = eventToUpdate.isRecurring ? originalEventId : eventId;
+        updated = await eventService.updateEvent(targetEventId, {
+          start_datetime: utcStartDateTime,
+          end_datetime: utcEndDateTime
+        });
+      }
 
       if (updated) {
         console.log('✅ 事件拖拽更新成功');
@@ -294,15 +326,13 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 处理新建事件
   const handleAddEvent = useCallback(() => {
-    if (!selectedDate) {
-      alert('请先选择一个日期')
-      return
-    }
+    // 🔧 如果没有选择日期，使用今天的日期
+    const targetDate = selectedDate || new Date().toISOString().split('T')[0]
     
     // 设置默认时间
     const now = new Date()
-    const defaultStart = `${selectedDate}T${(now.getHours() + 1).toString().padStart(2, '0')}:00`
-    const defaultEnd = `${selectedDate}T${(now.getHours() + 2).toString().padStart(2, '0')}:00`
+    const defaultStart = `${targetDate}T${(now.getHours() + 1).toString().padStart(2, '0')}:00`
+    const defaultEnd = `${targetDate}T${(now.getHours() + 2).toString().padStart(2, '0')}:00`
     
     setNewEvent({
       title: '',
@@ -485,15 +515,13 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
             {isRefreshing ? '刷新中...' : '刷新'}
           </Button>
           
-          {selectedDate && (
-            <Button
-              onClick={handleAddEvent}
-              variant="primary"
-              size="sm"
-            >
-              添加日程
-            </Button>
-          )}
+          <Button
+            onClick={handleAddEvent}
+            variant="primary"
+            size="sm"
+          >
+            添加日程
+          </Button>
         </div>
       </div>
 
@@ -575,35 +603,14 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
               coupleUsers={coupleUsers}
               currentView={currentView}
               onEdit={() => {
-                // 填充编辑表单数据
                 if (selectedEvent) {
-                  // 转换事件数据到表单格式
-                  let startDateTime = '';
-                  let endDateTime = '';
-                  
-                  if (!selectedEvent.isAllDay && selectedEvent.rawStartTime) {
-                    startDateTime = `${selectedEvent.date}T${selectedEvent.rawStartTime.slice(0, 5)}`;
-                  }
-                  if (!selectedEvent.isAllDay && selectedEvent.rawEndTime) {
-                    endDateTime = `${selectedEvent.date}T${selectedEvent.rawEndTime.slice(0, 5)}`;
-                  }
-                  
-                  setEditEvent({
-                    title: selectedEvent.title,
-                    location: selectedEvent.location || '',
-                    startDateTime: startDateTime,
-                    endDateTime: endDateTime,
-                    isAllDay: selectedEvent.isAllDay || false,
-                    description: selectedEvent.description || '',
-                    includesUser1: selectedEvent.participants.includes(coupleUsers?.user1?.id || ''),
-                    includesUser2: selectedEvent.participants.includes(coupleUsers?.user2?.id || '')
-                  });
+                  // 🔧 直接进入编辑状态，不管是否为重复事件
+                  startEditWithScope();
                 }
-                setIsEditing(true);
               }}
               onDelete={() => {
                 if (selectedEvent?.isRecurring) {
-                  // 对于重复事件，显示选择对话框
+                  // 重复事件显示选择对话框
                   setRecurringActionDialog({
                     open: true,
                     onThisOnly: () => deleteEventWithScope('this_only'),
@@ -627,12 +634,27 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
               onSubmit={(eventData) => {
                 const mode = 'edit'
                 if (selectedEvent?.isRecurring) {
-                  // 对于重复事件，显示选择对话框
+                  // 重复事件显示选择对话框
                   setRecurringActionDialog({
                     open: true,
-                    onThisOnly: () => handleEventSubmit(mode, eventData, 'this_only'),
-                    onThisAndFuture: () => handleEventSubmit(mode, eventData, 'this_and_future'),
-                    onAllEvents: () => handleEventSubmit(mode, eventData, 'all_events')
+                    onThisOnly: () => {
+                      handleEventSubmit(mode, eventData, 'this_only').then(() => {
+                        setIsEditing(false);
+                        setRecurringActionDialog(prev => ({ ...prev, open: false }));
+                      });
+                    },
+                    onThisAndFuture: () => {
+                      handleEventSubmit(mode, eventData, 'this_and_future').then(() => {
+                        setIsEditing(false);
+                        setRecurringActionDialog(prev => ({ ...prev, open: false }));
+                      });
+                    },
+                    onAllEvents: () => {
+                      handleEventSubmit(mode, eventData, 'all_events').then(() => {
+                        setIsEditing(false);
+                        setRecurringActionDialog(prev => ({ ...prev, open: false }));
+                      });
+                    }
                   });
                 } else {
                   handleEventSubmit(mode, eventData).then(() => {
