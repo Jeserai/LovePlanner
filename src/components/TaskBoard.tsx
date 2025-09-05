@@ -1131,7 +1131,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             return;
           }
       }
-    } else {
+                  } else {
           // 🎯 重复任务：最早开始时间必填
           if (!newTask.earliest_start_time) {
             alert('请设置重复任务的最早开始时间');
@@ -1280,7 +1280,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             description={theme === 'pixel' ? 'WHEN_CAN_START' : theme === 'modern' ? 'When can this task be started? (Leave empty if anytime)' : '任务最早什么时候可以开始？（留空表示随时可以开始）'}
           >
             <ThemeInput
-              type="datetime-local"
+                  type="datetime-local"
               value={newTask.earliest_start_time}
               onChange={(e) => setNewTask(prev => ({ ...prev, earliest_start_time: e.target.value }))}
                   min={getCurrentLocalDateTimeString()}
@@ -1300,10 +1300,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             />
           </ThemeFormField>
             </div>
-          );
+      );
     } else {
         // 重复任务：按照要求的字段顺序
-          return (
+      return (
           <div className="space-y-4">
             <div className={`text-sm ${
               theme === 'pixel' ? 'text-pixel-textMuted' : 
@@ -1481,7 +1481,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               min={formatDateTimeLocal(editTask.earliest_start_time) || getCurrentLocalDateTimeString()}
             />
           </ThemeFormField>
-              </div>
+            </div>
       );
     } else {
       // 重复任务：按照要求的字段顺序

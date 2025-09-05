@@ -88,16 +88,6 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // 获取过滤后的事件
   const getFilteredEvents = useCallback((allEvents: Event[]): Event[] => {
-    console.log('🔍 getFilteredEvents被调用:', {
-      allEvents数量: allEvents.length,
-      user存在: !!user,
-      coupleUsers存在: !!coupleUsers,
-      userId: user?.id,
-      coupleUsersData: coupleUsers ? {
-        user1: coupleUsers.user1.id,
-        user2: coupleUsers.user2.id
-      } : null
-    });
 
     if (!user || !coupleUsers) {
       console.log('🚫 用户或情侣信息缺失，返回空数组');
@@ -153,7 +143,9 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
         break
       case 'partner':
         filteredEvents = allEvents.filter(event => {
-          return event.participants.includes(partnerIdForFiltering)
+          // 只显示伴侣的个人事件，排除共同事件
+          return event.participants.includes(partnerIdForFiltering) && 
+                 !event.participants.includes(currentUserId)
         })
         break
       case 'shared':
@@ -166,10 +158,7 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
         filteredEvents = allEvents
     }
 
-    console.log('✅ 过滤完成:', {
-      过滤后数量: filteredEvents.length,
-      过滤后事件: filteredEvents.map(e => e.title)
-    })
+    // 过滤完成
 
     return filteredEvents
   }, [user, coupleUsers, currentView])
@@ -578,82 +567,21 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
       {/* 测试时区控制器 */}
       {process.env.NODE_ENV === 'development' && <TestTimezoneController />}
       
-      {/* 页面头部 */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className={`text-3xl font-bold ${
-              theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'
-            }`}>
-              {theme === 'pixel' ? 'CALENDAR_V3.EXE' : '日历'}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {getViewDisplayName()} • {filteredEvents.length} 个事件
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {/* 视图切换按钮组 */}
-            <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1">
-              {(['all', 'my', 'partner', 'shared'] as const).map((view) => {
-                const isActive = currentView === view
-                return (
-                  <button
-                    key={view}
-                    onClick={() => setCurrentView(view)}
-                    className={`
-                      h-8 px-3 rounded-md text-sm font-medium transition-all duration-200
-                      ${getViewThemeButtonStyle(view, isActive)}
-                    `}
-                    style={getViewThemeButtonBackground(view, isActive)}
-                  >
-                    {view === 'all' && (theme === 'pixel' ? 'ALL' : '全部')}
-                    {view === 'my' && (theme === 'pixel' ? 'MY' : '我的')}
-                    {view === 'partner' && (theme === 'pixel' ? 'PTN' : '伴侣')}
-                    {view === 'shared' && (theme === 'pixel' ? 'SHR' : '共同')}
-                  </button>
-                )
-              })}
-            </div>
-            
-            {/* 操作按钮组 */}
-            <div className="flex items-center space-x-2">
-              <ThemeButton
-                onClick={handleRefresh}
-                variant="secondary"
-                size="sm"
-                disabled={isRefreshing}
-              >
-                {isRefreshing ? '刷新中...' : '刷新'}
-              </ThemeButton>
-              
-              <ThemeButton
-                onClick={handleAddEvent}
-                variant="primary"
-                size="sm"
-              >
-                添加日程
-              </ThemeButton>
-            </div>
-          </div>
+      {/* 只读模式提示 */}
+      {currentView === 'partner' && (
+        <div className={`mb-6 inline-flex items-center text-xs px-3 py-1.5 rounded-full ${
+          theme === 'pixel' 
+            ? 'bg-pixel-panel text-pixel-textMuted font-mono border border-pixel-border'
+            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
+        }`}>
+          <span className="mr-1">⚠️</span>
+          {theme === 'pixel' ? 'READ_ONLY_MODE' : '只读模式 - 查看伴侣日程'}
         </div>
-        
-        {/* 只读模式提示 */}
-        {currentView === 'partner' && (
-          <div className={`mt-3 inline-flex items-center text-xs px-3 py-1.5 rounded-full ${
-            theme === 'pixel' 
-              ? 'bg-pixel-panel text-pixel-textMuted font-mono border border-pixel-border'
-              : 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
-          }`}>
-            <span className="mr-1">⚠️</span>
-            {theme === 'pixel' ? 'READ_ONLY_MODE' : '只读模式 - 查看伴侣日程'}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* 主要内容区域 */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative">
-        {/* 左侧 To-Do List - 粘性定位 */}
+        {/* 左侧 To-Do List - 恢复sticky定位 */}
         <div className="lg:col-span-1">
           <div className="sticky top-6 z-20">
             <TodoList 
@@ -665,8 +593,9 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
           </div>
         </div>
 
-        {/* FullCalendar 主视图 */}
+        {/* FullCalendar 主视图 - 整个日历作为一个sticky单元 */}
         <div className="lg:col-span-3">
+          <div className="sticky top-6 z-10">
           <FullCalendarComponent
             events={filteredEvents}
             currentView={currentView}
@@ -676,7 +605,13 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
             onDateSelect={handleDateSelect}
             onEventDrop={handleEventDrop}
             onTodoDrop={handleTodoDrop}
+            onViewChange={setCurrentView}
+            onAddEvent={handleAddEvent}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+            filteredEventsCount={filteredEvents.length}
           />
+          </div>
         </div>
       </div>
 

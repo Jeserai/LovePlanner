@@ -368,147 +368,167 @@
   @apply text-muted-foreground;
 }
 
-/* 确保事件颜色正确显示，移除所有边框 */
-.fc-event {
-  border: none !important;
-  border-width: 0 !important;
-}
+/* 🎨 事件颜色样式 - 不干扰FullCalendar高度计算 */
 
-.fc-event .fc-event-main {
-  color: inherit !important;
-  border: none !important;
-}
-
-/* 清理默认样式，移除边框 */
-.fc-event {
-  border: none !important;
-  border-radius: 6px !important;
-  overflow: hidden !important;
-}
-
-/* 移除内部元素的背景和边框，确保透明 */
-.fc-event .fc-event-main,
-.fc-event .fc-event-main-frame {
-  background: transparent !important;
-  border: none !important;
-}
-
-/* 用户1事件 - 青色 (Cyan 500) */
+/* 用户1事件 - 青色 */
 .fc-event.event-user1 {
-  background-color: #06b6d4 !important;
-  border: none !important;
-  color: white !important;
+  background-color: #06b6d4;
+  color: white;
 }
 
-/* 用户2事件 - 紫色 (Violet 500) */  
+/* 用户2事件 - 紫色 */  
 .fc-event.event-user2 {
-  background-color: #8b5cf6 !important;
-  border: none !important;
-  color: white !important;
+  background-color: #8b5cf6;
+  color: white;
 }
 
-/* 共同事件 - 绿色 (Emerald 500) */
+/* 共同事件 - 绿色 */
 .fc-event.event-shared {
-  background-color: #10b981 !important;
-  border: none !important;
-  color: white !important;
+  background-color: #10b981;
+  color: white;
 }
 
-/* 默认事件 - 蓝色 (Blue 500) */
+/* 默认事件 - 蓝色 */
 .fc-event.event-default {
-  background-color: #3b82f6 !important;
-  border: none !important;
-  color: white !important;
+  background-color: #3b82f6;
+  color: white;
 }
 
-/* 强制移除所有可能的边框 */
-.fc-event,
-.fc-event.fc-daygrid-event,
-.fc-event.fc-timegrid-event {
-  border: none !important;
-  border-width: 0 !important;
+/* 简单的hover效果 - 不影响高度 */
+.modern-calendar .fc-event:hover {
+  opacity: 0.8;
+  cursor: pointer;
 }
 
-/* 统一的hover效果 - 应用到整个事件容器 */
-.modern-calendar .fc-event {
-  transition: all 0.2s ease !important;
-  cursor: pointer !important;
+/* 🔝 FullCalendar内部滚动 - 修复sticky表头 */
+
+/* FullCalendar外层容器 - 移除滚动，让内部处理 */
+.fullcalendar-container {
+  position: relative;
+  border: 5px solid #ff1493 !important; /* 🌸 调试：粉色边框 */
+  height: 100% !important; /* 确保容器有明确高度 */
+  /* 移除 overflow: hidden，让FullCalendar自己管理滚动 */
+}
+
+/* 启用FullCalendar的原生sticky表头 - 带调试样式 */
+.fc-scrollgrid-section-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  background: #ff0000 !important; /* 🔴 调试：红色背景 */
+  border: 3px solid #00ff00 !important; /* 🟢 调试：绿色边框 */
+  box-shadow: 0 4px 8px rgba(255,0,0,0.5) !important; /* 🔴 调试：红色阴影 */
+}
+
+/* 表头单元格样式 - 带调试 */
+.fc-col-header-cell {
+  background: #ffff00 !important; /* 🟡 调试：黄色背景 */
+  border: 2px solid #0000ff !important; /* 🔵 调试：蓝色边框 */
+}
+
+/* 时间网格视图的表头 - 带调试 */
+.fc-timegrid .fc-scrollgrid-section-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  background: #ff00ff !important; /* 🟣 调试：紫色背景 */
+  border: 3px solid #00ffff !important; /* 🔵 调试：青色边框 */
+}
+
+/* 全天事件区域sticky - 在表头下方 - 带调试 */
+.fc-timegrid .fc-daygrid-body {
+  position: sticky !important;
+  top: 40px !important; /* 表头高度 */
+  z-index: 35 !important;
+  background: #ffa500 !important; /* 🟠 调试：橙色背景 */
+  border: 3px solid #800080 !important; /* 🟣 调试：紫色边框 */
+  box-shadow: 0 4px 8px rgba(255,165,0,0.5) !important; /* 🟠 调试：橙色阴影 */
+}
+
+/* 确保全天事件区域的单元格有背景 */
+.fc-daygrid-day-frame {
+  background: var(--card) !important;
+}
+
+/* 时间轴sticky - 左侧固定 */
+.fc-timegrid-axis-cushion {
+  background: var(--card) !important;
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 30 !important;
+}
+
+/* 时间网格滚动区域 */
+.fc-timegrid-body {
+  position: relative;
+}
+
+/* 恢复FullCalendar内部滚动 */
+.fc-scroller {
+  border: 2px dashed green !important; /* 🟢 调试：绿色虚线边框 */
+  overflow-y: auto !important; /* 🔧 恢复垂直滚动 */
+  overflow-x: hidden !important; /* 隐藏水平滚动 */
+}
+
+/* 针对主时间网格容器 - 基于调试信息，第3个容器是主容器 */
+.fc-timegrid .fc-scroller,
+.fc-timegrid-body .fc-scroller {
+  max-height: 70vh !important; /* 限制最大高度，强制内部滚动 */
+  overflow-y: auto !important;
+}
+
+/* 简化的sticky表头 - 让FullCalendar自己处理 */
+.fc-scrollgrid-section-header {
+  position: sticky !important;
+  top: 0px !important;
+  z-index: 10 !important;
+  background: var(--card) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+/* 调试边框 - 用于识别元素 */
+.fc-scrollgrid-section-header {
+  border: 2px solid red !important; /* 🔴 调试：红色边框 */
+}
+
+.fc-timegrid .fc-daygrid-body {
+  border: 2px solid orange !important; /* 🟠 调试：橙色边框 */
+}
+
+/* 确保表头容器也有正确的定位 */
+.fc-scrollgrid-section {
   position: relative !important;
 }
 
-/* hover效果应用到整个事件，不仅仅是内部 */
-.modern-calendar .fc-event:hover {
-  box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
-  transform: translateY(-2px) scale(1.02) !important;
-  z-index: 1000 !important;
+.fc-scrollgrid {
+  position: relative !important;
 }
 
-/* 确保内部元素不干扰hover效果 */
-.modern-calendar .fc-event:hover .fc-event-main,
-.modern-calendar .fc-event:hover .fc-event-main-frame {
-  background: transparent !important;
+/* 深色模式支持 */
+.dark .fc-scrollgrid-section-header,
+.dark .fc-col-header-cell,
+.dark .fc-timegrid .fc-scrollgrid-section-header,
+.dark .fc-timegrid .fc-daygrid-body,
+.dark .fc-daygrid-day-frame,
+.dark .fc-timegrid-axis-cushion {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
 }
 
-/* 确保文本颜色正确 - 覆盖所有可能的文本元素 */
-.fc-event .fc-event-title,
-.fc-event .fc-event-time,
-.fc-event .fc-event-main,
-.fc-event .fc-event-main-frame,
-.fc-event a,
-.fc-event span {
-  color: white !important;
+/* 像素主题的sticky样式 */
+.pixel-calendar .fc-scrollgrid-section-header,
+.pixel-calendar .fc-col-header-cell,
+.pixel-calendar .fc-timegrid .fc-scrollgrid-section-header,
+.pixel-calendar .fc-timegrid .fc-daygrid-body {
+  background: white !important;
+  border: 2px solid black !important;
+  box-shadow: 2px 2px 0px #000 !important;
 }
 
-/* 特别确保不同类型事件的文本颜色 */
-.fc-event.event-user1 .fc-event-title,
-.fc-event.event-user1 .fc-event-time,
-.fc-event.event-user2 .fc-event-title,
-.fc-event.event-user2 .fc-event-time,
-.fc-event.event-shared .fc-event-title,
-.fc-event.event-shared .fc-event-time,
-.fc-event.event-default .fc-event-title,
-.fc-event.event-default .fc-event-time {
-  color: white !important;
+.pixel-calendar .fc-daygrid-day-frame,
+.pixel-calendar .fc-timegrid-axis-cushion {
+  background: white !important;
+  border: 1px solid black !important;
 }
 
-/* 移除FullCalendar默认的内部样式 */
-.fc-event .fc-event-main-frame {
-  padding: 4px 6px !important;
-  border: none !important;
-}
-
-.fc-event .fc-event-title-container {
-  flex-grow: 1 !important;
-}
-
-/* 强制覆盖所有可能的边框样式 */
-.fc .fc-event,
-.fc .fc-event.fc-daygrid-event,
-.fc .fc-event.fc-timegrid-event,
-.fc .fc-event.fc-list-event,
-.fc-theme-standard .fc-event,
-.fc-theme-bootstrap .fc-event {
-  border: none !important;
-  border-width: 0 !important;
-  border-color: transparent !important;
-}
-
-/* 确保内部所有元素都没有边框，但保持高度计算 */
-.fc-event .fc-event-main,
-.fc-event .fc-event-main-frame {
-  border: none !important;
-  height: 100% !important;
-  min-height: inherit !important;
-}
-
-/* 确保时间网格事件保持正确的高度 */
-.fc-timegrid-event {
-  min-height: auto !important;
-}
-
-.fc-timegrid-event .fc-event-main {
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-}
+/* 调试样式已移除，使用FullCalendar官方样式 */

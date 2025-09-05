@@ -243,32 +243,25 @@ export const useEventForm = (
     let startDateTime = '';
     let endDateTime = '';
     
-    // 🎯 统一时区处理：将UTC时间转换为用户本地的datetime-local格式
-    const convertToDateTimeLocal = (timeStr: string, dateStr: string) => {
-      try {
-        if (timeStr.includes('T') || timeStr.includes(' ')) {
-          // 完整的 datetime 字符串 (ISO format)
-          return convertUTCToUserDateTimeLocal(timeStr);
-        } else if (timeStr.includes(':')) {
-          // 时间字符串格式："HH:MM:SS" 或 "HH:MM"
-          // 统一假设为UTC时间，转换为本地时间
-          const utcDatetimeString = `${dateStr}T${timeStr}${timeStr.length === 5 ? ':00' : ''}Z`;
-          return convertUTCToUserDateTimeLocal(utcDatetimeString);
-        }
-      } catch (e) {
-        console.warn('时间转换失败:', timeStr, e);
-      }
-      return `${dateStr}T09:00`; // 默认值
-    };
-    
+    // 🎯 修复时区处理：rawStartTime和rawEndTime已经是本地时间，直接组合即可
     if ((event as any).rawStartTime) {
-      startDateTime = convertToDateTimeLocal((event as any).rawStartTime, event.date);
-      debugTimezone('编辑表单开始时间', (event as any).rawStartTime);
+      // rawStartTime已经是本地时间（如 "11:30:00"），直接与日期组合
+      const timeStr = (event as any).rawStartTime;
+      startDateTime = `${event.date}T${timeStr.slice(0, 5)}`; // 只取HH:MM部分
+      console.log('📝 编辑表单开始时间:', {
+        原始rawStartTime: (event as any).rawStartTime,
+        组合结果: startDateTime
+      });
     }
     
     if ((event as any).rawEndTime) {
-      endDateTime = convertToDateTimeLocal((event as any).rawEndTime, event.date);
-      debugTimezone('编辑表单结束时间', (event as any).rawEndTime);
+      // rawEndTime已经是本地时间（如 "12:30:00"），直接与日期组合
+      const timeStr = (event as any).rawEndTime;
+      endDateTime = `${event.date}T${timeStr.slice(0, 5)}`; // 只取HH:MM部分
+      console.log('📝 编辑表单结束时间:', {
+        原始rawEndTime: (event as any).rawEndTime,
+        组合结果: endDateTime
+      });
     }
     
     // 默认值，如果没有原始时间数据
