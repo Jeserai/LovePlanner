@@ -381,8 +381,58 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         time字段: event.time
       })
       
-      // 优先使用rawStartTime和rawEndTime，这些包含完整的日期时间信息
-      if (event.rawStartTime && event.rawStartTime !== 'Invalid Date') {
+      // 🚨 重要：跨天事件检测
+      let isPotentialMultiDay = false
+      if (event.rawStartTime && event.rawEndTime && 
+          event.rawStartTime.includes(' ') && event.rawEndTime.includes(' ')) {
+        const startDatePart = event.rawStartTime.split(' ')[0]
+        const endDatePart = event.rawEndTime.split(' ')[0]
+        isPotentialMultiDay = startDatePart !== endDatePart
+        
+        if (isPotentialMultiDay) {
+          console.log('🌅 检测到潜在跨天事件:', {
+            事件: event.title,
+            开始日期: startDatePart,
+            结束日期: endDatePart
+          })
+        }
+      }
+      
+      // 🚨 首先检查time字段是否包含完整的跨天信息
+      if (event.time && event.time.includes(' - ') && event.time.includes('/')) {
+        // time字段格式：2025/09/01 14:00:00 - 2025/09/02 15:00:00
+        const timeParts = event.time.split(' - ')
+        if (timeParts.length === 2) {
+          const startPart = timeParts[0].trim() // "2025/09/01 14:00:00"
+          const endPart = timeParts[1].trim()   // "2025/09/02 15:00:00"
+          
+          if (startPart.includes(' ') && endPart.includes(' ')) {
+            // 转换开始时间
+            const startParts = startPart.split(' ')
+            const startDate = startParts[0].replace(/\//g, '-') // "2025-09-01"
+            const startTime_part = startParts[1] // "14:00:00"
+            startTime = `${startDate}T${startTime_part}`
+            
+            // 转换结束时间
+            const endParts = endPart.split(' ')
+            const endDate = endParts[0].replace(/\//g, '-') // "2025-09-02"
+            const endTime_part = endParts[1] // "15:00:00"
+            endTime = `${endDate}T${endTime_part}`
+            
+            isAllDay = false
+            
+            console.log('🌅 从time字段解析跨天事件:', {
+              事件: event.title,
+              原始time: event.time,
+              解析开始: startTime,
+              解析结束: endTime,
+              是否跨天: startTime.split('T')[0] !== endTime.split('T')[0]
+            })
+          }
+        }
+      }
+      // 如果time字段没有完整信息，再使用rawStartTime和rawEndTime
+      else if (event.rawStartTime && event.rawStartTime !== 'Invalid Date') {
         // rawStartTime格式是 "2025/09/06 04:00:00" (中文本地化格式)
         if (event.rawStartTime.includes(' ')) {
           // 完整的日期时间格式：转换为ISO格式
@@ -494,10 +544,13 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         }
       }
       
-      // 🕐 事件时间转换调试 - 检查面积显示问题
+      // 🕐 事件时间转换调试 - 检查跨天事件显示
       const duration = fcEvent.end && fcEvent.start && !fcEvent.allDay ? 
         (new Date(fcEvent.end).getTime() - new Date(fcEvent.start).getTime()) / (1000 * 60) : 
         null;
+      
+      const isMultiDay = fcEvent.start && fcEvent.end && 
+        fcEvent.start.split('T')[0] !== fcEvent.end.split('T')[0];
       
       console.log('⏰ 事件时间详情:', {
         事件: event.title,
@@ -507,10 +560,22 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         转换后开始: fcEvent.start,
         转换后结束: fcEvent.end,
         全天事件: fcEvent.allDay,
+        是否跨天: isMultiDay,
         计算持续时间: duration ? `${duration}分钟` : '未知',
         开始时间有效: fcEvent.start ? new Date(fcEvent.start).toString() : '无效',
         结束时间有效: fcEvent.end ? new Date(fcEvent.end).toString() : '无效'
       });
+      
+      if (isMultiDay) {
+        console.log('🌅 跨天事件详情:', {
+          事件标题: event.title,
+          开始日期: fcEvent.start.split('T')[0],
+          结束日期: fcEvent.end?.split('T')[0],
+          开始时间: fcEvent.start.split('T')[1],
+          结束时间: fcEvent.end?.split('T')[1],
+          跨越天数: duration ? Math.ceil(duration / (24 * 60)) : '未知'
+        });
+      }
       
       return fcEvent
     })
@@ -521,11 +586,15 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       const duration = e.end && e.start && endDate ? 
         Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60)) : 0;
       
+      const isMultiDay = e.start && e.end && 
+        e.start.split('T')[0] !== e.end.split('T')[0];
+      
       return {
         事件: e.title,
         开始: e.start,
         结束: e.end || '未设置',
         全天: e.allDay,
+        是否跨天: isMultiDay,
         持续时间: `${duration}分钟`,
         开始Date对象: startDate.toString(),
         结束Date对象: endDate ? endDate.toString() : '未设置',
@@ -534,6 +603,34 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         时间差毫秒: endDate ? endDate.getTime() - startDate.getTime() : 0
       };
     }));
+    
+    // 🔍 专门检查跨天事件
+    const multiDayEvents = converted.filter(e => 
+      e.start && e.end && e.start.split('T')[0] !== e.end.split('T')[0]
+    );
+    
+    if (multiDayEvents.length > 0) {
+      console.log('🌅🌅🌅 发现跨天事件:', multiDayEvents.length, '个 🌅🌅🌅');
+      multiDayEvents.forEach(e => {
+        console.log('🌅 跨天事件详情:', {
+          标题: e.title,
+          ID: e.id,
+          开始: e.start,
+          结束: e.end,
+          开始日期: e.start.split('T')[0],
+          结束日期: e.end?.split('T')[0],
+          全天: e.allDay,
+          FullCalendar格式: '检查格式是否正确',
+          nextDayThreshold影响: '检查是否被00:00:00阈值影响'
+        });
+      });
+      
+      // 🚨 重要：验证 FullCalendar 是否接收到正确的跨天事件
+      console.log('🚨 即将传递给FullCalendar的跨天事件:');
+      multiDayEvents.forEach(e => {
+        console.log(`📅 ${e.title}: ${e.start} → ${e.end} (跨${Math.ceil((new Date(e.end).getTime() - new Date(e.start).getTime()) / (24 * 60 * 60 * 1000))}天)`);
+      });
+    }
     
     return converted
   }, [events, currentView, theme, getEventBackgroundColor, getEventBorderColor, getEventTextColor])
@@ -980,8 +1077,10 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           selectable={currentView !== 'partner'}
           selectMirror={currentView !== 'partner'}
           unselectAuto={false} // 不自动取消选择，让用户看到选择结果
-          selectOverlap={false} // 不允许与现有事件重叠选择
-          selectMinDistance={5} // 最小选择距离（像素）
+          selectOverlap={true} // 允许与现有事件重叠选择，支持跨天拖动
+          selectMinDistance={0} // 最小选择距离设为0，允许更灵活的选择
+          // selectConstraint 移除此行以允许跨天选择
+          selectAllow={() => true} // 允许所有选择，包括跨天选择
           dayMaxEvents={true}
           weekends={true}
           editable={currentView !== 'partner'}
@@ -996,9 +1095,10 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           eventMinHeight={30} // 最小事件高度（像素）
           eventShortHeight={30} // 短事件的高度（像素）
           slotEventOverlap={false} // 禁止事件重叠，确保清晰显示
-          nextDayThreshold="06:00:00" // 跨天阈值：6点前算前一天
+          nextDayThreshold="00:00:00" // 跨天阈值：设为午夜，确保跨天事件正确显示
           firstDay={1} // 周一开始
           eventDisplay="block"
+          displayEventEnd={true} // 确保显示事件结束时间，对跨天事件很重要
           displayEventTime={true}
           eventTimeFormat={{
             hour: '2-digit',
