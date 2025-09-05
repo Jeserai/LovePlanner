@@ -883,7 +883,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
             hour12: false
           }}
           nowIndicator={true}
-          scrollTime="08:00:00"
+          scrollTime="06:00:00"
           // 视图变化回调
           datesSet={updateCalendarTitle}
           viewDidMount={(info) => {

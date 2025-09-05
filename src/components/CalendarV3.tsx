@@ -43,7 +43,7 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   )
 
   // 状态管理
-  const [currentView, setCurrentView] = useState<'all' | 'my' | 'partner' | 'shared'>('all')
+  const [currentView, setCurrentView] = useState<'all' | 'my' | 'partner' | 'shared'>('my')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showNewEventDialog, setShowNewEventDialog] = useState(false)
   const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null)
