@@ -28,9 +28,9 @@ export const colorService = {
     }
 
     return {
-      user1Color: data.user1_color || '#06b6d4',
-      user2Color: data.user2_color || '#8b5cf6',
-      sharedColor: data.shared_color || '#10b981'
+      user1Color: data.user1_color || '#3b82f6',
+      user2Color: data.user2_color || '#ec4899',
+      sharedColor: data.shared_color || '#8b5cf6'
     };
   },
 
@@ -77,9 +77,9 @@ export const colorService = {
    */
   getDefaultColors(): CoupleColors {
     return {
-      user1Color: '#06b6d4', // 经典蓝色
-      user2Color: '#8b5cf6', // 经典紫色
-      sharedColor: '#10b981' // 经典绿色
+      user1Color: '#3b82f6', // 蓝色
+      user2Color: '#ec4899', // 粉色
+      sharedColor: '#8b5cf6' // 紫色
     };
   },
 

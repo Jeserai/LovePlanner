@@ -8,7 +8,6 @@ import { useEventForm } from '../hooks/calendar/useEventForm'
 import FullCalendarComponent from './FullCalendarComponent'
 import EventDetail from './calendar/EventDetail'
 import EventForm from './calendar/EventForm'
-import DayView from './calendar/DayView'
 import TodoList, { TodoListRef } from './calendar/TodoList'
 import { ThemeButton } from './ui/Components'
 import { Card } from './ui/card'
@@ -28,7 +27,7 @@ import { convertUserTimeToUTC } from '../utils/timezoneService'
 import { eventService } from '../services/eventService'
 import { colorService, CoupleColors } from '../services/colorService'
 
-const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
+const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const { theme } = useTheme()
   const { user } = useAuth()
 
@@ -47,6 +46,14 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showNewEventDialog, setShowNewEventDialog] = useState(false)
   const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null)
+  const [todoListWidth, setTodoListWidth] = useState(() => {
+    // 从localStorage恢复宽度设置，默认300px
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('todoListWidth')
+      return saved ? parseInt(saved, 10) : 300
+    }
+    return 300
+  })
   const todoListRef = useRef<TodoListRef>(null)
 
   const {
@@ -85,6 +92,11 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     
     loadCoupleColors()
   }, [coupleUsers])
+
+  // 保存待办列表宽度到localStorage
+  useEffect(() => {
+    localStorage.setItem('todoListWidth', todoListWidth.toString())
+  }, [todoListWidth])
 
   // 获取过滤后的事件
   const getFilteredEvents = useCallback((allEvents: Event[]): Event[] => {
@@ -168,8 +180,18 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     openEventDetail(event)
   }, [openEventDetail])
 
-  // 处理日期选择 - 自动打开新建事件弹窗
-  const handleDateSelect = useCallback((date: string, selectedTime?: string | null, isAllDay?: boolean) => {
+  // 处理日期选择 - 自动打开新建事件弹窗，支持跨天选择
+  const handleDateSelect = useCallback((
+    date: string, 
+    selectedTime?: string | null, 
+    isAllDay?: boolean, 
+    details?: {
+      endDate: string
+      endTime: string | null
+      duration: { days: number; hours: number; isMultiDay: boolean }
+      selectInfo: any
+    }
+  ) => {
     setSelectedDate(date)
     
     // 伴侣视图下不允许创建事件
@@ -178,27 +200,57 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
       return
     }
     
-    // 智能设置默认值
+    // 智能设置默认值 - 支持跨天选择
     let defaultStart, defaultEnd, isAllDayEvent
     
-    if (isAllDay) {
-      // 点击全天区域 - 创建全天事件
-      defaultStart = ''
-      defaultEnd = ''
-      isAllDayEvent = true
-    } else if (selectedTime) {
-      // 点击具体时间槽 - 使用选择的时间
-      defaultStart = `${date}T${selectedTime}:00`
-      const [hours, minutes] = selectedTime.split(':').map(Number)
-      const endHour = hours + 1
-      defaultEnd = `${date}T${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
-      isAllDayEvent = false
+    console.log('📅 处理日期选择:', {
+      基础信息: { date, selectedTime, isAllDay },
+      扩展信息: details
+    })
+    
+    if (details?.duration.isMultiDay) {
+      // 跨天选择 - 使用选择的完整时间范围
+      if (isAllDay) {
+        // 跨天全天事件
+        defaultStart = `${date}T00:00:00`
+        defaultEnd = `${details.endDate}T23:59:59`
+        isAllDayEvent = true
+        console.log('🌅 创建跨天全天事件:', { 开始: defaultStart, 结束: defaultEnd })
+      } else {
+        // 跨天定时事件
+        defaultStart = `${date}T${selectedTime || '09:00'}:00`
+        defaultEnd = `${details.endDate}T${details.endTime || '18:00'}:00`
+        isAllDayEvent = false
+        console.log('⏰ 创建跨天定时事件:', { 开始: defaultStart, 结束: defaultEnd })
+      }
     } else {
-      // 其他情况 - 使用当前时间+1小时
-      const now = new Date()
-      defaultStart = `${date}T${(now.getHours() + 1).toString().padStart(2, '0')}:00:00`
-      defaultEnd = `${date}T${(now.getHours() + 2).toString().padStart(2, '0')}:00:00`
-      isAllDayEvent = false
+      // 单天选择 - 原有逻辑
+      if (isAllDay) {
+        // 点击全天区域 - 创建全天事件
+        defaultStart = ''
+        defaultEnd = ''
+        isAllDayEvent = true
+      } else if (selectedTime) {
+        // 点击具体时间槽 - 使用选择的时间
+        defaultStart = `${date}T${selectedTime}:00`
+        
+        if (details?.endTime && details.endTime !== selectedTime) {
+          // 选择了时间范围
+          defaultEnd = `${date}T${details.endTime}:00`
+        } else {
+          // 单点选择，默认1小时
+          const [hours, minutes] = selectedTime.split(':').map(Number)
+          const endHour = hours + 1
+          defaultEnd = `${date}T${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
+        }
+        isAllDayEvent = false
+      } else {
+        // 其他情况 - 使用当前时间+1小时
+        const now = new Date()
+        defaultStart = `${date}T${(now.getHours() + 1).toString().padStart(2, '0')}:00:00`
+        defaultEnd = `${date}T${(now.getHours() + 2).toString().padStart(2, '0')}:00:00`
+        isAllDayEvent = false
+      }
     }
     
     // 智能设置参与者 - 根据当前视图决定是否为共同活动
@@ -541,7 +593,7 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
     )
   }
 
-  console.log('📊 CalendarV3渲染状态:', {
+  console.log('📊 Calendar渲染状态:', {
     events数量: events.length,
     user存在: !!user,
     coupleUsers存在: !!coupleUsers,
@@ -563,27 +615,15 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 测试时区控制器 */}
       {process.env.NODE_ENV === 'development' && <TestTimezoneController />}
-      
-      {/* 只读模式提示 */}
-      {currentView === 'partner' && (
-        <div className={`mb-6 inline-flex items-center text-xs px-3 py-1.5 rounded-full ${
-          theme === 'pixel' 
-            ? 'bg-pixel-panel text-pixel-textMuted font-mono border border-pixel-border'
-            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
-        }`}>
-          <span className="mr-1">⚠️</span>
-          {theme === 'pixel' ? 'READ_ONLY_MODE' : '只读模式 - 查看伴侣日程'}
-        </div>
-      )}
 
-      {/* 主要内容区域 */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative">
-        {/* 左侧 To-Do List - 恢复sticky定位 */}
-        <div className="lg:col-span-1">
-          <div className="sticky top-6 z-20">
+      {/* 主要内容区域 - 使用flex布局支持可调整宽度 */}
+      <div className="flex gap-4 relative h-full">
+        {/* 左侧 To-Do List - 可调整宽度 */}
+        <div className="flex-shrink-0 relative" style={{ width: `${todoListWidth}px` }}>
+          <div className="sticky top-0 z-20">
             <TodoList 
               ref={todoListRef}
               onTodoDropped={(todoId) => {
@@ -591,11 +631,43 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
               }}
             />
           </div>
+          
+          {/* 拖拽调整宽度的手柄 */}
+          <div 
+            className="absolute top-0 -right-3 w-6 h-full cursor-col-resize z-30 flex items-center justify-center group"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              const startX = e.clientX;
+              const startWidth = todoListWidth;
+              
+              const handleMouseMove = (e: MouseEvent) => {
+                const newWidth = Math.max(200, Math.min(600, startWidth + (e.clientX - startX)));
+                setTodoListWidth(newWidth);
+              };
+              
+              const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+                // 拖拽结束后保存到localStorage
+                localStorage.setItem('todoListWidth', todoListWidth.toString());
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }}
+          >
+            {/* 拖拽指示器 - 三个竖线 */}
+            <div className="flex flex-col items-center justify-center space-y-0.5 opacity-30 group-hover:opacity-60 transition-opacity">
+              <div className="w-0.5 h-4 bg-muted-foreground rounded-full"></div>
+              <div className="w-0.5 h-4 bg-muted-foreground rounded-full"></div>
+              <div className="w-0.5 h-4 bg-muted-foreground rounded-full"></div>
+            </div>
+          </div>
         </div>
 
-        {/* FullCalendar 主视图 - 整个日历作为一个sticky单元 */}
-        <div className="lg:col-span-3">
-          <div className="sticky top-6 z-10">
+        {/* FullCalendar 主视图 - 占据剩余空间 */}
+        <div className="flex-1 min-w-0">
+          <div className="sticky top-0 z-10">
           <FullCalendarComponent
             events={filteredEvents}
             currentView={currentView}
@@ -745,4 +817,4 @@ const CalendarV3: React.FC<CalendarProps> = ({ currentUser }) => {
   )
 }
 
-export default CalendarV3
+export default Calendar

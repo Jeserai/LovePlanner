@@ -6,7 +6,7 @@ import { useAuth } from '../src/hooks/useAuth';
 import { realtimeSyncService } from '../src/services/realtimeSync';
 import { userService } from '../src/services/userService';
 import Layout from '../src/components/Layout';
-import CalendarV3 from '../src/components/CalendarV3';
+import Calendar from '../src/components/Calendar';
 
 import TaskBoard from '../src/components/TaskBoard';
 import Shop from '../src/components/Shop';
@@ -224,7 +224,7 @@ const AppContent: React.FC = () => {
       <>
         {initializedTabs.has('calendar') && (
           <div style={{ display: activeTab === 'calendar' ? 'block' : 'none' }}>
-            <CalendarV3 currentUser={currentUserName} />
+            <Calendar currentUser={currentUserName} />
           </div>
         )}
         {initializedTabs.has('tasks') && (

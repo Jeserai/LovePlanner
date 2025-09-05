@@ -44,17 +44,46 @@
   @apply bg-muted border-b border-border text-center py-2;
 }
 
+/* 🌞 浅色模式下表头边框 - 明确指定非深色模式 */
+:not(.dark) .fc-col-header-cell {
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  border-right: 1px solid hsl(var(--border)) !important;
+}
+
+:not(.dark) .fc-col-header-cell-cushion {
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+/* 时间网格模式下的浅色表头边框 */
+:not(.dark) .fc-timegrid .fc-col-header-cell {
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  border-right: 1px solid hsl(var(--border)) !important;
+}
+
+/* 🌞 浅色模式下的竖直分隔线 */
+:not(.dark) .fc-daygrid-day,
+:not(.dark) .fc-timegrid-col {
+  border-right: 1px solid hsl(var(--border)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+/* ✅ 浅色模式表头边框恢复正常 */
+:not(.dark) .fc-col-header-cell {
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
 .fc-col-header-cell-cushion {
   @apply text-xs font-medium text-muted-foreground uppercase tracking-wide;
 }
 
-/* 日期单元格 */
+/* 日期单元格 - 移除固定边框颜色，让主题规则控制 */
 .fc-daygrid-day {
-  @apply border-r border-b border-gray-200 min-h-[120px];
+  @apply min-h-[120px];
+  /* 边框由主题特定规则定义 */
 }
 
 .fc-daygrid-day:last-child {
-  @apply border-r-0;
+  border-right: 0 !important; /* 最后一列不要右边框 */
 }
 
 .fc-daygrid-day.fc-day-today {
@@ -100,12 +129,13 @@
   @apply text-xs text-muted-foreground border-r border-border;
 }
 
+/* 时间网格列 - 移除固定边框颜色，让主题规则控制 */
 .fc-timegrid-col {
-  @apply border-r border-gray-200;
+  /* 边框由主题特定规则定义 */
 }
 
 .fc-timegrid-col:last-child {
-  @apply border-r-0;
+  border-right: 0 !important; /* 最后一列不要右边框 */
 }
 
 /* 当前时间指示器 */
@@ -226,18 +256,18 @@
 
 /* 自定义事件颜色 */
 .fc-event.shared-event {
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
-  border-color: #ec4899 !important;
+  background: #8b5cf6 !important; /* 紫色 */
+  border-color: #8b5cf6 !important;
 }
 
 .fc-event.my-event {
-  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%) !important;
+  background: #3b82f6 !important; /* 蓝色 */
   border-color: #3b82f6 !important;
 }
 
 .fc-event.partner-event {
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%) !important;
-  border-color: #f59e0b !important;
+  background: #ec4899 !important; /* 粉色 */
+  border-color: #ec4899 !important;
 }
 
 /* 加载状态 */
@@ -370,21 +400,21 @@
 
 /* 🎨 事件颜色样式 - 不干扰FullCalendar高度计算 */
 
-/* 用户1事件 - 青色 */
+/* 用户1事件 - 蓝色 */
 .fc-event.event-user1 {
-  background-color: #06b6d4;
+  background-color: #3b82f6;
   color: white;
 }
 
-/* 用户2事件 - 紫色 */  
+/* 用户2事件 - 粉色 */  
 .fc-event.event-user2 {
-  background-color: #8b5cf6;
+  background-color: #ec4899;
   color: white;
 }
 
-/* 共同事件 - 绿色 */
+/* 共同事件 - 紫色 */
 .fc-event.event-shared {
-  background-color: #10b981;
+  background-color: #8b5cf6;
   color: white;
 }
 
@@ -405,44 +435,59 @@
 /* FullCalendar外层容器 - 移除滚动，让内部处理 */
 .fullcalendar-container {
   position: relative;
-  border: 5px solid #ff1493 !important; /* 🌸 调试：粉色边框 */
   height: 100% !important; /* 确保容器有明确高度 */
   /* 移除 overflow: hidden，让FullCalendar自己管理滚动 */
 }
 
-/* 启用FullCalendar的原生sticky表头 - 带调试样式 */
+/* 确保FullCalendar表格边框正常显示 */
+.fc-scrollgrid {
+  border: 1px solid var(--border) !important;
+  border-radius: 0.375rem; /* rounded-md */
+}
+
+/* FullCalendar表头样式 - 恢复默认 */
 .fc-scrollgrid-section-header {
   position: sticky !important;
   top: 0 !important;
   z-index: 40 !important;
-  background: #ff0000 !important; /* 🔴 调试：红色背景 */
-  border: 3px solid #00ff00 !important; /* 🟢 调试：绿色边框 */
-  box-shadow: 0 4px 8px rgba(255,0,0,0.5) !important; /* 🔴 调试：红色阴影 */
+  background: var(--card) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
-/* 表头单元格样式 - 带调试 */
+/* 表头单元格样式 */
 .fc-col-header-cell {
-  background: #ffff00 !important; /* 🟡 调试：黄色背景 */
-  border: 2px solid #0000ff !important; /* 🔵 调试：蓝色边框 */
+  background: var(--card) !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-right: 1px solid var(--border) !important;
 }
 
-/* 时间网格视图的表头 - 带调试 */
+/* 确保日期表头的边框显示 */
+.fc-col-header-cell .fc-col-header-cell-cushion {
+  border-bottom: 1px solid var(--border) !important;
+}
+
+/* 时间网格的日期表头 */
+.fc-timegrid .fc-col-header-cell {
+  border-bottom: 1px solid var(--border) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+/* 时间网格视图的表头 */
 .fc-timegrid .fc-scrollgrid-section-header {
   position: sticky !important;
   top: 0 !important;
   z-index: 40 !important;
-  background: #ff00ff !important; /* 🟣 调试：紫色背景 */
-  border: 3px solid #00ffff !important; /* 🔵 调试：青色边框 */
+  background: var(--card) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
-/* 全天事件区域sticky - 在表头下方 - 带调试 */
+/* 全天事件区域sticky - 在表头下方 */
 .fc-timegrid .fc-daygrid-body {
   position: sticky !important;
   top: 40px !important; /* 表头高度 */
   z-index: 35 !important;
-  background: #ffa500 !important; /* 🟠 调试：橙色背景 */
-  border: 3px solid #800080 !important; /* 🟣 调试：紫色边框 */
-  box-shadow: 0 4px 8px rgba(255,165,0,0.5) !important; /* 🟠 调试：橙色阴影 */
+  background: var(--card) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 /* 确保全天事件区域的单元格有背景 */
@@ -465,11 +510,34 @@
 
 /* 恢复FullCalendar内部滚动 */
 .fc-scroller {
-  border: 2px dashed green !important; /* 🟢 调试：绿色虚线边框 */
   overflow-y: auto !important; /* 🔧 恢复垂直滚动 */
   overflow-x: hidden !important; /* 隐藏水平滚动 */
   /* 修复滚动焦点问题 */
   outline: none !important; /* 移除焦点轮廓 */
+}
+
+/* 应用自定义滚动条样式到FullCalendar */
+.fc-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+
+.fc-scroller::-webkit-scrollbar {
+  width: 6px;
+}
+
+.fc-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
 }
 
 /* 确保主滚动容器可以接收滚动事件 */
@@ -478,7 +546,7 @@
   pointer-events: auto !important;
 }
 
-/* 针对主时间网格容器 - 基于调试信息，第3个容器是主容器 */
+/* 时间网格容器滚动设置 */
 .fc-timegrid .fc-scroller,
 .fc-timegrid-body .fc-scroller {
   max-height: 70vh !important; /* 限制最大高度，强制内部滚动 */
@@ -492,15 +560,6 @@
   z-index: 10 !important;
   background: var(--card) !important;
   border-bottom: 1px solid var(--border) !important;
-}
-
-/* 调试边框 - 用于识别元素 */
-.fc-scrollgrid-section-header {
-  border: 2px solid red !important; /* 🔴 调试：红色边框 */
-}
-
-.fc-timegrid .fc-daygrid-body {
-  border: 2px solid orange !important; /* 🟠 调试：橙色边框 */
 }
 
 /* 确保表头容器也有正确的定位 */
@@ -521,6 +580,133 @@
 .dark .fc-timegrid-axis-cushion {
   background: var(--card) !important;
   border-color: var(--border) !important;
+  color: var(--card-foreground) !important;
+}
+
+/* 深色模式下的表头文字 */
+.dark .fc-col-header-cell-cushion,
+.dark .fc-col-header-cell .fc-col-header-cell-cushion {
+  color: var(--card-foreground) !important;
+}
+
+/* 深色模式下的日期文字 */
+.dark .fc-daygrid-day-number,
+.dark .fc-col-header-cell .fc-col-header-cell-cushion {
+  color: var(--foreground) !important;
+}
+
+/* 🌙 深色模式下的日期单元格和竖直分隔线 */
+.dark .fc-daygrid-day,
+.dark .fc-timegrid-col {
+  background: var(--card) !important;
+  border-right: 1px solid hsl(217.2 32.6% 40%) !important; /* 进一步调亮竖直线 */
+  border-bottom: 1px solid hsl(217.2 32.6% 35%) !important; /* 水平线稍暗一些 */
+}
+
+/* 🌙 深色模式下确保时间网格的边框显示 */
+.dark .fc-timegrid-slot {
+  border-bottom: 1px solid hsl(217.2 32.6% 30%) !important; /* 时间槽的水平线 */
+}
+
+/* 深色模式下的时间轴 */
+.dark .fc-timegrid-axis {
+  background: var(--card) !important;
+  border-color: hsl(217.2 32.6% 35%) !important; /* 调亮边框颜色，确保可见 */
+}
+
+/* 深色模式下的全天事件区域 */
+.dark .fc-daygrid-body,
+.dark .fc-timegrid .fc-daygrid-body {
+  background: var(--card) !important;
+}
+
+/* 深色模式下的边框线 */
+.dark .fc-scrollgrid-section,
+.dark .fc-scrollgrid-section-body,
+.dark .fc-scrollgrid-section-header {
+  border-color: hsl(217.2 32.6% 35%) !important; /* 调亮边框颜色，确保可见 */
+}
+
+/* 🌙 深色模式下的表头边框 - 统一规则 */
+.dark .fc-col-header-cell {
+  background: hsl(var(--card)) !important;
+  border-bottom: 1px solid hsl(217.2 32.6% 35%) !important; /* 表头下边框 */
+  border-right: 1px solid hsl(217.2 32.6% 40%) !important; /* 表头右边框，稍亮 */
+}
+
+.dark .fc-col-header-cell .fc-col-header-cell-cushion {
+  border-bottom: 1px solid hsl(217.2 32.6% 35%) !important;
+}
+
+/* 深色模式下时间网格的表头边框 */
+.dark .fc-timegrid .fc-col-header-cell {
+  border-bottom: 1px solid hsl(217.2 32.6% 35%) !important;
+  border-right: 1px solid hsl(217.2 32.6% 40%) !important;
+}
+
+
+/* 🌙 深色模式下的时间网格竖直分隔线 - 最终解决方案 */
+.dark .fc-timegrid table td {
+  position: relative !important;
+}
+
+.dark .fc-timegrid table td:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 1px;
+  height: 100%;
+  background: hsl(217.2 32.6% 35%) !important;
+  z-index: 1;
+  pointer-events: none;
+}
+
+
+/* 修复小角落区域和内部同步元素 */
+.dark .fc-scrollgrid-sync-inner,
+.dark .fc-scrollgrid-section-header .fc-scrollgrid-sync-inner {
+  background: hsl(var(--card)) !important;
+}
+
+/* 修复表头区域的所有子元素 */
+.dark .fc-col-header-cell *,
+.dark .fc-scrollgrid-section-header * {
+  background-color: transparent !important;
+}
+
+/* 确保表头容器也是深色 */
+.dark .fc-scrollgrid-section-header {
+  background: hsl(var(--card)) !important;
+}
+
+/* 修复所有可能的白色背景元素 */
+.dark .fc-scrollgrid,
+.dark .fc-scrollgrid-liquid,
+.dark .fc-scrollgrid-section,
+.dark .fc-scrollgrid-section-liquid,
+.dark .fc-scrollgrid-section-body,
+.dark .fc-scrollgrid-section-footer,
+.dark .fc-view-harness,
+.dark .fc-view-harness-active {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(217.2 32.6% 35%) !important; /* 调亮边框颜色，确保可见 */
+}
+
+/* 修复时间网格的背景 */
+.dark .fc-timegrid,
+.dark .fc-timegrid-body,
+.dark .fc-timegrid-divider {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(217.2 32.6% 35%) !important; /* 调亮边框颜色，确保可见 */
+}
+
+/* 修复所有表格相关元素 */
+.dark .fc table,
+.dark .fc th,
+.dark .fc td {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(217.2 32.6% 35%) !important; /* 调亮边框颜色，确保可见 */
 }
 
 /* 像素主题的sticky样式 */
@@ -539,4 +725,4 @@
   border: 1px solid black !important;
 }
 
-/* 调试样式已移除，使用FullCalendar官方样式 */
+/* FullCalendar官方样式 */

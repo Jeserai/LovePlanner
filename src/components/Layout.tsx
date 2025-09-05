@@ -35,22 +35,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
   const tabs = [
     { 
       id: 'calendar', 
-      name: 'Calendar', 
+      name: '日历', 
       icon: CalendarIcon
     },
     { 
       id: 'tasks', 
-      name: 'Tasks', 
+      name: '任务', 
       icon: ListBulletIcon
     },
     { 
       id: 'shop', 
-      name: 'Shop', 
+      name: '商店', 
       icon: ShoppingBagIcon
     },
     { 
       id: 'settings', 
-      name: 'Settings', 
+      name: '设置', 
       icon: Cog6ToothIcon
     },
   ];

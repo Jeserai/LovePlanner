@@ -259,19 +259,19 @@ export const useEventData = (user: any) => {
     }
   }, []);
 
-  // 获取事件颜色
+  // 获取事件颜色 - 返回十六进制颜色值
   const getEventColor = useCallback((participants: string[]): string => {
-    if (!coupleUsers || !user) return 'bg-gray-400';
+    if (!coupleUsers || !user) return '#9ca3af'; // gray-400
     
     const isMyEvent = participants.includes(user.id);
     const isPartnerEvent = participants.length === 1 && !isMyEvent;
     const isSharedEvent = participants.length === 2;
     
-    if (isSharedEvent) return 'bg-purple-400';
-    if (isMyEvent) return 'bg-blue-400';
-    if (isPartnerEvent) return 'bg-pink-400';
+    if (isSharedEvent) return '#8b5cf6'; // 紫色 - 共同事件
+    if (isMyEvent) return '#3b82f6'; // 蓝色 - 我的事件
+    if (isPartnerEvent) return '#ec4899'; // 粉色 - 伴侣事件
     
-    return 'bg-gray-400';
+    return '#9ca3af'; // gray-400
   }, [coupleUsers, user]);
 
   // 初始化数据

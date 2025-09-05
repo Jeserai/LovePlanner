@@ -23,6 +23,9 @@ export interface TodoListRef {
 const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '', onTodoDropped }, ref) => {
   const { theme } = useTheme();
   
+  // 输入框引用
+  const inputRef = useRef<HTMLInputElement>(null);
+  
   // 🔧 从localStorage加载待办事项，如果没有则使用默认的测试数据
   const loadTodosFromStorage = (): TodoItem[] => {
     try {
@@ -73,6 +76,8 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false); // 🔧 控制是否显示已完成项目
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   const todoListRef = useRef<HTMLDivElement>(null);
   const draggableRef = useRef<Draggable | null>(null);
 
@@ -91,9 +96,19 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
     saveTodosToStorage(todos);
   }, [todos, saveTodosToStorage]);
 
-  // 🔧 过滤待办事项：默认隐藏已完成项目
+  // 🔧 过滤和排序待办事项：默认隐藏已完成项目，已完成的显示在最下面
   const filteredTodos = useMemo(() => {
-    return showCompleted ? todos : todos.filter(todo => !todo.completed);
+    const filtered = showCompleted ? todos : todos.filter(todo => !todo.completed);
+    
+    // 按完成状态和创建时间排序：未完成的在前面，已完成的在后面
+    return filtered.sort((a, b) => {
+      // 首先按完成状态排序：未完成的在前面
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
+      // 同一完成状态内按创建时间倒序排列（最新的在前面）
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
   }, [todos, showCompleted]);
 
   // 添加新待办
@@ -110,6 +125,31 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       setShowAddForm(false);
     }
   }, [newTodoTitle]);
+
+  // 开始编辑待办事项
+  const handleStartEdit = useCallback((todo: TodoItem) => {
+    setEditingId(todo.id);
+    setEditingTitle(todo.title);
+  }, []);
+
+  // 保存编辑
+  const handleSaveEdit = useCallback(() => {
+    if (editingTitle.trim() && editingId) {
+      setTodos(prev => prev.map(todo => 
+        todo.id === editingId 
+          ? { ...todo, title: editingTitle.trim() }
+          : todo
+      ));
+      setEditingId(null);
+      setEditingTitle('');
+    }
+  }, [editingId, editingTitle]);
+
+  // 取消编辑
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditingTitle('');
+  }, []);
 
   // 切换完成状态
   const handleToggleComplete = useCallback((id: string) => {
@@ -205,7 +245,15 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
             }
           </ThemeButton>
           <ThemeButton
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => {
+              setShowAddForm(!showAddForm);
+              // 延迟focus，确保DOM已更新
+              setTimeout(() => {
+                if (!showAddForm) {
+                  inputRef.current?.focus();
+                }
+              }, 0);
+            }}
             variant="secondary"
             size="sm"
           >
@@ -218,6 +266,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       {showAddForm && (
         <div className="mb-4 space-y-2">
           <ThemeInput
+            ref={inputRef}
             value={newTodoTitle}
             onChange={(e) => setNewTodoTitle(e.target.value)}
             placeholder={theme === 'pixel' ? 'ENTER_TODO_TITLE' : '输入待办事项'}
@@ -251,7 +300,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       )}
       
       {/* 待办事项列表 */}
-      <div ref={todoListRef} className="space-y-2 max-h-96 overflow-y-auto">
+      <div ref={todoListRef} className="space-y-2 overflow-y-auto custom-scrollbar" style={{ height: 'calc(100vh - 12rem)' }}>
         {filteredTodos.length === 0 ? (
           <div className={`text-sm text-center py-8 ${
             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-muted-foreground'
@@ -296,33 +345,74 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
                     className="w-4 h-4 rounded"
                   />
                 </div>
-                <span className={`
-                  ${todo.completed ? 'line-through' : ''}
-                  ${theme === 'pixel' ? 'font-mono text-sm' : 'text-sm'}
-                  truncate flex-1
-                `}>
-                  {todo.title}
-                </span>
+                {editingId === todo.id ? (
+                  <ThemeInput
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveEdit();
+                      } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                      }
+                    }}
+                    className="flex-1"
+                    autoFocus
+                  />
+                ) : (
+                  <span 
+                    className={`
+                      ${todo.completed ? 'line-through' : 'cursor-pointer'}
+                      ${theme === 'pixel' ? 'font-mono text-sm' : 'text-sm'}
+                      truncate flex-1 hover:text-primary
+                    `}
+                    onClick={() => !todo.completed && handleStartEdit(todo)}
+                    style={{ pointerEvents: 'auto' }}
+                  >
+                    {todo.title}
+                  </span>
+                )}
               </div>
               
               <div className="flex items-center space-x-2">
-                {!todo.completed && (
-                  <span className={`text-xs ${
-                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-muted-foreground'
-                  } opacity-0 group-hover:opacity-100 transition-opacity`}>
-                    {theme === 'pixel' ? 'DRAG' : '拖拽'}
-                  </span>
+                {editingId === todo.id ? (
+                  <div className="flex space-x-1" style={{ pointerEvents: 'auto' }}>
+                    <ThemeButton
+                      onClick={handleSaveEdit}
+                      variant="primary"
+                      size="sm"
+                    >
+                      {theme === 'pixel' ? 'SAVE' : '保存'}
+                    </ThemeButton>
+                    <ThemeButton
+                      onClick={handleCancelEdit}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      {theme === 'pixel' ? 'CANCEL' : '取消'}
+                    </ThemeButton>
+                  </div>
+                ) : (
+                  <>
+                    {!todo.completed && (
+                      <span className={`text-xs ${
+                        theme === 'pixel' ? 'text-pixel-textMuted' : 'text-muted-foreground'
+                      } opacity-0 group-hover:opacity-100 transition-opacity`}>
+                        {theme === 'pixel' ? 'DRAG' : '拖拽'}
+                      </span>
+                    )}
+                    <div style={{ pointerEvents: 'auto' }}>
+                      <ThemeButton
+                        onClick={() => handleDeleteTodo(todo.id)}
+                        variant="secondary"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {theme === 'pixel' ? 'DEL' : '删除'}
+                      </ThemeButton>
+                    </div>
+                  </>
                 )}
-                <div style={{ pointerEvents: 'auto' }}>
-                  <ThemeButton
-                    onClick={() => handleDeleteTodo(todo.id)}
-                    variant="secondary"
-                    size="sm"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    {theme === 'pixel' ? 'DEL' : '删除'}
-                  </ThemeButton>
-                </div>
               </div>
             </div>
           ))

@@ -14,13 +14,29 @@ import { ThemeButton } from './ui/Components'
 import { Card } from './ui/card'
 import { colorService, CoupleColors } from '../services/colorService'
 
+interface SelectionDetails {
+  endDate: string
+  endTime: string | null
+  duration: {
+    days: number
+    hours: number
+    isMultiDay: boolean
+  }
+  selectInfo: DateSelectArg
+}
+
 interface FullCalendarComponentProps {
   events: Event[]
   currentView: 'all' | 'my' | 'partner' | 'shared'
   user?: any
   coupleUsers?: {user1: any, user2: any} | null
   onEventClick?: (event: Event) => void
-  onDateSelect?: (date: string, selectedTime?: string | null, isAllDay?: boolean) => void
+  onDateSelect?: (
+    date: string, 
+    selectedTime?: string | null, 
+    isAllDay?: boolean, 
+    details?: SelectionDetails
+  ) => void
   onEventDrop?: (eventId: string, newDate: string, newTime?: string) => void
   onTodoDrop?: (todoData: any, date: string, time?: string | null) => void
   onViewChange?: (view: 'all' | 'my' | 'partner' | 'shared') => void
@@ -68,7 +84,12 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
   // 获取视图按钮的颜色样式
   const getViewThemeButtonStyle = (view: 'all' | 'my' | 'partner' | 'shared', isActive: boolean) => {
     if (!isActive) {
-      return 'bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+      // 非活跃状态下，不同视图使用不同的hover颜色
+      if (view === 'all') {
+        return 'bg-transparent text-muted-foreground hover:bg-primary/20 hover:text-primary'
+      }
+      // 其他视图在hover时也显示对应的颜色（透明版本）
+      return 'bg-transparent text-muted-foreground hover:text-white hover:bg-[var(--hover-bg)] transition-all duration-200'
     }
 
     // "全部"视图保持系统颜色
@@ -84,29 +105,50 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
     return 'text-white'
   }
 
-  // 获取视图按钮的背景颜色
+  // 获取视图按钮的背景颜色和hover样式
   const getViewThemeButtonBackground = (view: 'all' | 'my' | 'partner' | 'shared', isActive: boolean) => {
-    if (!isActive || view === 'all' || !coupleColors || !user || !coupleUsers) {
+    if (view === 'all' || !coupleColors || !user || !coupleUsers) {
       return {}
     }
 
     const isUser1 = user.id === coupleUsers.user1.id
     
-    switch (view) {
-      case 'my':
-        return { 
-          backgroundColor: isUser1 ? coupleColors.user1Color : coupleColors.user2Color 
-        }
-      case 'partner':
-        return { 
-          backgroundColor: isUser1 ? coupleColors.user2Color : coupleColors.user1Color 
-        }
-      case 'shared':
-        return { 
-          backgroundColor: coupleColors.sharedColor 
-        }
-      default:
-        return {}
+    if (isActive) {
+      // 活跃状态的背景色
+      switch (view) {
+        case 'my':
+          return { 
+            backgroundColor: isUser1 ? coupleColors.user1Color : coupleColors.user2Color 
+          }
+        case 'partner':
+          return { 
+            backgroundColor: isUser1 ? coupleColors.user2Color : coupleColors.user1Color 
+          }
+        case 'shared':
+          return { 
+            backgroundColor: coupleColors.sharedColor 
+          }
+        default:
+          return {}
+      }
+    } else {
+      // 非活跃状态的hover背景色（使用CSS变量）
+      switch (view) {
+        case 'my':
+          return { 
+            '--hover-bg': isUser1 ? coupleColors.user1Color + '33' : coupleColors.user2Color + '33' // 20% 透明度
+          } as React.CSSProperties
+        case 'partner':
+          return { 
+            '--hover-bg': isUser1 ? coupleColors.user2Color + '33' : coupleColors.user1Color + '33'
+          } as React.CSSProperties
+        case 'shared':
+          return { 
+            '--hover-bg': coupleColors.sharedColor + '33'
+          } as React.CSSProperties
+        default:
+          return {}
+      }
     }
   }
 
@@ -183,15 +225,15 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
     
     // 其他视图或无颜色配置时的默认逻辑
     if (theme === 'pixel') {
-      if (event.participants.length > 1) return '#ec4899' // pink-500
-      return '#3b82f6' // blue-500
+      if (event.participants.length > 1) return '#8b5cf6' // 紫色 - 共同事件
+      return '#3b82f6' // 蓝色 - 个人事件
     }
     
-    // Modern主题渐变色
+    // Modern主题使用纯色（不再使用渐变）
     if (event.participants.length > 1) {
-      return 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' // pink to purple
+      return '#8b5cf6' // 紫色 - 共同事件
     }
-    return 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)' // blue to cyan
+    return '#3b82f6' // 蓝色 - 个人事件
   }, [theme, currentView, coupleColors, user, coupleUsers, eventIncludesUser])
 
   // 获取事件边框色
@@ -312,7 +354,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
     }
   }, [updateCalendarTitle])
 
-    // 将事件转换为FullCalendar格式
+  // 将事件转换为FullCalendar格式
   const fullCalendarEvents = useMemo(() => {
     console.log('🔄 FullCalendar接收事件:', events.length, '个事件')
     
@@ -326,28 +368,88 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
     // 移除测试事件，完全基于真实数据库数据
     
     const converted = events.map(event => {
-      // 处理时间格式 - 确保使用正确的时间
+      // 🔧 修复跨天事件显示 - 直接使用数据库的完整时间信息
       let startTime = event.date // 默认全天
       let endTime = undefined
       let isAllDay = true
       
-      // 如果有具体时间，使用rawStartTime和rawEndTime
+      console.log('🔄 处理事件时间:', {
+        事件: event.title,
+        event_date: event.date,
+        rawStartTime: event.rawStartTime,
+        rawEndTime: event.rawEndTime,
+        time字段: event.time
+      })
+      
+      // 优先使用rawStartTime和rawEndTime，这些包含完整的日期时间信息
       if (event.rawStartTime && event.rawStartTime !== 'Invalid Date') {
-        startTime = `${event.date}T${event.rawStartTime}`
+        // rawStartTime格式是 "2025/09/06 04:00:00" (中文本地化格式)
+        if (event.rawStartTime.includes(' ')) {
+          // 完整的日期时间格式：转换为ISO格式
+          const parts = event.rawStartTime.split(' ')
+          const datePart = parts[0].replace(/\//g, '-') // "2025/09/06" -> "2025-09-06"
+          const timePart = parts[1] // "04:00:00"
+          startTime = `${datePart}T${timePart}`
+        } else if (event.rawStartTime.includes(':')) {
+          // 只有时间部分，使用event.date作为日期
+          startTime = `${event.date}T${event.rawStartTime}`
+        } else {
+          // 其他格式，尝试直接解析
+          startTime = event.rawStartTime
+        }
         isAllDay = false
         
         if (event.rawEndTime && event.rawEndTime !== 'Invalid Date') {
-          endTime = `${event.date}T${event.rawEndTime}`
+          // rawEndTime格式处理
+          if (event.rawEndTime.includes(' ')) {
+            // 完整的日期时间格式：转换为ISO格式
+            const parts = event.rawEndTime.split(' ')
+            const datePart = parts[0].replace(/\//g, '-') // "2025/09/06" -> "2025-09-06"
+            const timePart = parts[1] // "04:00:00"
+            endTime = `${datePart}T${timePart}`
+            
+            console.log('🌅 跨天事件处理:', {
+              事件: event.title,
+              原始开始: event.rawStartTime,
+              原始结束: event.rawEndTime,
+              转换开始: startTime,
+              转换结束: endTime,
+              是否跨天: startTime.split('T')[0] !== endTime.split('T')[0]
+            })
+          } else if (event.rawEndTime.includes(':')) {
+            // 只有时间部分，需要判断是否跨天
+            const startTimeStr = startTime.split('T')[1]
+            const endTimeStr = event.rawEndTime
+            
+            // 如果结束时间小于开始时间，说明跨天了
+            const startHour = parseInt(startTimeStr.split(':')[0])
+            const endHour = parseInt(endTimeStr.split(':')[0])
+            
+            if (endHour < startHour || (endHour === startHour && endTimeStr < startTimeStr)) {
+              // 跨天：结束时间在第二天
+              const startDate = new Date(startTime.split('T')[0])
+              const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000) // +1天
+              endTime = `${endDate.toISOString().split('T')[0]}T${endTimeStr}`
+              console.log('🌅 检测到跨天事件:', { 开始: startTime, 结束: endTime })
+            } else {
+              // 同天
+              const startDatePart = startTime.split('T')[0]
+              endTime = `${startDatePart}T${endTimeStr}`
+            }
+          } else {
+            // 其他格式，尝试直接使用
+            endTime = event.rawEndTime
+          }
         } else {
           // 如果没有结束时间，默认设置为开始时间+1小时
-          const timeStr = event.rawStartTime;
-          const [hours, minutes] = timeStr.split(':').slice(0, 2).map(Number);
-          const endHours = hours + 1;
-          const endTimeString = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
-          endTime = `${event.date}T${endTimeString}`;
+          const startDate = new Date(startTime)
+          if (!isNaN(startDate.getTime())) {
+            const endDate = new Date(startDate.getTime() + 60 * 60 * 1000) // +1小时
+            endTime = endDate.toISOString().slice(0, 19)
+          }
         }
       }
-      // 如果没有rawStartTime但有time字段，尝试解析time
+      // 如果没有rawStartTime但有time字段，尝试解析time（保持向后兼容）
       else if (event.time && event.time !== '全天' && event.time.includes(':')) {
         // time格式可能是 "10:00 - 11:00" 或 "10:00"
         const timeParts = event.time.split(' - ')
@@ -461,30 +563,57 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
     }
   }, [onEventClick])
 
-  // 处理日期选择
+  // 处理日期选择 - 支持跨天和区域选择
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
-    const dateStr = selectInfo.startStr.split('T')[0]
-    const timeStr = selectInfo.startStr.includes('T') 
-      ? selectInfo.startStr.split('T')[1].substring(0, 5) 
-      : null
+    const startDate = selectInfo.start
+    const endDate = selectInfo.end
+    const isAllDay = selectInfo.allDay
     
-    // 检测是否是全天区域点击
-    const isAllDayClick = selectInfo.allDay || !timeStr
+    // 计算选择的时长
+    const durationMs = endDate.getTime() - startDate.getTime()
+    const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24))
+    const durationHours = durationMs / (1000 * 60 * 60)
     
-    console.log('📅 FullCalendar日期选择:', {
-      完整选择信息: selectInfo,
+    // 格式化时间
+    const startDateStr = startDate.toISOString().split('T')[0]
+    const startTimeStr = isAllDay ? null : startDate.toTimeString().substring(0, 5)
+    const endDateStr = endDate.toISOString().split('T')[0]
+    const endTimeStr = isAllDay ? null : endDate.toTimeString().substring(0, 5)
+    
+    console.log('📅 FullCalendar区域选择:', {
       开始时间: selectInfo.startStr,
       结束时间: selectInfo.endStr,
-      提取日期: dateStr,
-      提取时间: timeStr,
-      是否全天点击: isAllDayClick,
-      allDay属性: selectInfo.allDay
+      开始日期: startDateStr,
+      结束日期: endDateStr,
+      开始时间点: startTimeStr,
+      结束时间点: endTimeStr,
+      是否全天: isAllDay,
+      持续天数: durationDays,
+      持续小时: durationHours.toFixed(1),
+      是否跨天: startDateStr !== endDateStr,
+      视图类型: selectInfo.view.type
     })
     
     if (onDateSelect) {
-      // 传递日期、时间和全天信息
-      onDateSelect(dateStr, timeStr, isAllDayClick)
+      // 扩展回调参数，支持跨天选择
+      onDateSelect(startDateStr, startTimeStr, isAllDay, {
+        endDate: endDateStr,
+        endTime: endTimeStr,
+        duration: {
+          days: durationDays,
+          hours: durationHours,
+          isMultiDay: startDateStr !== endDateStr
+        },
+        selectInfo: selectInfo // 传递完整的选择信息
+      })
     }
+    
+    // 自动取消选择（可选）
+    setTimeout(() => {
+      if (calendarRef.current) {
+        calendarRef.current.getApi().unselect()
+      }
+    }, 100)
   }, [onDateSelect])
 
   // 处理事件拖拽
@@ -850,6 +979,9 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           eventContent={renderEventContent}
           selectable={currentView !== 'partner'}
           selectMirror={currentView !== 'partner'}
+          unselectAuto={false} // 不自动取消选择，让用户看到选择结果
+          selectOverlap={false} // 不允许与现有事件重叠选择
+          selectMinDistance={5} // 最小选择距离（像素）
           dayMaxEvents={true}
           weekends={true}
           editable={currentView !== 'partner'}
@@ -860,9 +992,11 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           timeZone="local" // 使用本地时区
           forceEventDuration={true} // 强制事件持续时间
           defaultTimedEventDuration="01:00:00" // 默认1小时持续时间
+          defaultAllDayEventDuration={{ days: 1 }} // 默认全天事件持续1天
           eventMinHeight={30} // 最小事件高度（像素）
           eventShortHeight={30} // 短事件的高度（像素）
           slotEventOverlap={false} // 禁止事件重叠，确保清晰显示
+          nextDayThreshold="06:00:00" // 跨天阈值：6点前算前一天
           firstDay={1} // 周一开始
           eventDisplay="block"
           displayEventTime={true}
@@ -889,74 +1023,8 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           viewDidMount={(info) => {
             updateCalendarTitle();
             
-            // 清理控制台
-            console.clear();
-            console.log('🆕 === STICKY表头调试 - 简化版 ===');
-            console.log('🔍 当前视图:', info.view.type);
-            
-            // 检查sticky元素
-            setTimeout(() => {
-              console.log('\n🔍 === STICKY元素检查 ===');
-              
-              const headers = document.querySelectorAll('.fc-scrollgrid-section-header');
-              const timegridHeaders = document.querySelectorAll('.fc-timegrid .fc-scrollgrid-section-header');
-              const scrollers = document.querySelectorAll('.fc-scroller');
-              
-              console.log(`📋 表头元素: ${headers.length}个`);
-              console.log(`⏰ 时间网格表头: ${timegridHeaders.length}个`);
-              console.log(`📜 滚动容器: ${scrollers.length}个`);
-              
-              // 重点检查第一个表头元素
-              if (headers.length > 0) {
-                const header = headers[0];
-                const styles = window.getComputedStyle(header);
-                const rect = header.getBoundingClientRect();
-                
-                console.log('\n🎯 === 关键表头元素分析 ===');
-                console.log('位置信息:', {
-                  position: styles.position,
-                  top: styles.top,
-                  zIndex: styles.zIndex,
-                  display: styles.display,
-                  width: styles.width
-                });
-                console.log('尺寸信息:', {
-                  width: rect.width + 'px',
-                  height: rect.height + 'px',
-                  top: rect.top + 'px',
-                  left: rect.left + 'px'
-                });
-                console.log('父容器信息:', {
-                  parentTagName: header.parentElement?.tagName,
-                  parentClasses: header.parentElement?.className
-                });
-              }
-              
-              // 检查所有滚动容器
-              const containers = document.querySelectorAll('.fullcalendar-container');
-              const timegridScrollers = document.querySelectorAll('.fc-timegrid .fc-scroller');
-              
-              console.log('\n📜 === 滚动容器分析 ===');
-              console.log(`📜 所有滚动容器: ${scrollers.length}个`);
-              console.log(`🌸 外层容器: ${containers.length}个`);
-              console.log(`⏰ 时间网格滚动器: ${timegridScrollers.length}个`);
-              
-              scrollers.forEach((scroller, index) => {
-                const styles = window.getComputedStyle(scroller);
-                const rect = scroller.getBoundingClientRect();
-                console.log(`📜 滚动容器${index + 1}:`, {
-                  overflow: styles.overflow,
-                  overflowY: styles.overflowY,
-                  height: styles.height,
-                  maxHeight: styles.maxHeight,
-                  实际高度: rect.height + 'px',
-                  scrollHeight: scroller.scrollHeight + 'px', // 内容总高度
-                  canScroll: scroller.scrollHeight > rect.height, // 是否可以滚动
-                  classes: scroller.className
-                });
-              });
-              
-            }, 200);
+            // 调试信息已隐藏 - 如需调试可取消注释
+            // console.log('🔍 当前视图:', info.view.type);
           }}
         />
       </div>
