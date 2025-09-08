@@ -147,12 +147,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               size="md"
               disabled={action.loading || action.disabled}
             >
-              {action.icon && (
-                <Icon 
-                  name={action.icon as any} 
-                  className={`mr-2 ${action.loading ? 'animate-spin' : ''}`} 
-                />
-              )}
               {action.label}
             </ThemeButton>
           ))}

@@ -1,7 +1,5 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import PixelIcon from '../PixelIcon';
 
 interface NavigationButtonProps {
   direction: 'left' | 'right';
@@ -20,34 +18,43 @@ const NavigationButton: React.FC<NavigationButtonProps> = ({
 }) => {
   const { theme } = useTheme();
 
-  // 基础样式
-  const baseStyles = 'inline-flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2';
-
-  // 主题样式
-  const getThemeStyles = () => {
+  // 使用与日历导航按钮一致的样式
+  const getButtonStyles = () => {
     if (theme === 'pixel') {
-      return 'text-pixel-text hover:text-pixel-accent rounded-pixel border-2 border-pixel-border hover:border-pixel-accent p-2 focus:ring-pixel-accent';
-    } else if (false) {
-      return ' hover:  border  hover: p-2 focus:ring-fresh-primary';
+      return `
+        inline-flex items-center justify-center
+        h-8 w-8 p-0
+        text-pixel-text hover:text-pixel-accent
+        bg-pixel-bg hover:bg-pixel-bgSecondary
+        border-2 border-pixel-border hover:border-pixel-accent
+        rounded-pixel
+        transition-colors
+        focus:outline-none focus:ring-2 focus:ring-pixel-accent
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+      `.trim();
     } else {
-      // Default theme
-      return 'text-gray-600 hover:text-gray-800 rounded-xl border border-gray-300 hover:border-gray-400 p-2 focus:ring-primary-500';
+      return `
+        inline-flex items-center justify-center
+        h-8 w-8 p-0
+        text-secondary-foreground
+        bg-secondary hover:bg-secondary/80
+        border border-input
+        rounded-md
+        transition-colors
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+        disabled:pointer-events-none disabled:opacity-50
+        ${disabled ? '' : 'hover:bg-secondary/80'}
+      `.trim();
     }
   };
 
-  // 禁用状态样式
-  const disabledStyles = disabled 
-    ? 'opacity-50 cursor-not-allowed pointer-events-none' 
-    : 'cursor-pointer hover:bg-opacity-10 hover:bg-current';
-
-  // 图标渲染
+  // 图标渲染 - 与日历导航按钮一致
   const renderIcon = () => {
     if (theme === 'pixel') {
-      return <PixelIcon name={direction === 'left' ? 'arrow-left' : 'arrow-right'} size="sm" className="text-current" />;
+      return direction === 'left' ? '<' : '>';
     }
     
-    const IconComponent = direction === 'left' ? ChevronLeftIcon : ChevronRightIcon;
-    return <IconComponent className="w-5 h-5" />;
+    return direction === 'left' ? '←' : '→';
   };
 
   return (
@@ -55,12 +62,7 @@ const NavigationButton: React.FC<NavigationButtonProps> = ({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel || `${direction === 'left' ? '上一页' : '下一页'}`}
-      className={`
-        ${baseStyles}
-        ${getThemeStyles()}
-        ${disabledStyles}
-        ${className}
-      `.trim()}
+      className={`${getButtonStyles()} ${className}`}
     >
       {renderIcon()}
     </button>
