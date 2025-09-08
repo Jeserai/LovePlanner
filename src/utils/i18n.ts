@@ -12,6 +12,11 @@ const translations = {
     logout: '退出',
     loading: '加载中...',
     
+    // 通用操作
+    expand: '展开',
+    collapse: '收起',
+    no_deadline: '不限时',
+    
     // 日历相关
     'my_calendar': '我的日历',
     'partner_calendar': '伴侣日历',
@@ -97,7 +102,6 @@ const translations = {
     'requires_proof': '需要凭证',
     'assignee': '领取者',
     'creator': '发布者',
-    'no_deadline': '不限时',
     'task_details': '任务详情',
     
     // 通用
@@ -128,6 +132,11 @@ const translations = {
     sidebar: 'Sidebar',
     logout: 'Logout',
     loading: 'Loading...',
+    
+    // Common actions
+    expand: 'Expand',
+    collapse: 'Collapse',
+    no_deadline: 'No Deadline',
     
     // Calendar related
     'my_calendar': 'My Calendar',
@@ -214,7 +223,6 @@ const translations = {
     'requires_proof': 'Requires Proof',
     'assignee': 'Assignee',
     'creator': 'Creator',
-    'no_deadline': 'No Deadline',
     'task_details': 'Task Details',
     
     // Common

@@ -32,6 +32,8 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '../contexts/UserContext';
 import { userService, pointService } from '../services/userService';
+import TaskDescription from './ui/TaskDescription';
+import { useTranslation } from '../utils/i18n';
 import { taskService } from '../services/taskService';
 import { habitTaskService, calculateLatestJoinDate, canJoinHabitTask } from '../services/habitTaskService';
 import type { PersonalHabitChallenge } from '../services/habitTaskService';
@@ -91,11 +93,12 @@ interface TaskBoardProps {
 }
 
 const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
-  const { theme } = useTheme();
+  const { theme, language, isDarkMode } = useTheme();
+  const t = useTranslation(language);
   const { user } = useAuth();
   const { userProfile } = useUser();
   const { addToast } = useToast();
-  const [view, setView] = useState<'published' | 'assigned' | 'available'>('published');
+  const [view, setView] = useState<'published' | 'assigned' | 'available'>('assigned');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [publishedPage, setPublishedPage] = useState<string>('active'); // 添加分页状态
@@ -1763,6 +1766,17 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     return endTimeStr ? `${startTimeStr}-${endTimeStr}` : startTimeStr;
   };
 
+  // 状态颜色配置 - 优化色系区分度，保持色系一致但增加对比
+  const statusColorConfig = {
+    recruiting: 'blue',       // 招募中 - 蓝色 (开放状态)
+    assigned: 'amber',        // 未开始 - 琥珀色 (等待状态，黄色系但更饱和)  
+    in_progress: 'orange',    // 进行中 - 橙色 (活跃状态)
+    completed: 'green',       // 已完成 - 绿色 (完成状态)
+    abandoned: 'rose',        // 已关闭 - 玫瑰红 (结束状态，红色系但更柔和)
+    pending_review: 'purple', // 待审核 - 紫色 (审核状态)
+    default: 'gray'           // 默认 - 灰色
+  };
+
   const getStatusColor = (status: string) => {
     if (theme === 'pixel') {
       switch (status) {
@@ -1776,24 +1790,71 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       }
     }
     
-    switch (status) {
-      case 'recruiting': return 'border-blue-300 bg-blue-50';
-      case 'assigned': return 'border-yellow-300 bg-yellow-50';
-      case 'in_progress': return 'border-blue-300 bg-blue-50';
-      case 'completed': return 'border-green-300 bg-green-50';
-      case 'abandoned': return 'border-red-300 bg-red-50';
-      case 'pending_review': return 'border-orange-300 bg-orange-50';
-      default: return 'border-gray-300 bg-gray-50';
+    // 获取状态对应的颜色
+    const color = statusColorConfig[status as keyof typeof statusColorConfig] || statusColorConfig.default;
+    
+    // Modern主题 - 支持深色模式，颜色与状态标题保持一致
+    if (isDarkMode) {
+      switch (color) {
+        case 'blue': return 'border-blue-600 bg-blue-900/30 shadow-blue-500/10';
+        case 'amber': return 'border-amber-600 bg-amber-900/30 shadow-amber-500/10';
+        case 'orange': return status === 'in_progress' 
+          ? 'border-orange-600 bg-orange-900/40 shadow-orange-500/20'  // 进行中状态更突出
+          : 'border-orange-600 bg-orange-900/30 shadow-orange-500/10';
+        case 'green': return 'border-green-600 bg-green-900/30 shadow-green-500/10';
+        case 'rose': return 'border-rose-600 bg-rose-900/30 shadow-rose-500/10';
+        case 'purple': return 'border-purple-600 bg-purple-900/30 shadow-purple-500/10';
+        default: return 'border-gray-600 bg-gray-800/50 shadow-gray-500/10';
+      }
+    } else {
+      // 浅色模式 - 颜色与状态标题保持一致
+      switch (color) {
+        case 'blue': return 'border-blue-300 bg-blue-50 shadow-blue-100';
+        case 'amber': return 'border-amber-300 bg-amber-50 shadow-amber-100';
+        case 'orange': return status === 'in_progress'
+          ? 'border-orange-300 bg-orange-100 shadow-orange-200'  // 进行中状态更突出
+          : 'border-orange-300 bg-orange-50 shadow-orange-100';
+        case 'green': return 'border-green-300 bg-green-50 shadow-green-100';
+        case 'rose': return 'border-rose-300 bg-rose-50 shadow-rose-100';
+        case 'purple': return 'border-purple-300 bg-purple-50 shadow-purple-100';
+        default: return 'border-gray-300 bg-gray-50 shadow-gray-100';
+      }
     }
   };
 
-  // 判断任务是否即将到期
+  // 获取任务卡片样式（包含即将过期的视觉提示）
+  const getTaskCardStyle = (task: Task) => {
+    const baseStyle = getStatusColor(task.status);
+    const isExpiring = isTaskExpiringSoon(task.task_deadline);
+    
+    if (!isExpiring) {
+      return baseStyle;
+    }
+    
+    // 即将过期的任务添加特殊样式
+    if (theme === 'pixel') {
+      return `${baseStyle} animate-pulse border-pixel-accent`; // Pixel主题闪烁效果
+    }
+    
+    // Modern主题 - 添加红色边框和警告色调
+    if (isDarkMode) {
+      return 'border-red-500 bg-red-900/50 shadow-red-500/30 ring-2 ring-red-500/50';
+    } else {
+      return 'border-red-400 bg-red-50 shadow-red-200 ring-2 ring-red-300/50';
+    }
+  };
+
+  // 判断任务是否即将到期 - 优化判定逻辑
   const isTaskExpiringSoon = (task_deadline: string | null) => {
     if (!task_deadline) return false; // 不限时任务不会过期
     const task_deadlineDate = new Date(task_deadline);
     const now = getCurrentTime(); // 🔧 使用测试时间管理器
-    const diffDays = Math.floor((task_deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays <= 3 && diffDays > 0;
+    const diffHours = Math.floor((task_deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    // 即将过期定义：剩余时间 <= 2天 且 > 0（未过期）
+    // 或者剩余时间 <= 24小时（当天内）
+    return (diffDays <= 2 && diffDays >= 0) || (diffHours <= 24 && diffHours > 0);
   };
 
 
@@ -1819,15 +1880,34 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         onClick={() => setSelectedTask(task)}
         variant="interactive"
         size="md"
-        className={`mb-4 ${getStatusColor(task.status)} ${isExpiringSoon ? 'border-yellow-500' : ''} ${isOverdue ? 'border-red-500 opacity-75' : ''}`}
+        className={`mb-4 ${getTaskCardStyle(task)} ${isOverdue ? 'opacity-75' : ''}`}
       >
         <div className="flex items-start justify-between mb-2">
-          <h4 className={`font-bold ${
-              theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
-              false ? '' : 'text-gray-800'
-          }`}>
-            {task.title}
-          </h4>
+          <div className="flex items-center space-x-2 flex-1">
+            <h4 className={`font-bold ${
+                theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
+                isDarkMode ? 'text-gray-100' : 'text-gray-800'
+              }`}>
+              {task.title}
+            </h4>
+            {/* 即将过期提示图标 */}
+            {isTaskExpiringSoon(task.task_deadline) && (
+              <div className={`flex items-center space-x-1 ${
+                theme === 'pixel' ? 'text-pixel-accent' : 'text-red-500'
+              }`} title="任务即将过期">
+                {theme === 'pixel' ? (
+                  <PixelIcon name="warning" size="sm" />
+                ) : (
+                  <Icon name="clock" size="sm" />
+                )}
+                <span className={`text-xs font-medium ${
+                  theme === 'pixel' ? 'font-mono' : ''
+                }`}>
+                  {theme === 'pixel' ? '!' : '⚠️'}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="flex flex-col items-end space-y-1">
             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
               theme === 'pixel'
@@ -1839,6 +1919,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
               theme === 'pixel'
                 ? 'bg-pixel-purple text-pixel-text font-mono uppercase'
+                : isDarkMode 
+                  ? 'bg-purple-900/50 text-purple-200 border border-purple-700'
                 : 'bg-purple-100 text-purple-800'
             }`}>
               {getRepeatTypeName(task)}
@@ -1864,12 +1946,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </div>
         </div>
 
-        <p className={`mb-3 ${
-          theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 
-          false ? '' : 'text-gray-600'
-        }`}>
-          {task.description}
-        </p>
+        <TaskDescription 
+          description={task.description || ''} 
+          maxLines={3}
+          maxLength={120}
+        />
 
         <div className="space-y-2">
           {/* 任务详情信息行 - 改为可换行布局 */}
@@ -1901,15 +1982,21 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               </>
             ) : (
                     // 简单模式：显示截止日期
-                    task.task_deadline ? formatDate(task.task_deadline) : (theme === 'pixel' ? 'NO_DEADLINE' : theme === 'modern' ? 'No Deadline' : '不限时')
+                    task.task_deadline ? formatDate(task.task_deadline) : (theme === 'pixel' ? 'NO_DEADLINE' : t('no_deadline'))
                   )
                 ) : (
-                  // 重复任务：显示日期范围
+                  // 重复任务：显示日期范围或不限时
                   <>
-                    {task.earliest_start_time && task.task_deadline && (
+                    {task.earliest_start_time && task.task_deadline ? (
                       <>
                         {formatDate(task.earliest_start_time)} - {formatDate(task.task_deadline)}
                       </>
+                    ) : task.earliest_start_time ? (
+                      <>
+                        {formatDate(task.earliest_start_time)} - {theme === 'pixel' ? 'NO_DEADLINE' : t('no_deadline')}
+                      </>
+                    ) : (
+                      theme === 'pixel' ? 'NO_DEADLINE' : t('no_deadline')
                     )}
                   </>
                 )})()}
@@ -2685,10 +2772,29 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   valueClassName="text-lg font-medium"
                 />
 
-                <DetailField
-                  label={theme === 'pixel' ? 'TASK_DESCRIPTION' : theme === 'modern' ? 'Task Description' : '任务描述'}
-                  value={selectedTask.description || '--'}
-                />
+                <div className="space-y-1">
+                  <label className={`block text-sm font-medium mb-1 ${
+                    theme === 'pixel' ? 'text-pixel-cyan font-mono uppercase tracking-wide neon-text' : 
+                    theme === 'modern' ? 'text-muted-foreground font-medium' : 'text-gray-700'
+                  }`}>
+                    {theme === 'pixel' ? 'TASK_DESCRIPTION' : theme === 'modern' ? 'Task Description' : '任务描述'}
+                  </label>
+                  {selectedTask.description ? (
+                    <TaskDescription 
+                      description={selectedTask.description} 
+                      maxLines={6}
+                      maxLength={300}
+                      className="mt-1"
+                    />
+                  ) : (
+                    <span className={`text-sm ${
+                      theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 
+                      theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'
+                    }`}>
+                      --
+                    </span>
+                  )}
+          </div>
 
                 <DetailField
                   label={theme === 'pixel' ? 'TASK_TYPE' : theme === 'modern' ? 'Task Type' : '任务类型'}
@@ -2927,7 +3033,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             theme === 'modern' ? 'text-green-600' : 'text-green-600'
                           }`}>
                             {selectedTask.completed_count || 0}
-          </div>
+        </div>
                           <div className={`text-xs ${
                             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
                           }`}>
@@ -3769,7 +3875,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               theme === 'pixel' ? 'font-mono uppercase' : ''
             }`}>
               <h3 className={`font-bold text-lg mb-1 ${
-                theme === 'pixel' ? 'text-pixel-info' : 'text-blue-600'
+                theme === 'pixel' ? 'text-pixel-warning' : 'text-amber-600'
               }`}>
                 {theme === 'pixel' ? 'NOT_STARTED' : '未开始'}
             </h3>
@@ -3811,7 +3917,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               theme === 'pixel' ? 'font-mono uppercase' : ''
             }`}>
               <h3 className={`font-bold text-lg mb-1 ${
-                theme === 'pixel' ? 'text-pixel-accent' : 'text-red-600'
+                theme === 'pixel' ? 'text-pixel-accent' : 'text-rose-600'
               }`}>
                 {theme === 'pixel' ? 'ABANDONED' : '已关闭'}
               </h3>
@@ -3849,12 +3955,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               isTaskExpiringSoon(task.task_deadline || task.task_deadline || null) ? 'animate-pulse' : ''
             }`}>
               {isTaskExpiringSoon(task.task_deadline || task.task_deadline || null) && (
-                <div className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold ${
+                <div className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold shadow-lg z-10 ${
             theme === 'pixel'
-                    ? 'bg-pixel-warning text-black border-2 border-black'
-                    : 'bg-yellow-100 text-yellow-800'
+                    ? 'bg-pixel-accent text-white border-2 border-pixel-accent animate-pulse'
+                    : 'bg-red-500 text-white animate-bounce'
                 }`}>
-                  {theme === 'pixel' ? 'EXPIRING_SOON' : '即将过期'}
+                  {theme === 'pixel' ? 'EXPIRING!' : '⚠️ 即将过期'}
                 </div>
               )}
               {renderTaskCard(task)}
@@ -3875,9 +3981,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         title={theme === 'pixel' ? 'TASK_MANAGER.EXE' : theme === 'modern' ? 'Task Board' : '任务看板'}
         viewSwitcher={{
           views: [
-            { id: 'published', name: theme === 'pixel' ? 'MY_PUBLISHED' : theme === 'modern' ? 'My Published' : '我发布的' },
             { id: 'assigned', name: theme === 'pixel' ? 'MY_CLAIMED' : theme === 'modern' ? 'My Claimed' : '我领取的' },
-            { id: 'available', name: theme === 'pixel' ? 'AVAILABLE' : theme === 'modern' ? 'Available' : '可领取的' }
+            { id: 'available', name: theme === 'pixel' ? 'AVAILABLE' : theme === 'modern' ? 'Available' : '可领取的' },
+            { id: 'published', name: theme === 'pixel' ? 'MY_PUBLISHED' : theme === 'modern' ? 'My Published' : '我发布的' }
           ],
           currentView: view,
           onViewChange: (viewId) => setView(viewId as any)

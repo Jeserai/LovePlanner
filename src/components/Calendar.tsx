@@ -638,7 +638,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 console.log('📝 待办事项已从列表中移除:', todoId)
               }}
             />
-                </div>
+                    </div>
 
           {/* 拖拽调整宽度的手柄 */}
           <div 
@@ -691,10 +691,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             isRefreshing={isRefreshing}
             filteredEventsCount={filteredEvents.length}
             useSidebarLayout={useSidebarLayout}
-          />
-          </div>
-        </div>
-      </div>
+                />
+              </div>
+                </div>
+              </div>
 
       {/* 事件详情弹窗 */}
       <ThemeDialog open={showDetailModal} onOpenChange={(open) => !open && closeDetailModal()}>
