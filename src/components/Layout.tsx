@@ -153,7 +153,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
 
       {/* Main Content */}
       <main className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex-1 overflow-hidden">
-        <div className="h-full py-4 sm:py-6">
+        <div className="h-full">
           {children}
         </div>
       </main>
