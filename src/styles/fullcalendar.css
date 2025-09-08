@@ -37,7 +37,7 @@
 
 /* 表格样式 */
 .fc-scrollgrid {
-  @apply border border-border rounded-lg overflow-hidden;
+  @apply border border-border rounded-lg;
 }
 
 .fc-col-header-cell {
@@ -78,8 +78,17 @@
 
 /* 日期单元格 - 移除固定边框颜色，让主题规则控制 */
 .fc-daygrid-day {
-  @apply min-h-[120px];
+  @apply min-h-[100px];
   /* 边框由主题特定规则定义 */
+}
+
+/* 确保月视图行能够展开填充可用空间 */
+.fc-daygrid-body tr {
+  height: auto !important;
+}
+
+.fc-daygrid-body {
+  height: 100% !important;
 }
 
 .fc-daygrid-day:last-child {
@@ -212,7 +221,7 @@
 
 /* Modern主题样式 */
 .modern-calendar .fc-scrollgrid {
-  @apply shadow-lg;
+  /* 移除阴影 */
 }
 
 .modern-calendar .fc-event {
@@ -432,11 +441,20 @@
 
 /* 🔝 FullCalendar内部滚动 - 修复sticky表头 */
 
-/* FullCalendar外层容器 - 移除滚动，让内部处理 */
+/* FullCalendar外层容器 */
 .fullcalendar-container {
   position: relative;
-  height: 100% !important; /* 确保容器有明确高度 */
-  /* 移除 overflow: hidden，让FullCalendar自己管理滚动 */
+  width: 100%;
+  height: 100%;
+  flex: 1; /* 填充剩余空间 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 确保FullCalendar填满容器 */
+.fullcalendar-container .fc {
+  height: 100% !important;
+  flex: 1;
 }
 
 /* 确保FullCalendar表格边框正常显示 */
@@ -549,8 +567,9 @@
 /* 时间网格容器滚动设置 */
 .fc-timegrid .fc-scroller,
 .fc-timegrid-body .fc-scroller {
-  max-height: 70vh !important; /* 限制最大高度，强制内部滚动 */
   overflow-y: auto !important;
+  height: auto !important;
+  max-height: none !important;
 }
 
 /* 简化的sticky表头 - 让FullCalendar自己处理 */

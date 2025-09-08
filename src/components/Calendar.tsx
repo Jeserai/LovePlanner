@@ -28,7 +28,7 @@ import { eventService } from '../services/eventService'
 import { colorService, CoupleColors } from '../services/colorService'
 
 const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
-  const { theme } = useTheme()
+  const { theme, useSidebarLayout } = useTheme()
   const { user } = useAuth()
 
   // 使用现有的数据管理hooks
@@ -267,8 +267,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       includesUser2 = isUser1 ? false : true
     }
     
-    setNewEvent({
-      title: '',
+      setNewEvent({ 
+        title: '',
       location: '',
       startDateTime: defaultStart,
       endDateTime: defaultEnd,
@@ -276,9 +276,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       description: '',
       includesUser1,
       includesUser2,
-      isRecurring: false,
+        isRecurring: false,
       recurrenceType: 'daily',
-      recurrenceEnd: '',
+        recurrenceEnd: '',
       originalDate: ''
     })
     
@@ -296,8 +296,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       const eventToUpdate = eventData.events.find(e => e.id === eventId);
       if (!eventToUpdate) {
         console.error('❌ 找不到要更新的事件:', eventId);
-        return;
-      }
+      return;
+    }
 
       // 🔧 检查是否是重复事件的展开实例
       const isExpandedInstance = eventId.includes('-') && eventId.match(/-\d{4}-\d{2}-\d{2}$/) !== null;
@@ -368,8 +368,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           start_datetime: newStartDateTime, // 使用本地时间，函数内部会转换为UTC
           end_datetime: newEndDateTime,
           is_all_day: eventToUpdate.isAllDay
-        });
-      } else {
+      });
+    } else {
         // 非重复事件或原始重复事件 - 直接更新
         const targetEventId = eventToUpdate.isRecurring ? originalEventId : eventId;
         updated = await eventService.updateEvent(targetEventId, {
@@ -589,7 +589,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner />
-      </div>
+                  </div>
     )
   }
 
@@ -615,23 +615,31 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   })
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col">
       {/* 测试时区控制器 */}
       {process.env.NODE_ENV === 'development' && <TestTimezoneController />}
 
       {/* 主要内容区域 - 使用flex布局支持可调整宽度 */}
-      <div className="flex gap-4 relative h-full">
+      <div 
+        className="flex gap-4 relative" 
+        style={{ 
+          height: useSidebarLayout 
+            ? 'calc(100vh - 8rem)' // 侧边栏布局
+            : 'calc(100vh - 9rem)' // 顶部导航：视口 - 导航栏 - padding
+        }}
+      >
         {/* 左侧 To-Do List - 可调整宽度 */}
         <div className="flex-shrink-0 relative" style={{ width: `${todoListWidth}px` }}>
           <div className="sticky top-0 z-20">
             <TodoList 
               ref={todoListRef}
+              useSidebarLayout={useSidebarLayout}
               onTodoDropped={(todoId) => {
                 console.log('📝 待办事项已从列表中移除:', todoId)
               }}
             />
-          </div>
-          
+                </div>
+
           {/* 拖拽调整宽度的手柄 */}
           <div 
             className="absolute top-0 -right-3 w-6 h-full cursor-col-resize z-30 flex items-center justify-center group"
@@ -682,6 +690,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             onRefresh={handleRefresh}
             isRefreshing={isRefreshing}
             filteredEventsCount={filteredEvents.length}
+            useSidebarLayout={useSidebarLayout}
           />
           </div>
         </div>

@@ -45,6 +45,7 @@ interface FullCalendarComponentProps {
   isRefreshing?: boolean
   filteredEventsCount?: number
   className?: string
+  useSidebarLayout?: boolean
 }
 
 const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
@@ -61,12 +62,31 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
   onRefresh,
   isRefreshing = false,
   filteredEventsCount = 0,
-  className = ''
+  className = '',
+  useSidebarLayout = false
 }) => {
   const { theme, isDarkMode } = useTheme()
   const [currentCalendarView, setCurrentCalendarView] = useState('timeGridWeek')
   const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null)
   const calendarRef = useRef<FullCalendar>(null)
+  
+  // 强制更新24小时显示
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (calendarRef.current) {
+        const calendarApi = calendarRef.current.getApi();
+        console.log('🔧 强制更新FullCalendar配置...');
+        calendarApi.setOption('slotMinTime', '00:00:00');
+        calendarApi.setOption('slotMaxTime', '24:00:00');
+        calendarApi.setOption('slotDuration', '00:30:00');
+        calendarApi.setOption('snapDuration', '00:30:00');
+        // 触发重新渲染
+        calendarApi.refetchEvents();
+        console.log('✅ FullCalendar配置已更新');
+      }
+    }, 500); // 增加延迟确保组件完全挂载
+    return () => clearTimeout(timer);
+  }, [currentCalendarView])
 
   // 加载情侣颜色配置
   useEffect(() => {
@@ -75,7 +95,6 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       // 后续可以根据需要从数据库加载自定义颜色
       setCoupleColors(colorService.getDefaultColors())
       
-      console.log('🎨 已加载默认颜色配置:', colorService.getDefaultColors())
     }
     
     loadCoupleColors()
@@ -356,14 +375,9 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
 
   // 将事件转换为FullCalendar格式
   const fullCalendarEvents = useMemo(() => {
-    console.log('🔄 FullCalendar接收事件:', events.length, '个事件')
-    
     if (!events || events.length === 0) {
-      console.log('⚠️ FullCalendar没有接收到事件数据')
       return []
     }
-    
-    // 清理调试信息 - 只保留事件时间相关的调试
     
     // 移除测试事件，完全基于真实数据库数据
     
@@ -373,13 +387,6 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       let endTime = undefined
       let isAllDay = true
       
-      console.log('🔄 处理事件时间:', {
-        事件: event.title,
-        event_date: event.date,
-        rawStartTime: event.rawStartTime,
-        rawEndTime: event.rawEndTime,
-        time字段: event.time
-      })
       
       // 🚨 重要：跨天事件检测
       let isPotentialMultiDay = false
@@ -421,13 +428,6 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
             
             isAllDay = false
             
-            console.log('🌅 从time字段解析跨天事件:', {
-              事件: event.title,
-              原始time: event.time,
-              解析开始: startTime,
-              解析结束: endTime,
-              是否跨天: startTime.split('T')[0] !== endTime.split('T')[0]
-            })
           }
         }
       }
@@ -458,14 +458,6 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
             const timePart = parts[1] // "04:00:00"
             endTime = `${datePart}T${timePart}`
             
-            console.log('🌅 跨天事件处理:', {
-              事件: event.title,
-              原始开始: event.rawStartTime,
-              原始结束: event.rawEndTime,
-              转换开始: startTime,
-              转换结束: endTime,
-              是否跨天: startTime.split('T')[0] !== endTime.split('T')[0]
-            })
           } else if (event.rawEndTime.includes(':')) {
             // 只有时间部分，需要判断是否跨天
             const startTimeStr = startTime.split('T')[1]
@@ -480,7 +472,6 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
               const startDate = new Date(startTime.split('T')[0])
               const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000) // +1天
               endTime = `${endDate.toISOString().split('T')[0]}T${endTimeStr}`
-              console.log('🌅 检测到跨天事件:', { 开始: startTime, 结束: endTime })
             } else {
               // 同天
               const startDatePart = startTime.split('T')[0]
@@ -544,93 +535,16 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         }
       }
       
-      // 🕐 事件时间转换调试 - 检查跨天事件显示
-      const duration = fcEvent.end && fcEvent.start && !fcEvent.allDay ? 
-        (new Date(fcEvent.end).getTime() - new Date(fcEvent.start).getTime()) / (1000 * 60) : 
-        null;
-      
-      const isMultiDay = fcEvent.start && fcEvent.end && 
-        fcEvent.start.split('T')[0] !== fcEvent.end.split('T')[0];
-      
-      console.log('⏰ 事件时间详情:', {
-        事件: event.title,
-        原始开始: event.rawStartTime,
-        原始结束: event.rawEndTime,
-        原始时间字段: event.time,
-        转换后开始: fcEvent.start,
-        转换后结束: fcEvent.end,
-        全天事件: fcEvent.allDay,
-        是否跨天: isMultiDay,
-        计算持续时间: duration ? `${duration}分钟` : '未知',
-        开始时间有效: fcEvent.start ? new Date(fcEvent.start).toString() : '无效',
-        结束时间有效: fcEvent.end ? new Date(fcEvent.end).toString() : '无效'
-      });
-      
-      if (isMultiDay) {
-        console.log('🌅 跨天事件详情:', {
-          事件标题: event.title,
-          开始日期: fcEvent.start.split('T')[0],
-          结束日期: fcEvent.end?.split('T')[0],
-          开始时间: fcEvent.start.split('T')[1],
-          结束时间: fcEvent.end?.split('T')[1],
-          跨越天数: duration ? Math.ceil(duration / (24 * 60)) : '未知'
-        });
-      }
       
       return fcEvent
     })
     
-    console.log('🎯 最终FullCalendar事件数据:', converted.map(e => {
-      const startDate = new Date(e.start);
-      const endDate = e.end ? new Date(e.end) : null;
-      const duration = e.end && e.start && endDate ? 
-        Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60)) : 0;
-      
-      const isMultiDay = e.start && e.end && 
-        e.start.split('T')[0] !== e.end.split('T')[0];
-      
-      return {
-        事件: e.title,
-        开始: e.start,
-        结束: e.end || '未设置',
-        全天: e.allDay,
-        是否跨天: isMultiDay,
-        持续时间: `${duration}分钟`,
-        开始Date对象: startDate.toString(),
-        结束Date对象: endDate ? endDate.toString() : '未设置',
-        开始时间戳: startDate.getTime(),
-        结束时间戳: endDate ? endDate.getTime() : 0,
-        时间差毫秒: endDate ? endDate.getTime() - startDate.getTime() : 0
-      };
-    }));
     
     // 🔍 专门检查跨天事件
     const multiDayEvents = converted.filter(e => 
       e.start && e.end && e.start.split('T')[0] !== e.end.split('T')[0]
     );
     
-    if (multiDayEvents.length > 0) {
-      console.log('🌅🌅🌅 发现跨天事件:', multiDayEvents.length, '个 🌅🌅🌅');
-      multiDayEvents.forEach(e => {
-        console.log('🌅 跨天事件详情:', {
-          标题: e.title,
-          ID: e.id,
-          开始: e.start,
-          结束: e.end,
-          开始日期: e.start.split('T')[0],
-          结束日期: e.end?.split('T')[0],
-          全天: e.allDay,
-          FullCalendar格式: '检查格式是否正确',
-          nextDayThreshold影响: '检查是否被00:00:00阈值影响'
-        });
-      });
-      
-      // 🚨 重要：验证 FullCalendar 是否接收到正确的跨天事件
-      console.log('🚨 即将传递给FullCalendar的跨天事件:');
-      multiDayEvents.forEach(e => {
-        console.log(`📅 ${e.title}: ${e.start} → ${e.end} (跨${Math.ceil((new Date(e.end).getTime() - new Date(e.start).getTime()) / (24 * 60 * 60 * 1000))}天)`);
-      });
-    }
     
     return converted
   }, [events, currentView, theme, getEventBackgroundColor, getEventBorderColor, getEventTextColor])
@@ -642,13 +556,6 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       const endTime = info.event.end;
       const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
       
-      console.log('📏 FullCalendar官方渲染 (30分钟槽):', {
-        事件标题: info.event.title,
-        持续时间: durationMinutes + '分钟',
-        实际DOM高度: info.el.getBoundingClientRect().height + 'px',
-        期望高度: `${durationMinutes}分钟应占据${durationMinutes/30}个时间槽`,
-        时间槽配置: '30分钟/槽'
-      });
     }
   }, []);
 
@@ -910,7 +817,15 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
   }
 
   return (
-    <Card className={`p-0 ${className} flex flex-col overflow-hidden`} style={{ height: 'calc(100vh - 8rem)' }}>
+    <Card 
+      className={`p-0 ${className} flex flex-col overflow-hidden`} 
+      style={{ 
+        height: useSidebarLayout 
+          ? 'calc(100vh - 8rem)'  // 侧边栏布局
+          : 'calc(100vh - 9rem)',  // 顶部导航布局
+        minHeight: '600px' // 确保最小高度
+      }}
+    >
       {/* 工具栏 - 在sticky容器内固定 */}
       <div className="bg-card border-b p-4 flex-shrink-0">
                  {/* 集成式工具栏：导航 + 标题 + 统计 + 视图切换 + 过滤 */}
@@ -1085,8 +1000,9 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           weekends={true}
           editable={currentView !== 'partner'}
           droppable={true}
-          height="auto"
-          aspectRatio={1.35}
+          height="100%"
+          contentHeight="100%"
+          expandRows={true}
           locale="zh-cn"
           timeZone="local" // 使用本地时区
           forceEventDuration={true} // 强制事件持续时间

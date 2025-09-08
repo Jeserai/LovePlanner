@@ -67,17 +67,42 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
 
   // 原来的上下布局
   const renderTopNavLayout = () => (
-    <div className="min-h-screen bg-background">
-      {/* Header with User Info */}
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header with User Info and Navigation */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
         <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          {/* User Info Bar */}
-          <div className="flex items-center justify-between h-12 border-b border-border/50">
-            <div className="flex items-center gap-2">
-              <HeartIcon className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-foreground">Love Planner</span>
+          {/* Combined User Info and Navigation Bar */}
+          <div className="flex items-center justify-between h-16">
+            {/* Left side: App name and Navigation */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <HeartIcon className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-foreground">Love Planner</span>
+              </div>
+              
+              {/* Navigation */}
+              <nav className="flex items-center space-x-1">
+                {tabs.map((tab) => {
+                  const IconComponent = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => onTabChange(tab.id)}
+                      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${
+                        activeTab === tab.id
+                          ? 'text-foreground bg-accent/20 font-semibold'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent/10'
+                      }`}
+                    >
+                      <IconComponent className="h-4 w-4" />
+                      <span>{tab.name}</span>
+                    </button>
+                  );
+                })}
+              </nav>
             </div>
             
+            {/* Right side: User info and controls */}
             <div className="flex items-center gap-3">
               {/* User Display */}
               <div className="flex items-center gap-2 px-2.5 py-1.5 text-sm font-medium border rounded-md border-border bg-card text-card-foreground">
@@ -112,35 +137,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
               )}
             </div>
           </div>
-          
-          {/* Navigation */}
-          <div className="flex items-center h-14">
-            <nav className="flex items-center space-x-1">
-              {tabs.map((tab) => {
-                const IconComponent = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => onTabChange(tab.id)}
-                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${
-                      activeTab === tab.id
-                        ? 'text-foreground bg-accent/20 font-semibold'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/10'
-                    }`}
-                  >
-                    <IconComponent className="h-4 w-4" />
-                    <span>{tab.name}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6 sm:py-8">
-        {children}
+      <main className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex-1 overflow-hidden">
+        <div className="h-full py-4 sm:py-6">
+          {children}
+        </div>
       </main>
     </div>
   );
@@ -240,7 +244,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
       {/* Main Content Area */}
       <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Main Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4">
           <div className="mx-auto max-w-none">
             {children}
           </div>

@@ -14,13 +14,14 @@ interface TodoItem {
 interface TodoListProps {
   className?: string;
   onTodoDropped?: (todoId: string) => void;
+  useSidebarLayout?: boolean;
 }
 
 export interface TodoListRef {
   removeTodo: (todoId: string) => void;
 }
 
-const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '', onTodoDropped }, ref) => {
+const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '', onTodoDropped, useSidebarLayout = false }, ref) => {
   const { theme } = useTheme();
   
   // 输入框引用
@@ -32,8 +33,17 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       const stored = localStorage.getItem('calendar-todos');
       if (stored) {
         const parsedTodos = JSON.parse(stored);
+        // 过滤掉测试数据
+        const filteredTodos = parsedTodos.filter((todo: any) => 
+          !todo.id.startsWith('test-') && 
+          !todo.title.includes('测试') &&
+          !todo.title.includes('🌅') &&
+          !todo.title.includes('🌆') &&
+          !todo.title.includes('准备会议材料') &&
+          !todo.title.includes('已完成的任务')
+        );
         // 转换createdAt字符串回Date对象
-        return parsedTodos.map((todo: any) => ({
+        return filteredTodos.map((todo: any) => ({
           ...todo,
           createdAt: new Date(todo.createdAt)
         }));
@@ -42,33 +52,8 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       console.warn('加载待办事项失败:', error);
     }
     
-    // 返回默认的测试待办事项
-    return [
-      {
-        id: 'test-morning-7',
-        title: '🌅 测试早上7点拖拽',
-        completed: false,
-        createdAt: new Date()
-      },
-      {
-        id: 'test-evening-18',
-        title: '🌆 测试下午18点拖拽',
-        completed: false,
-        createdAt: new Date()
-      },
-      {
-        id: 'test-2', 
-        title: '准备会议材料',
-        completed: false,
-        createdAt: new Date()
-      },
-      {
-        id: 'test-3',
-        title: '已完成的任务',
-        completed: true,
-        createdAt: new Date()
-      }
-    ];
+    // 返回空数组，不再提供默认测试数据
+    return [];
   };
 
   const [todos, setTodos] = useState<TodoItem[]>(loadTodosFromStorage);
@@ -224,7 +209,14 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
   }, [todos]); // 当todos变化时重新初始化
 
   return (
-    <Card className={`p-4 ${className}`}>
+    <Card 
+      className={`p-4 ${className} flex flex-col`}
+      style={{
+        height: useSidebarLayout 
+          ? 'calc(100vh - 8rem)' // 侧边栏布局
+          : 'calc(100vh - 9rem)' // 顶部导航布局
+      }}
+    >
       <div className="flex items-center justify-between mb-4">
         <h3 className={`font-semibold ${
           theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'
@@ -300,7 +292,10 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       )}
       
       {/* 待办事项列表 */}
-      <div ref={todoListRef} className="space-y-2 overflow-y-auto custom-scrollbar" style={{ height: 'calc(100vh - 12rem)' }}>
+      <div 
+        ref={todoListRef} 
+        className="space-y-2 overflow-y-auto custom-scrollbar flex-1"
+      >
         {filteredTodos.length === 0 ? (
           <div className={`text-sm text-center py-8 ${
             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-muted-foreground'
