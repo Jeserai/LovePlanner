@@ -3972,12 +3972,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   };
 
   return (
-            <div className="space-y-6">
-          {/* 测试时间控制器 - 仅开发环境显示 */}
-          <TestTimeController />
-          
-          {/* Page Header */}
-          <PageHeader
+    <div className="h-full flex flex-col">
+      {/* 测试时间控制器 - 仅开发环境显示 */}
+      {process.env.NODE_ENV === 'development' && <TestTimeController />}
+      
+      {/* Page Header - Sticky定位 */}
+      <div className="sticky top-0 z-10 bg-background border-b p-4">
+        <PageHeader
         title={theme === 'pixel' ? 'TASK_MANAGER.EXE' : theme === 'modern' ? 'Task Board' : '任务看板'}
         viewSwitcher={{
           views: [
@@ -4011,10 +4012,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             onClick: () => setShowAddForm(true)
           }
         ]}
-      />
+        />
+      </div>
 
-      {/* Task Columns */}
-      <div className="space-y-8">
+      {/* 主要内容区域 - 使用flex布局与日历保持一致 */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto p-6">
+          <div className="space-y-8">
         {loading || !tasksLoaded || !userProfile ? (
           <LoadingSpinner
             size="lg"
@@ -4040,8 +4044,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             {renderTaskList(getAvailableTasks(), 'available')}
                   </div>
         )}
-          </>
-                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 任务详情弹窗 */}
