@@ -4,6 +4,8 @@ import PixelIcon from './PixelIcon';
 import { authService, PRESET_USERS, getUserDisplayInfo } from '../services/authService';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeCard, ThemeFormField, ThemeInput, ThemeButton } from './ui/Components';
+import { useTranslation } from '../utils/i18n';
+import LanguageToggle from './ui/LanguageToggle';
 
 
 
@@ -12,7 +14,8 @@ interface AuthFormProps {
 }
 
 const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
-  const { theme } = useTheme();
+  const { theme, language } = useTheme();
+  const t = useTranslation(language);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -129,7 +132,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
       onAuthSuccess(user, profile);
 
     } catch (err: any) {
-      setError(err.message || '登录失败，请检查邮箱和密码');
+      setError(err.message || t('login_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -151,7 +154,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
       onAuthSuccess(authUser, profile);
 
     } catch (err: any) {
-      setError(err.message || '快速登录失败');
+      setError(err.message || t('quick_login_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -164,6 +167,11 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
         {/* 背景网格 */}
         <div className="absolute inset-0 bg-grid-black/[0.02] bg-[size:50px_50px]" />
         
+        {/* 语言切换按钮 - 右上角 */}
+        <div className="absolute top-4 right-4 z-50">
+          <LanguageToggle />
+        </div>
+        
         <div className="relative w-full max-w-md">
           <ThemeCard className="p-8 space-y-6">
             {/* Logo和标题 */}
@@ -175,10 +183,10 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
               </div>
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold text-foreground">
-                  Love Planner
+                  {t('love_planner')}
                 </h1>
                 <p className="text-muted-foreground text-sm">
-                  Welcome back to your shared space
+                  {t('welcome_back')}
                 </p>
               </div>
             </div>
@@ -193,8 +201,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
             {/* 快速登录 */}
             <div className="space-y-4">
               <div className="text-center">
-                <p className="text-sm font-medium text-foreground">Quick Login</p>
-                <p className="text-xs text-muted-foreground">Choose your profile</p>
+                <p className="text-sm font-medium text-foreground">{t('quick_login')}</p>
+                <p className="text-xs text-muted-foreground">{t('choose_profile')}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-3">
@@ -226,31 +234,31 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
+                  {t('or_continue_with')}
                 </span>
               </div>
             </div>
 
             {/* 登录表单 */}
             <form onSubmit={handleLogin} className="space-y-4">
-              <ThemeFormField label="Email Address" required>
+              <ThemeFormField label={t('email_address')} required>
                 <ThemeInput
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="Enter your email address"
+                  placeholder={t('enter_email')}
                   disabled={isLoading}
                   error={!!error}
                 />
               </ThemeFormField>
 
-              <ThemeFormField label="Password" required>
+              <ThemeFormField label={t('password')} required>
                 <div className="relative">
                   <ThemeInput
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Enter your password"
+                    placeholder={t('enter_password')}
                     disabled={isLoading}
                     error={!!error}
                     className="pr-10"
@@ -279,10 +287,10 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    <span>Signing in...</span>
+                    <span>{t('signing_in')}</span>
                   </div>
                 ) : (
-                  <span>Sign In</span>
+                  <span>{t('sign_in')}</span>
                 )}
               </ThemeButton>
             </form>
@@ -290,7 +298,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
             {/* 底部提示 */}
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
-                💡 Tip: Use the profile buttons above for quick access
+                {t('login_tip')}
               </p>
             </div>
           </ThemeCard>
@@ -298,7 +306,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
           {/* 底部装饰文字 */}
           <div className="text-center mt-6">
             <p className="text-sm text-muted-foreground">
-              Plan your love story together
+              {t('plan_love_story')}
             </p>
           </div>
         </div>

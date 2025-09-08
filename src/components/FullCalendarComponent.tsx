@@ -13,6 +13,7 @@ import type { Event } from '../types/event'
 import { ThemeButton } from './ui/Components'
 import { Card } from './ui/card'
 import { colorService, CoupleColors } from '../services/colorService'
+import { useTranslation } from '../utils/i18n'
 
 interface SelectionDetails {
   endDate: string
@@ -65,28 +66,12 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
   className = '',
   useSidebarLayout = false
 }) => {
-  const { theme, isDarkMode } = useTheme()
+  const { theme, isDarkMode, language } = useTheme()
+  const t = useTranslation(language)
   const [currentCalendarView, setCurrentCalendarView] = useState('timeGridWeek')
   const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null)
   const calendarRef = useRef<FullCalendar>(null)
   
-  // 强制更新24小时显示
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (calendarRef.current) {
-        const calendarApi = calendarRef.current.getApi();
-        console.log('🔧 强制更新FullCalendar配置...');
-        calendarApi.setOption('slotMinTime', '00:00:00');
-        calendarApi.setOption('slotMaxTime', '24:00:00');
-        calendarApi.setOption('slotDuration', '00:30:00');
-        calendarApi.setOption('snapDuration', '00:30:00');
-        // 触发重新渲染
-        calendarApi.refetchEvents();
-        console.log('✅ FullCalendar配置已更新');
-      }
-    }, 500); // 增加延迟确保组件完全挂载
-    return () => clearTimeout(timer);
-  }, [currentCalendarView])
 
   // 加载情侣颜色配置
   useEffect(() => {
@@ -316,22 +301,45 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       
       let title = ''
       if (view.type === 'dayGridMonth') {
-        title = `${currentDate.getFullYear()}年 ${currentDate.getMonth() + 1}月`
+        if (language === 'zh') {
+          title = `${currentDate.getFullYear()}年 ${currentDate.getMonth() + 1}月`
+        } else {
+          title = currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+        }
       } else if (view.type === 'timeGridWeek') {
         const weekStart = new Date(currentDate)
         weekStart.setDate(currentDate.getDate() - currentDate.getDay() + 1)
         const weekEnd = new Date(weekStart)
         weekEnd.setDate(weekStart.getDate() + 6)
-        title = `${weekStart.getFullYear()}年 第${Math.ceil(((weekStart.getTime() - new Date(weekStart.getFullYear(), 0, 1).getTime()) / 86400000 + new Date(weekStart.getFullYear(), 0, 1).getDay() + 1) / 7)}周`
+        
+        if (language === 'zh') {
+          const weekNumber = Math.ceil(((weekStart.getTime() - new Date(weekStart.getFullYear(), 0, 1).getTime()) / 86400000 + new Date(weekStart.getFullYear(), 0, 1).getDay() + 1) / 7)
+          title = `${weekStart.getFullYear()}年 第${weekNumber}周`
+        } else {
+          title = `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+        }
       } else if (view.type === 'timeGridDay') {
-        title = `${currentDate.getFullYear()}年 ${currentDate.getMonth() + 1}月${currentDate.getDate()}日`
+        if (language === 'zh') {
+          title = `${currentDate.getFullYear()}年 ${currentDate.getMonth() + 1}月${currentDate.getDate()}日`
+        } else {
+          title = currentDate.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })
+        }
       } else if (view.type === 'listWeek') {
-        title = `${currentDate.getFullYear()}年 ${currentDate.getMonth() + 1}月 议程`
+        if (language === 'zh') {
+          title = `${currentDate.getFullYear()}年 ${currentDate.getMonth() + 1}月 议程`
+        } else {
+          title = `${currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })} Agenda`
+        }
       }
       
       setCalendarTitle(title)
     }
-  }, [])
+  }, [language])
 
   // 处理视图切换
   const handleViewChange = useCallback((view: string) => {
@@ -372,6 +380,13 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       setTimeout(updateCalendarTitle, 100)
     }
   }, [updateCalendarTitle])
+
+  // 语言变化时更新标题
+  React.useEffect(() => {
+    if (calendarRef.current) {
+      setTimeout(updateCalendarTitle, 100)
+    }
+  }, [language, updateCalendarTitle])
 
   // 将事件转换为FullCalendar格式
   const fullCalendarEvents = useMemo(() => {
@@ -706,21 +721,10 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
             dropTime = `${hours}:${minutes}`
           }
           
-          console.log('🔧 时区调整分析:', {
-            原始startDate: startDate,
-            startDate时区偏移: startDate.getTimezoneOffset(),
-            本地时区偏移: timezoneOffset,
-            是否疑似UTC: isLikelyUTC,
-            调整后时间: actualDate,
-            最终日期: dropDate,
-            最终时间: dropTime
-          })
-          
-          console.log('✅ 最终解析结果:', {
-            dropDate,
-            dropTime,
-            构造的本地时间: dropTime ? `${dropDate}T${dropTime}:00` : `${dropDate} (全天)`
-          })
+          // 时区调整日志仅在开发模式下显示
+          if (process.env.NODE_ENV === 'development') {
+            console.log('📅 待办事项拖拽解析:', { dropDate, dropTime, isAllDay: !dropTime })
+          }
         } else {
           console.error('❌ 无法从事件获取开始时间')
           return
@@ -855,7 +859,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                variant="secondary"
                size="sm"
              >
-               {theme === 'pixel' ? 'TODAY' : '今天'}
+               {theme === 'pixel' ? 'TODAY' : t('today')}
              </ThemeButton>
            </div>
 
@@ -868,10 +872,10 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                {calendarTitle}
              </div>
              <div className="text-sm text-muted-foreground mt-1">
-               {currentView === 'all' ? '全部日程' : 
-                currentView === 'my' ? '我的日程' : 
-                currentView === 'partner' ? '伴侣日程' : 
-                '共同日程'} • {filteredEventsCount} 个事件
+               {currentView === 'all' ? t('all_calendar') : 
+                currentView === 'my' ? t('my_calendar') : 
+                currentView === 'partner' ? t('partner_calendar') : 
+                t('shared_calendar')} • {filteredEventsCount} {language === 'zh' ? '个事件' : 'events'}
              </div>
            </div>
 
@@ -885,7 +889,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                  size="sm"
                  className="h-8"
                >
-                 {theme === 'pixel' ? 'MON' : '月'}
+                 {theme === 'pixel' ? 'MON' : t('month')}
                </ThemeButton>
                <ThemeButton
                  onClick={() => handleViewChange('timeGridWeek')}
@@ -893,7 +897,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                  size="sm"
                  className="h-8"
                >
-                 {theme === 'pixel' ? 'WEK' : '周'}
+                 {theme === 'pixel' ? 'WEK' : t('week')}
                </ThemeButton>
                <ThemeButton
                  onClick={() => handleViewChange('timeGridDay')}
@@ -901,7 +905,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                  size="sm"
                  className="h-8"
                >
-                 {theme === 'pixel' ? 'DAY' : '日'}
+                 {theme === 'pixel' ? 'DAY' : t('day')}
                </ThemeButton>
                <ThemeButton
                  onClick={() => handleViewChange('listWeek')}
@@ -909,7 +913,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                  size="sm"
                  className="h-8"
                >
-                 {theme === 'pixel' ? 'LST' : '列表'}
+                 {theme === 'pixel' ? 'LST' : t('list')}
                </ThemeButton>
              </div>
 
@@ -928,10 +932,10 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                        `}
                        style={getViewThemeButtonBackground(view, isActive)}
                      >
-                       {view === 'all' && (theme === 'pixel' ? 'ALL' : '全部')}
-                       {view === 'my' && (theme === 'pixel' ? 'MY' : '我的')}
-                       {view === 'partner' && (theme === 'pixel' ? 'PTN' : '伴侣')}
-                       {view === 'shared' && (theme === 'pixel' ? 'SHR' : '共同')}
+                       {view === 'all' && (theme === 'pixel' ? 'ALL' : t('all'))}
+                       {view === 'my' && (theme === 'pixel' ? 'MY' : t('my'))}
+                       {view === 'partner' && (theme === 'pixel' ? 'PTN' : t('partner'))}
+                       {view === 'shared' && (theme === 'pixel' ? 'SHR' : t('shared'))}
                      </button>
                    )
                  })}
@@ -948,7 +952,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                    className="h-8"
                    disabled={isRefreshing}
                  >
-                   {isRefreshing ? (theme === 'pixel' ? 'REFRESH...' : '刷新中...') : (theme === 'pixel' ? 'REFRESH' : '刷新')}
+                   {isRefreshing ? (theme === 'pixel' ? 'REFRESH...' : t('loading')) : (theme === 'pixel' ? 'REFRESH' : t('refresh'))}
                  </ThemeButton>
                )}
                
@@ -960,7 +964,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                    className="h-8"
                    disabled={currentView === 'partner'}
                  >
-                   {theme === 'pixel' ? 'ADD_EVENT' : '添加日程'}
+                   {theme === 'pixel' ? 'ADD_EVENT' : t('add_event')}
                  </ThemeButton>
                )}
              </div>
@@ -1003,7 +1007,25 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           height="100%"
           contentHeight="100%"
           expandRows={true}
-          locale="zh-cn"
+          locale={language === 'zh' ? 'zh-cn' : 'en'}
+          buttonText={{
+            today: language === 'zh' ? '今天' : 'Today',
+            month: language === 'zh' ? '月' : 'Month',
+            week: language === 'zh' ? '周' : 'Week',
+            day: language === 'zh' ? '日' : 'Day',
+            list: language === 'zh' ? '列表' : 'List'
+          }}
+          dayHeaderFormat={
+            language === 'zh' 
+              ? { weekday: 'short' }
+              : { weekday: 'short' }
+          }
+          eventTimeFormat={{
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: language === 'en'
+          }}
+          allDayText={language === 'zh' ? '全天' : 'All Day'}
           timeZone="local" // 使用本地时区
           forceEventDuration={true} // 强制事件持续时间
           defaultTimedEventDuration="01:00:00" // 默认1小时持续时间
@@ -1016,17 +1038,11 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           eventDisplay="block"
           displayEventEnd={true} // 确保显示事件结束时间，对跨天事件很重要
           displayEventTime={true}
-          eventTimeFormat={{
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-          }}
           slotMinTime="00:00:00"
           slotMaxTime="24:00:00"
           slotDuration="00:30:00" // 30分钟的时间槽
           snapDuration="00:30:00" // 30分钟的对齐间隔
           allDaySlot={true}
-          allDayText="全天"
           slotLabelFormat={{
             hour: '2-digit',
             minute: '2-digit',

@@ -334,6 +334,30 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     return user?.id || '';
   };
 
+  // 根据用户ID获取显示名称
+  const getUserDisplayName = (userId: string) => {
+    if (!userId) return '未知用户';
+    
+    // 如果是当前用户，返回"我"
+    if (userId === currentUserId) {
+      return '我';
+    }
+    
+    // 从userMap中查找显示名
+    if (userMap[userId]) {
+      return userMap[userId];
+    }
+    
+    // 如果userMap中没有找到，可能是用户名而不是ID
+    const foundUserId = Object.keys(userMap).find(id => userMap[id] === userId);
+    if (foundUserId && userMap[foundUserId]) {
+      return userMap[foundUserId];
+    }
+    
+    // 如果都找不到，返回原始值
+    return userId;
+  };
+
   const currentUserName = getCurrentUserName();
   const currentUserId = getCurrentUserId();
   
@@ -1848,54 +1872,15 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         </p>
 
         <div className="space-y-2">
-          {/* 用户信息行 */}
-          <div className="flex items-center space-x-4">
-            {/* 只在"我领取的"和"可领取的"视图中显示创建者 */}
-            {!isPublishedView && (
-              <div className={`flex items-center space-x-1 ${
-                theme === 'pixel' ? 'text-pixel-accent' : 'text-blue-600'
-              }`}>
-                  {theme === 'pixel' ? (
-                  <PixelIcon name="user" size="sm" />
-                ) : (
-                  <Icon name="user" size="sm" />
-                )}
-                <span className={`text-xs ${
-                  theme === 'pixel' ? 'font-mono uppercase' : ''
-                }`}>
-                  {theme === 'pixel' ? 'CREATOR:' : '创建者:'} {task.creator_id}
-                  </span>
-                </div>
-            )}
-            
-            {/* 只在"我发布的"和"可领取的"视图中显示执行者 */}
-            {task.assignee_id && (isPublishedView || isAvailableView) && (
-              <div className={`flex items-center space-x-1 ${
-                theme === 'pixel' ? 'text-pixel-info' : 'text-green-600'
-              }`}>
-                    {theme === 'pixel' ? (
-                  <PixelIcon name="user" size="sm" />
-                ) : (
-                  <Icon name="user" size="sm" />
-                )}
-                <span className={`text-xs ${
-                  theme === 'pixel' ? 'font-mono uppercase' : ''
-                }`}>
-                  {theme === 'pixel' ? 'ASSIGNEE:' : '执行者:'} {task.assignee_id}
-                </span>
-                  </div>
-                )}
-        </div>
-
           {/* 任务详情信息行 - 改为可换行布局 */}
           <div className="flex flex-wrap items-center gap-2">
             {/* 日期和时间信息 */}
             <div className={`flex items-center space-x-1 ${
               theme === 'pixel' ? 'text-pixel-warning' : 'text-orange-600'
             }`}>
-                {theme === 'pixel' ? (
-                  <PixelIcon name="calendar" size="sm" />
-                ) : (
+                  {theme === 'pixel' ? (
+                    <PixelIcon name="calendar" size="sm" />
+                  ) : (
                   <Icon name="calendar" size="sm" />
                 )}
               <span className={`text-xs ${
@@ -1905,9 +1890,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   const taskType = task.repeat_frequency !== 'never' ? 'repeat' : 'once';
                   return taskType === 'once' ? (
                     isTimeRangeMode(task) ? (
-                    // 时间范围模式：显示开始时间范围
+                    // 时间范围模式：显示截止日期和时间范围
                     <>
-                      {formatDate(task.earliest_start_time!)}
+                      {task.task_deadline ? formatDate(task.task_deadline) : formatDate(task.earliest_start_time!)}
                       {task.earliest_start_time && (
                         <span className="ml-1 text-xs opacity-75">
                           {formatTimeRange(task.earliest_start_time, task.daily_time_end || undefined)}
@@ -1928,13 +1913,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     )}
                   </>
                 )})()}
-              </span>
-              </div>
+                  </span>
+                </div>
 
             <div className={`flex items-center space-x-1 ${
               theme === 'pixel' ? 'text-pixel-accent' : 'text-yellow-600'
             }`}>
-                {theme === 'pixel' ? (
+                    {theme === 'pixel' ? (
                 <PixelIcon name="star" size="sm" />
               ) : (
                 <Icon name="star" size="sm" />
@@ -1966,7 +1951,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 <div className={`flex items-center space-x-1 ${
                 theme === 'pixel' ? 'text-pixel-info' : 'text-blue-600'
               }`}>
-              {theme === 'pixel' ? (
+                {theme === 'pixel' ? (
                   <PixelIcon name="refresh" size="sm" />
                 ) : (
                   <Icon name="refresh" size="sm" />
@@ -2861,14 +2846,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 {selectedTask.assignee_id && (
                   <DetailField
                     label={theme === 'pixel' ? 'ASSIGNEE' : theme === 'modern' ? 'Assignee' : '领取者'}
-                    value={selectedTask.assignee_id}
+                    value={getUserDisplayName(selectedTask.assignee_id)}
                   />
                 )}
 
                 {/* 发布者信息 */}
                 <DetailField
                   label={theme === 'pixel' ? 'CREATOR' : theme === 'modern' ? 'Creator' : '发布者'}
-                  value={selectedTask.creator_id}
+                  value={getUserDisplayName(selectedTask.creator_id)}
                 />
 
                 {/* 需要凭证提示 */}

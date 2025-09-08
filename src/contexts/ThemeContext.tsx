@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export type ThemeType = 'pixel' | 'modern';
+export type LanguageType = 'zh' | 'en';
 
 interface ThemeContextType {
   theme: ThemeType;
@@ -12,6 +13,9 @@ interface ThemeContextType {
   useSidebarLayout: boolean;
   setSidebarLayout: (useSidebar: boolean) => void;
   toggleLayout: () => void;
+  language: LanguageType;
+  setLanguage: (language: LanguageType) => void;
+  toggleLanguage: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -32,12 +36,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeType>('modern');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [useSidebarLayout, setUseSidebarLayout] = useState(true);
+  const [language, setLanguageState] = useState<LanguageType>('zh');
 
-  // Load theme and dark mode from localStorage on mount
+  // Load theme, dark mode, layout, and language from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     const savedLayout = localStorage.getItem('sidebarLayout') === 'true';
+    const savedLanguage = (localStorage.getItem('language') as LanguageType) || 'zh';
     
     // 强制使用现代主题，隐藏像素主题选项
     setThemeState('modern');
@@ -45,24 +51,27 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     
     setIsDarkMode(savedDarkMode);
     setUseSidebarLayout(savedLayout);
+    setLanguageState(savedLanguage);
   }, []);
 
-  // Update localStorage and document class when theme or dark mode changes
+  // Update localStorage and document class when theme, dark mode, or language changes
   useEffect(() => {
     localStorage.setItem('theme', theme);
     localStorage.setItem('darkMode', isDarkMode.toString());
     localStorage.setItem('sidebarLayout', useSidebarLayout.toString());
+    localStorage.setItem('language', language);
     
     // 构建类名
-    const classes: string[] = [theme];
+    const classes: string[] = [theme, language];
     if (isDarkMode && theme === 'modern') {
       classes.push('dark');
     }
     
     document.documentElement.className = classes.join(' ');
+    document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
     // 确保body也有对应的类名
-    document.body.className = `${theme}-theme${isDarkMode && theme === 'modern' ? ' dark' : ''}`;
-  }, [theme, isDarkMode, useSidebarLayout]);
+    document.body.className = `${theme}-theme${isDarkMode && theme === 'modern' ? ' dark' : ''} lang-${language}`;
+  }, [theme, isDarkMode, useSidebarLayout, language]);
 
   const setTheme = (newTheme: ThemeType) => {
     setThemeState(newTheme);
@@ -93,6 +102,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setUseSidebarLayout(!useSidebarLayout);
   };
 
+  const setLanguage = (newLanguage: LanguageType) => {
+    setLanguageState(newLanguage);
+  };
+
+  const toggleLanguage = () => {
+    setLanguageState(language === 'zh' ? 'en' : 'zh');
+  };
+
   const value = {
     theme,
     setTheme,
@@ -102,7 +119,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     toggleDarkMode,
     useSidebarLayout,
     setSidebarLayout,
-    toggleLayout
+    toggleLayout,
+    language,
+    setLanguage,
+    toggleLanguage
   };
 
   return (

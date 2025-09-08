@@ -171,49 +171,35 @@ export const pointService = {
     description: string,
     relatedTaskId?: string
   ): Promise<boolean> {
-    // 首先获取当前积分
-    const { data: user } = await supabase
-      .from('user_profiles')
-      .select('points')
-      .eq('id', userId)
-      .single()
-
-    if (!user) return false
-
-    const balanceBefore = user.points
-    const balanceAfter = balanceBefore + amount
-
-    // 创建交易记录
-    const { error: transactionError } = await supabase
-      .from('point_transactions')
-      .insert({
-        user_id: userId,
-        couple_id: coupleId,
-        amount,
-        transaction_type: type,
-        description,
-        related_task_id: relatedTaskId,
-        balance_before: balanceBefore,
-        balance_after: balanceAfter
+    try {
+      const response = await fetch('/api/points/transaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          coupleId,
+          amount,
+          type,
+          description,
+          relatedTaskId
+        })
       })
 
-    if (transactionError) {
-      console.error('Error creating transaction:', transactionError)
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('API error:', errorData)
+        return false
+      }
+
+      const result = await response.json()
+      console.log('✅ 积分交易成功:', result)
+      return true
+    } catch (error) {
+      console.error('Error calling transaction API:', error)
       return false
     }
-
-    // 更新用户积分（触发器会自动处理，但为了保险起见手动更新）
-    const { error: updateError } = await supabase
-      .from('user_profiles')
-      .update({ points: balanceAfter })
-      .eq('id', userId)
-
-    if (updateError) {
-      console.error('Error updating user points:', updateError)
-      return false
-    }
-
-    return true
   },
 
   // 获取用户积分历史

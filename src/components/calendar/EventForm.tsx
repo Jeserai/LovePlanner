@@ -7,6 +7,7 @@ import {
   ThemeCheckbox, 
   ThemeButton 
 } from '../ui/Components';
+import { useTranslation } from '../../utils/i18n';
 import type { EditEventForm } from '../../types/event';
 
 interface EventFormProps {
@@ -30,7 +31,8 @@ const EventForm: React.FC<EventFormProps> = ({
   onCancel,
   user
 }) => {
-  const { theme } = useTheme();
+  const { theme, language } = useTheme();
+  const t = useTranslation(language);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,26 +50,26 @@ const EventForm: React.FC<EventFormProps> = ({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* 事件标题 */}
       <ThemeFormField
-        label={theme === 'pixel' ? 'EVENT_TITLE' : theme === 'modern' ? 'Event Title' : '事件标题'}
+        label={theme === 'pixel' ? 'EVENT_TITLE' : t('event_title')}
         required
       >
         <ThemeInput
           type="text"
           value={formData.title}
           onChange={(e) => onFormChange({ title: e.target.value })}
-          placeholder={theme === 'pixel' ? 'ENTER_TITLE' : theme === 'modern' ? 'Enter event title' : '输入事件标题'}
+          placeholder={theme === 'pixel' ? 'ENTER_TITLE' : t('enter_title')}
           required
         />
       </ThemeFormField>
 
       {/* 事件描述 */}
       <ThemeFormField
-        label={theme === 'pixel' ? 'DESCRIPTION' : theme === 'modern' ? 'Description' : '描述'}
+        label={theme === 'pixel' ? 'DESCRIPTION' : t('description')}
       >
         <ThemeTextarea
           value={formData.description}
           onChange={(e) => onFormChange({ description: e.target.value })}
-          placeholder={theme === 'pixel' ? 'OPTIONAL_DESCRIPTION' : theme === 'modern' ? 'Optional description' : '可选描述'}
+          placeholder={theme === 'pixel' ? 'OPTIONAL_DESCRIPTION' : t('optional_description')}
           rows={3}
         />
       </ThemeFormField>
@@ -77,7 +79,7 @@ const EventForm: React.FC<EventFormProps> = ({
         <ThemeCheckbox
           checked={formData.isAllDay}
           onChange={(e) => onFormChange({ isAllDay: e.target.checked })}
-          label={theme === 'pixel' ? 'ALL_DAY_EVENT' : theme === 'modern' ? 'All day event' : '全天事件'}
+          label={theme === 'pixel' ? 'ALL_DAY_EVENT' : t('all_day_event')}
         />
       </ThemeFormField>
 
@@ -85,7 +87,7 @@ const EventForm: React.FC<EventFormProps> = ({
       {!formData.isAllDay && (
         <div className="grid grid-cols-2 gap-4">
           <ThemeFormField
-            label={theme === 'pixel' ? 'START_TIME' : theme === 'modern' ? 'Start Time' : '开始时间'}
+            label={theme === 'pixel' ? 'START_TIME' : t('start_time')}
             required
           >
             <ThemeInput
@@ -97,7 +99,7 @@ const EventForm: React.FC<EventFormProps> = ({
           </ThemeFormField>
 
           <ThemeFormField
-            label={theme === 'pixel' ? 'END_TIME' : theme === 'modern' ? 'End Time' : '结束时间'}
+            label={theme === 'pixel' ? 'END_TIME' : t('end_time')}
             required
           >
             <ThemeInput
@@ -113,21 +115,18 @@ const EventForm: React.FC<EventFormProps> = ({
 
       {/* 地点 */}
       <ThemeFormField
-        label={theme === 'pixel' ? 'LOCATION' : theme === 'modern' ? 'Location' : '地点'}
+        label={theme === 'pixel' ? 'LOCATION' : t('location')}
       >
         <ThemeInput
           type="text"
           value={formData.location}
           onChange={(e) => onFormChange({ location: e.target.value })}
-          placeholder={theme === 'pixel' ? 'OPTIONAL_LOCATION' : theme === 'modern' ? 'Optional location' : '可选地点'}
+          placeholder={theme === 'pixel' ? 'OPTIONAL_LOCATION' : t('optional_location')}
         />
       </ThemeFormField>
 
       {/* Joint Activity 设置 */}
-      <ThemeFormField
-        label={theme === 'pixel' ? 'JOINT_ACTIVITY' : theme === 'modern' ? 'Joint Activity' : '共同活动'}
-        description={theme === 'pixel' ? 'IS_THIS_A_SHARED_EVENT' : theme === 'modern' ? 'Is this a shared event with your partner?' : '这是与伴侣的共同活动吗？'}
-      >
+      <ThemeFormField>
         <ThemeCheckbox
           checked={formData.includesUser1 && formData.includesUser2}
           onChange={(e) => {
@@ -145,7 +144,7 @@ const EventForm: React.FC<EventFormProps> = ({
               }
             }
           }}
-          label={theme === 'pixel' ? 'SHARED_WITH_PARTNER' : theme === 'modern' ? 'Shared with partner' : '与伴侣共享'}
+          label={theme === 'pixel' ? 'SHARED_WITH_PARTNER' : t('shared_with_partner')}
         />
       </ThemeFormField>
 
@@ -154,7 +153,7 @@ const EventForm: React.FC<EventFormProps> = ({
         <ThemeCheckbox
           checked={formData.isRecurring}
           onChange={(e) => onFormChange({ isRecurring: e.target.checked })}
-          label={theme === 'pixel' ? 'RECURRING_EVENT' : theme === 'modern' ? 'Recurring Event' : '重复事件'}
+          label={theme === 'pixel' ? 'RECURRING_EVENT' : t('recurring_event')}
         />
       </ThemeFormField>
 
@@ -162,7 +161,7 @@ const EventForm: React.FC<EventFormProps> = ({
       {formData.isRecurring && (
         <div className="space-y-4">
           <ThemeFormField
-            label={theme === 'pixel' ? 'RECURRENCE_TYPE' : theme === 'modern' ? 'Recurrence Type' : '重复类型'}
+            label={theme === 'pixel' ? 'RECURRENCE_TYPE' : t('recurrence_type')}
             required
           >
             <select
@@ -174,10 +173,10 @@ const EventForm: React.FC<EventFormProps> = ({
                 'border-border bg-background text-foreground'
               }`}
             >
-              <option value="daily">{theme === 'pixel' ? 'DAILY' : theme === 'modern' ? 'Daily' : '每日'}</option>
-              <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : theme === 'modern' ? 'Weekly' : '每周'}</option>
-              <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : theme === 'modern' ? 'Monthly' : '每月'}</option>
-              <option value="yearly">{theme === 'pixel' ? 'YEARLY' : theme === 'modern' ? 'Yearly' : '每年'}</option>
+              <option value="daily">{theme === 'pixel' ? 'DAILY' : t('daily')}</option>
+              <option value="weekly">{theme === 'pixel' ? 'WEEKLY' : t('weekly')}</option>
+              <option value="monthly">{theme === 'pixel' ? 'MONTHLY' : t('monthly')}</option>
+              <option value="yearly">{theme === 'pixel' ? 'YEARLY' : t('yearly')}</option>
             </select>
           </ThemeFormField>
 
@@ -198,12 +197,12 @@ const EventForm: React.FC<EventFormProps> = ({
       {/* 按钮 */}
       <div className="flex justify-end space-x-2 pt-4">
         <ThemeButton type="button" variant="secondary" onClick={onCancel}>
-          {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : '取消'}
+          {theme === 'pixel' ? 'CANCEL' : t('cancel')}
         </ThemeButton>
         <ThemeButton type="submit" variant="primary">
           {mode === 'create' 
-            ? (theme === 'pixel' ? 'CREATE_EVENT' : theme === 'modern' ? 'Create Event' : '创建事件')
-            : (theme === 'pixel' ? 'UPDATE_EVENT' : theme === 'modern' ? 'Update Event' : '更新事件')
+            ? (theme === 'pixel' ? 'CREATE_EVENT' : t('create_event'))
+            : (theme === 'pixel' ? 'UPDATE_EVENT' : t('edit_event'))
           }
         </ThemeButton>
       </div>

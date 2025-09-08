@@ -3,6 +3,7 @@ import { Draggable } from '@fullcalendar/interaction';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Card } from '../ui/card';
 import { ThemeButton, ThemeInput } from '../ui/Components';
+import { useTranslation } from '../../utils/i18n';
 
 interface TodoItem {
   id: string;
@@ -22,7 +23,8 @@ export interface TodoListRef {
 }
 
 const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '', onTodoDropped, useSidebarLayout = false }, ref) => {
-  const { theme } = useTheme();
+  const { theme, language } = useTheme();
+  const t = useTranslation(language);
   
   // 输入框引用
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,7 +72,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
   const saveTodosToStorage = useCallback((todosToSave: TodoItem[]) => {
     try {
       localStorage.setItem('calendar-todos', JSON.stringify(todosToSave));
-      console.log('✅ 待办事项已保存到localStorage');
+      // 待办事项已保存到localStorage
     } catch (error) {
       console.warn('保存待办事项失败:', error);
     }
@@ -196,7 +198,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
         }
       });
 
-      console.log('✅ FullCalendar Draggable 初始化完成');
+      // FullCalendar Draggable 初始化完成
     }
 
     // 清理函数
@@ -221,7 +223,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
         <h3 className={`font-semibold ${
           theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'
         }`}>
-          {theme === 'pixel' ? 'TODO_LIST.EXE' : 'To-Do 列表'}
+          {theme === 'pixel' ? 'TODO_LIST.EXE' : t('todo_list')}
         </h3>
         <div className="flex items-center space-x-2">
           {/* 🔧 显示/隐藏已完成项目按钮 */}
@@ -232,8 +234,8 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
             className="text-xs"
           >
             {showCompleted 
-              ? (theme === 'pixel' ? 'HIDE_DONE' : '隐藏已完成') 
-              : (theme === 'pixel' ? 'SHOW_DONE' : '显示已完成')
+              ? (theme === 'pixel' ? 'HIDE_DONE' : t('hide_completed')) 
+              : (theme === 'pixel' ? 'SHOW_DONE' : t('show_completed'))
             }
           </ThemeButton>
           <ThemeButton
@@ -249,7 +251,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
             variant="secondary"
             size="sm"
           >
-            {theme === 'pixel' ? 'ADD' : '添加'}
+            {theme === 'pixel' ? 'ADD' : t('add')}
           </ThemeButton>
         </div>
       </div>
@@ -301,14 +303,14 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-muted-foreground'
           }`}>
             {showCompleted 
-              ? (theme === 'pixel' ? 'NO_TODOS_FOUND' : '暂无待办事项')
-              : (theme === 'pixel' ? 'NO_PENDING_TODOS' : '暂无未完成的待办事项')
+              ? (theme === 'pixel' ? 'NO_TODOS_FOUND' : t('no_todos'))
+              : (theme === 'pixel' ? 'NO_PENDING_TODOS' : t('no_pending_todos'))
             }
             <br />
             <span className="text-xs">
               {!showCompleted && todos.some(t => t.completed) 
-                ? (theme === 'pixel' ? 'CLICK_SHOW_DONE' : '点击"显示已完成"查看全部')
-                : (theme === 'pixel' ? 'DRAG_TO_CALENDAR' : '拖拽到日历创建日程')
+                ? (theme === 'pixel' ? 'CLICK_SHOW_DONE' : t('click_show_done'))
+                : (theme === 'pixel' ? 'DRAG_TO_CALENDAR' : language === 'zh' ? '拖拽到日历创建日程' : 'Drag to calendar to create events')
               }
             </span>
           </div>
@@ -393,7 +395,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
                       <span className={`text-xs ${
                         theme === 'pixel' ? 'text-pixel-textMuted' : 'text-muted-foreground'
                       } opacity-0 group-hover:opacity-100 transition-opacity`}>
-                        {theme === 'pixel' ? 'DRAG' : '拖拽'}
+                        {theme === 'pixel' ? 'DRAG' : t('drag')}
                       </span>
                     )}
                     <div style={{ pointerEvents: 'auto' }}>
@@ -403,7 +405,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
                         size="sm"
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        {theme === 'pixel' ? 'DEL' : '删除'}
+                        {theme === 'pixel' ? 'DEL' : t('delete')}
                       </ThemeButton>
                     </div>
                   </>

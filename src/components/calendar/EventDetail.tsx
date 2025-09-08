@@ -4,6 +4,7 @@ import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import PixelIcon from '../PixelIcon';
 import DetailField from '../ui/DetailField';
 import { ThemeButton } from '../ui/Components';
+import { useTranslation } from '../../utils/i18n';
 import type { Event } from '../../types/event';
 
 interface EventDetailProps {
@@ -25,7 +26,8 @@ const EventDetail: React.FC<EventDetailProps> = ({
   onClose,
   currentView
 }) => {
-  const { theme } = useTheme();
+  const { theme, language } = useTheme();
+  const t = useTranslation(language);
 
   // 权限检查
   const hasEditPermission = event.createdBy === user?.id;
@@ -36,7 +38,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
   const formatDetailedTime = (event: Event) => {
     // 如果是全天事件，直接返回
     if (!event.time || event.time === '全天') {
-      return '全天';
+      return t('all_day');
     }
     
     // 格式化日期
@@ -48,7 +50,15 @@ const EventDetail: React.FC<EventDetailProps> = ({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    if (language === 'zh') {
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    }
   };
 
   // 获取事件描述
@@ -68,7 +78,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
 
   // 获取创建者
   const getEventCreatedBy = (event: Event) => {
-    if (!event.createdBy || !coupleUsers) return '未知';
+    if (!event.createdBy || !coupleUsers) return t('unknown');
     
     if (event.createdBy === coupleUsers.user1.id) {
       return coupleUsers.user1.display_name;
@@ -76,7 +86,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
     if (event.createdBy === coupleUsers.user2.id) {
       return coupleUsers.user2.display_name;
     }
-    return '未知';
+    return t('unknown');
   };
 
   // 获取创建时间
@@ -159,13 +169,13 @@ const EventDetail: React.FC<EventDetailProps> = ({
 
       {/* 创建者 */}
       <DetailField
-        label={theme === 'pixel' ? 'CREATED_BY' : theme === 'modern' ? 'Created By' : '创建者'}
+        label={theme === 'pixel' ? 'CREATED_BY' : t('created_by')}
         value={getEventCreatedBy(event)}
       />
 
       {/* 创建时间 */}
       <DetailField
-        label={theme === 'pixel' ? 'CREATED_AT' : theme === 'modern' ? 'Created At' : '创建时间'}
+        label={theme === 'pixel' ? 'CREATED_AT' : t('created_at')}
         value={getEventCreatedAt(event)}
       />
 
@@ -208,7 +218,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
               ) : (
                 <PencilIcon className="w-4 h-4" />
               )}
-              <span>{theme === 'pixel' ? 'EDIT' : theme === 'modern' ? 'Edit' : '编辑'}</span>
+              <span>{theme === 'pixel' ? 'EDIT' : t('edit')}</span>
             </ThemeButton>
 
             <ThemeButton
@@ -221,7 +231,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
               ) : (
                 <TrashIcon className="w-4 h-4" />
               )}
-              <span>{theme === 'pixel' ? 'DELETE' : theme === 'modern' ? 'Delete' : '删除'}</span>
+              <span>{theme === 'pixel' ? 'DELETE' : t('delete')}</span>
             </ThemeButton>
           </>
         )}
@@ -229,7 +239,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
         {/* 关闭按钮（始终显示在最右侧） */}
         {onClose && (
           <ThemeButton variant="secondary" onClick={onClose}>
-            {theme === 'pixel' ? 'CLOSE' : theme === 'modern' ? 'Close' : '关闭'}
+            {theme === 'pixel' ? 'CLOSE' : t('close')}
           </ThemeButton>
         )}
       </div>

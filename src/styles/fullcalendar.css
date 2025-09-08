@@ -564,13 +564,7 @@
   pointer-events: auto !important;
 }
 
-/* 时间网格容器滚动设置 */
-.fc-timegrid .fc-scroller,
-.fc-timegrid-body .fc-scroller {
-  overflow-y: auto !important;
-  height: auto !important;
-  max-height: none !important;
-}
+/* 时间网格容器滚动设置 - 继承全局.fc-scroller样式 */
 
 /* 简化的sticky表头 - 让FullCalendar自己处理 */
 .fc-scrollgrid-section-header {
