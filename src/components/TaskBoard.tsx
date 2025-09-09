@@ -5,11 +5,13 @@ import Icon from './ui/Icon';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import PixelIcon from './PixelIcon';
 import LoadingSpinner from './ui/LoadingSpinner';
-import PointsDisplay from './PointsDisplay';
 import PageHeader from './ui/PageHeader';
 // import Card from './ui/Card'; // 已删除，使用ThemeCard替代
 import NavigationButton from './ui/NavigationButton';
 import DetailField from './ui/DetailField';
+import TaskTypeSelector from './ui/TaskTypeSelector';
+import PointsConfiguration from './ui/PointsConfiguration';
+import { PointsCalculationService } from '../services/pointsCalculationService';
 
 import { 
   ThemeCard, 
@@ -110,8 +112,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   }>({
     title: '',
     description: '',
-    task_type: 'daily',
-    points: 50,
+    task_type: 'normal',
+    points: 0,
     requires_proof: false,
     repeat_frequency: 'never',
     
@@ -228,10 +230,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     
     const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (diffDays <= 25) return '21天';
-    if (diffDays <= 35) return '1个月';
-    if (diffDays <= 200) return '6个月';
-    return '1年';
+    if (diffDays <= 25) return t('days_21');
+    if (diffDays <= 35) return t('month_1');
+    if (diffDays <= 200) return t('months_6');
+    return t('year_1');
   };
 
 
@@ -330,7 +332,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
     
     // 最后回退到默认值
-    return 'User';
+    return t('unknown_user');
   };
 
   // 获取当前用户ID（数据库操作用）
@@ -340,11 +342,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 根据用户ID获取显示名称
   const getUserDisplayName = (userId: string) => {
-    if (!userId) return '未知用户';
+    if (!userId) return t('unknown_user');
     
     // 如果是当前用户，返回"我"
     if (userId === currentUserId) {
-      return '我';
+      return t('me');
     }
     
     // 从userMap中查找显示名
@@ -434,52 +436,52 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   // 🎯 习惯任务相关处理函数
   const handleJoinHabitChallenge = async (taskId: string) => {
     if (!user?.id) {
-      alert('请先登录');
+      alert(t('please_login_first'));
       return;
     }
 
     try {
       await habitTaskService.joinHabitChallenge(taskId, user.id);
-      alert('成功加入习惯挑战！');
+      alert(t('habit_join_success'));
       
       // 重新加载用户的习惯挑战
       setHabitChallengesLoaded(false);
       await loadUserHabitChallenges();
     } catch (error: any) {
       console.error('加入习惯挑战失败:', error);
-      alert(`加入挑战失败: ${error.message}`);
+      alert(t('join_challenge_failed').replace('{error}', error.message));
     }
   };
 
   const handleDailyCheckIn = async (challengeId: string, notes?: string) => {
     try {
       await habitTaskService.dailyCheckIn(challengeId, notes);
-      alert('打卡成功！');
+      alert(t('checkin_success'));
       
       // 重新加载用户的习惯挑战
       setHabitChallengesLoaded(false);
       await loadUserHabitChallenges();
     } catch (error: any) {
       console.error('打卡失败:', error);
-      alert(`打卡失败: ${error.message}`);
+      alert(`${t('checkin_failed')}: ${error.message}`);
     }
   };
 
   const handleAbandonChallenge = async (challengeId: string) => {
-    if (!confirm('确定要放弃这个挑战吗？')) {
+    if (!confirm(t('abandon_confirm'))) {
       return;
     }
 
     try {
       await habitTaskService.abandonChallenge(challengeId);
-      alert('已放弃挑战');
+      alert(t('abandon_success'));
       
       // 重新加载用户的习惯挑战
       setHabitChallengesLoaded(false);
       await loadUserHabitChallenges();
     } catch (error: any) {
       console.error('放弃挑战失败:', error);
-      alert(`操作失败: ${error.message}`);
+      alert(t('operation_failed').replace('{error}', error.message));
     }
   };
 
@@ -527,7 +529,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         console.error('❌ 重新加载任务失败:', reloadError);
       }
       
-      alert(`更新任务失败: ${error?.message || '未知错误'}，请重试`);
+      alert(t('update_failed_retry').replace('{error}', error?.message || t('unknown_error')));
       throw error;
     }
   };
@@ -538,7 +540,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     
     try {
       const taskType = task.repeat_frequency !== 'never' ? 'repeat' : 'once';
-      const task_typeDescription = taskType === 'repeat' ? '重复性任务' : '一次性任务';
+      const task_typeDescription = taskType === 'repeat' ? t('repeat_task_type') : t('one_time_task_type');
       const description = `完成${task_typeDescription}：${task.title}`;
       
       const success = await pointService.addTransaction(
@@ -576,8 +578,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 成功反馈
       addToast({
         variant: 'success',
-        title: '任务领取成功',
-        description: '任务已成功分配给您，可以开始执行了！'
+        title: t('task_claim_success'),
+        description: t('task_claim_success_desc')
       });
     } catch (error: any) {
       console.error('❌ 领取任务失败:', error?.message);
@@ -585,8 +587,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 错误反馈
       addToast({
         variant: 'error',
-        title: '领取任务失败',
-        description: error?.message || '请稍后重试'
+        title: t('task_claim_failed'),
+        description: error?.message || t('please_try_later')
       });
       
       throw error;
@@ -607,8 +609,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       if (task.repeat_frequency !== 'never' && isCurrentPeriodCompleted(task)) {
         addToast({
           variant: 'warning',
-          title: '本周期已打卡',
-          description: '您在当前周期内已经完成打卡，请等待下一个周期'
+          title: t('already_checked_in'),
+          description: t('already_checked_in_desc')
         });
         return;
       }
@@ -638,10 +640,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       const isRepeatTask = task.repeat_frequency !== 'never';
       addToast({
         variant: 'success',
-        title: isRepeatTask ? '打卡成功' : '任务完成',
+        title: isRepeatTask ? t('checkin_success_title') : t('task_complete_title'),
         description: task.requires_proof ? 
-          (isRepeatTask ? '打卡已提交，等待审核' : '任务已提交，等待审核') : 
-          (isRepeatTask ? `打卡成功！获得 ${task.points} 积分` : `任务完成！获得 ${task.points} 积分`)
+          (isRepeatTask ? t('checkin_submitted') : t('task_submitted')) : 
+          (isRepeatTask ? t('checkin_success_with_points').replace('{points}', task.points.toString()) : t('task_complete_with_points').replace('{points}', task.points.toString()))
       });
     } catch (error: any) {
       console.error('❌ 完成任务失败:', error);
@@ -651,8 +653,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       const isRepeatTask = task?.repeat_frequency !== 'never';
       addToast({
         variant: 'error',
-        title: isRepeatTask ? '打卡失败' : '完成任务失败',
-        description: error?.message || '请稍后重试'
+        title: isRepeatTask ? t('checkin_failed') : t('complete_task_failed'),
+        description: error?.message || t('please_try_later')
       });
       
       throw error;
@@ -711,8 +713,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         // 成功反馈
         addToast({
           variant: 'warning',
-          title: '任务已放弃',
-          description: `任务"${task.title}"已从您的任务列表中移除`
+          title: t('task_abandoned'),
+          description: t('task_abandoned_desc').replace('{title}', task.title)
         });
       } else {
         console.log('🗑️ 删除任务:', { taskId: taskToDelete });
@@ -723,8 +725,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         // 成功反馈
         addToast({
           variant: 'success',
-          title: '任务已删除',
-          description: `任务"${task.title}"已被永久删除`
+          title: t('task_deleted'),
+          description: t('task_deleted_desc').replace('{title}', task.title)
         });
       }
       
@@ -742,8 +744,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 错误反馈
       addToast({
         variant: 'error',
-        title: `${deleteAction === 'abandon' ? '放弃' : '删除'}任务失败`,
-        description: error?.message || '请稍后重试'
+        title: deleteAction === 'abandon' ? t('abandon_task_failed') : t('delete_task_failed'),
+        description: error?.message || t('please_try_later')
       });
     } finally {
       setShowDeleteTaskConfirm(false);
@@ -784,8 +786,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 成功反馈
       addToast({
         variant: 'success',
-        title: '任务已重新发布',
-        description: `任务"${task.title}"已重新发布，等待其他人领取`
+        title: t('task_republished'),
+        description: t('task_republished_desc').replace('{title}', task.title)
       });
     } catch (error: any) {
       console.error('❌ 重新发布任务失败:', error);
@@ -793,8 +795,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 错误反馈
       addToast({
         variant: 'error',
-        title: '重新发布失败',
-        description: error?.message || '请稍后重试'
+        title: t('republish_failed'),
+        description: error?.message || t('please_try_later')
       });
     }
   };
@@ -847,7 +849,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   // 🎯 保存编辑的任务 - 使用新数据结构
   const handleSaveEdit = async () => {
     if (!selectedTask || !editTask.title?.trim()) {
-      alert('请填写任务标题');
+      alert(t('please_enter_title'));
       return;
     }
 
@@ -860,7 +862,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           const hasEndTime = Boolean(editTask.task_deadline);
           
           if (!hasStartTime && !hasEndTime) {
-            alert('一次性任务必须设置开始时间或结束时间');
+            alert(t('one_time_task_time_required'));
             return;
           }
           
@@ -870,7 +872,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           if (hasStartTime) {
             const startTime = new Date(editTask.earliest_start_time!);
             if (startTime <= now) {
-              alert('任务开始时间不能是过去时间');
+              alert(t('start_time_cannot_past'));
               return;
             }
           }
@@ -879,7 +881,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           if (hasEndTime) {
             const endTime = new Date(editTask.task_deadline!);
             if (endTime <= now) {
-              alert('任务结束时间不能是过去时间');
+              alert(t('end_time_cannot_past'));
               return;
             }
           }
@@ -889,14 +891,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             const startTime = new Date(editTask.earliest_start_time!);
             const endTime = new Date(editTask.task_deadline!);
             if (startTime >= endTime) {
-              alert('任务开始时间必须早于结束时间');
+              alert(t('start_before_end'));
               return;
             }
           }
         } else {
           // 🎯 重复任务：最早开始时间必填
           if (!editTask.earliest_start_time) {
-            alert('请设置重复任务的最早开始时间');
+            alert(t('repeat_task_start_required'));
             return;
           }
           
@@ -904,7 +906,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           const startTime = new Date(editTask.earliest_start_time);
     const now = new Date();
           if (startTime <= now) {
-            alert('重复任务的开始时间不能是过去时间');
+            alert(t('repeat_start_cannot_past'));
             return;
           }
           
@@ -912,19 +914,19 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           if (editTask.task_deadline) {
             const deadlineTime = new Date(editTask.task_deadline);
             if (deadlineTime <= now) {
-              alert('截止时间不能是过去时间');
+              alert(t('deadline_cannot_past'));
               return;
             }
             
             if (deadlineTime <= startTime) {
-              alert('截止时间必须晚于开始时间');
+              alert(t('deadline_after_start'));
               return;
             }
           }
           
           // 验证重复次数（如果设置了）
           if (editTask.required_count && editTask.required_count < 1) {
-            alert('重复次数必须大于0');
+            alert(t('count_greater_zero'));
             return;
           }
         }
@@ -933,14 +935,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 如果指定了任务时间段，验证时间段有效性
       if (editTask.daily_time_start && editTask.daily_time_end) {
         if (editTask.daily_time_start >= editTask.daily_time_end) {
-          alert('任务开始时间必须早于结束时间');
+          alert(t('start_before_end'));
           return;
         }
       } else if (editTask.daily_time_start && !editTask.daily_time_end) {
-        alert('指定了开始时间，请同时指定结束时间');
+        alert(t('specify_start_and_end'));
         return;
       } else if (!editTask.daily_time_start && editTask.daily_time_end) {
-        alert('指定了结束时间，请同时指定开始时间');
+        alert(t('specify_end_and_start'));
         return;
       }
 
@@ -949,8 +951,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         id: selectedTask.id,
         title: editTask.title.trim(),
         description: editTask.description || '',
-        points: editTask.points || 50,
-        task_type: editTask.task_type || 'daily',
+        points: editTask.points || 0,
+        task_type: editTask.task_type || 'normal',
         repeat_frequency: editTask.repeat_frequency || 'never',
         earliest_start_time: editTask.earliest_start_time || undefined,
         task_deadline: editTask.task_deadline || undefined,
@@ -989,8 +991,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 成功反馈
       addToast({
         variant: 'success',
-        title: '任务更新成功',
-        description: `任务"${editTask.title}"已成功更新`
+        title: t('task_updated'),
+        description: t('task_updated_desc').replace('{title}', editTask.title)
       });
     } catch (error: any) {
       console.error('❌ 更新任务失败:', error);
@@ -998,8 +1000,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 错误反馈
       addToast({
         variant: 'error',
-        title: '更新任务失败',
-        description: error?.message || '请检查输入信息后重试'
+        title: t('update_task_failed'),
+        description: error?.message || t('update_task_failed_desc')
       });
     }
   };
@@ -1039,8 +1041,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     // 提示用户更改已丢弃
     addToast({
       variant: 'warning',
-      title: '编辑已取消',
-      description: '未保存的更改已丢弃'
+      title: t('edit_cancelled'),
+      description: t('edit_cancelled_desc')
     });
   };
 
@@ -1113,7 +1115,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const handleCreateTask = async () => {
     // 验证必填字段
     if (!newTask.title.trim()) {
-      alert('请填写任务标题');
+      alert(t('please_enter_title'));
       return;
     }
 
@@ -1125,7 +1127,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         const hasEndTime = Boolean(newTask.task_deadline);
         
         if (!hasStartTime && !hasEndTime) {
-          alert('限时任务必须设置开始时间或结束时间（或两者都设置）');
+          alert(t('limited_task_time_required'));
           return;
         }
         
@@ -1135,7 +1137,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         if (hasStartTime) {
           const startTime = new Date(newTask.earliest_start_time!);
           if (startTime <= now) {
-            alert('任务开始时间不能是过去时间');
+            alert(t('start_time_cannot_past'));
             return;
           }
         }
@@ -1144,7 +1146,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         if (hasEndTime) {
           const endTime = new Date(newTask.task_deadline!);
           if (endTime <= now) {
-            alert('任务结束时间不能是过去时间');
+            alert(t('end_time_cannot_past'));
             return;
           }
         }
@@ -1154,14 +1156,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           const startTime = new Date(newTask.earliest_start_time!);
           const endTime = new Date(newTask.task_deadline!);
           if (startTime >= endTime) {
-            alert('任务开始时间必须早于结束时间');
+            alert(t('start_before_end'));
             return;
           }
       }
                   } else {
           // 🎯 重复任务：最早开始时间必填
           if (!newTask.earliest_start_time) {
-            alert('请设置重复任务的最早开始时间');
+            alert(t('repeat_task_start_required'));
             return;
           }
           
@@ -1169,7 +1171,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           const startTime = new Date(newTask.earliest_start_time);
           const now = new Date();
           if (startTime <= now) {
-            alert('重复任务的开始时间不能是过去时间');
+            alert(t('repeat_start_cannot_past'));
             return;
           }
           
@@ -1177,19 +1179,19 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           if (newTask.task_deadline) {
             const deadlineTime = new Date(newTask.task_deadline);
             if (deadlineTime <= now) {
-              alert('截止时间不能是过去时间');
+              alert(t('deadline_cannot_past'));
               return;
             }
             
             if (deadlineTime <= startTime) {
-              alert('截止时间必须晚于开始时间');
+              alert(t('deadline_after_start'));
               return;
             }
           }
           
           // 验证重复次数（如果设置了）
           if (newTask.required_count && newTask.required_count < 1) {
-            alert('重复次数必须大于0');
+            alert(t('count_greater_zero'));
             return;
           }
         }
@@ -1197,14 +1199,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 如果指定了任务时间段，验证时间段有效性
       if (newTask.daily_time_start && newTask.daily_time_end) {
         if (newTask.daily_time_start >= newTask.daily_time_end) {
-          alert('任务开始时间必须早于结束时间');
+          alert(t('start_before_end'));
           return;
         }
       } else if (newTask.daily_time_start && !newTask.daily_time_end) {
-        alert('指定了开始时间，请同时指定结束时间');
+        alert(t('specify_start_and_end'));
         return;
       } else if (!newTask.daily_time_start && newTask.daily_time_end) {
-        alert('指定了结束时间，请同时指定开始时间');
+        alert(t('specify_end_and_start'));
         return;
       }
     }
@@ -1240,8 +1242,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         // 成功反馈
         addToast({
           variant: 'success',
-          title: '任务创建成功',
-          description: `任务"${newTask.title}"已成功创建`
+          title: t('task_created'),
+          description: t('task_created_desc').replace('{title}', newTask.title)
         });
 
       } catch (error: any) {
@@ -1250,16 +1252,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         // 错误反馈
         addToast({
           variant: 'error',
-          title: '创建任务失败',
-          description: error?.message || '请检查输入信息后重试'
+          title: t('create_task_failed'),
+          description: error?.message || t('create_task_failed_desc')
         });
         return;
       }
                     } else {
       addToast({
         variant: 'error',
-        title: '创建任务失败',
-        description: '用户未登录或缺少情侣关系信息'
+        title: t('create_task_failed'),
+        description: t('user_not_logged_in')
       });
       return;
     }
@@ -1268,8 +1270,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         setNewTask({
           title: '',
           description: '',
-          task_type: 'daily',
-          points: 50,
+          task_type: 'normal',
+          points: 0,
           requires_proof: false,
           // 🎯 新数据结构字段
           repeat_frequency: 'never',
@@ -1297,14 +1299,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             theme === 'modern' ? 'text-slate-600' : 'text-gray-600'
             }`}>
             {theme === 'pixel' ? 'TIME_CONSTRAINT_OPTIONAL' : 
-             theme === 'modern' ? 'Time constraints (optional): Set start time, end time, or both' : 
-             '时间限制（可选）：可以设置开始时间、结束时间，或两者都设置'}
+             t('time_constraints_optional')}
             </div>
           
           {/* 最早开始时间（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'EARLIEST_START_TIME' : theme === 'modern' ? 'Earliest Start Time' : '最早开始时间'}
-            description={theme === 'pixel' ? 'WHEN_CAN_START' : theme === 'modern' ? 'When can this task be started? (Leave empty if anytime)' : '任务最早什么时候可以开始？（留空表示随时可以开始）'}
+            label={theme === 'pixel' ? 'EARLIEST_START_TIME' : t('earliest_start_time')}
+            description={theme === 'pixel' ? 'WHEN_CAN_START' : t('when_can_start')}
           >
             <ThemeInput
                   type="datetime-local"
@@ -1316,8 +1317,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
           {/* 最晚结束时间（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'LATEST_END_TIME' : theme === 'modern' ? 'Latest End Time' : '最晚结束时间'}
-            description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : theme === 'modern' ? 'When must this task be finished? (Leave empty if no task_deadline)' : '任务最晚什么时候必须完成？（留空表示没有截止时间）'}
+            label={theme === 'pixel' ? 'LATEST_END_TIME' : t('latest_end_time')}
+            description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : t('when_must_finish')}
           >
             <ThemeInput
                   type="datetime-local"
@@ -1337,15 +1338,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               theme === 'modern' ? 'text-slate-600' : 'text-gray-600'
             }`}>
               {theme === 'pixel' ? 'REPEAT_TASK_CONFIG' : 
-               theme === 'modern' ? 'Recurring task configuration' : 
-               '重复任务配置'}
+               t('recurring_task_config')}
           </div>
 
             {/* 1. 最早开始时间（必填） */}
             <ThemeFormField
-              label={theme === 'pixel' ? 'EARLIEST_START_TIME' : theme === 'modern' ? 'Earliest Start Time' : '最早开始时间'}
+              label={theme === 'pixel' ? 'EARLIEST_START_TIME' : t('earliest_start_time')}
               required
-              description={theme === 'pixel' ? 'WHEN_CAN_START_REPEATING' : theme === 'modern' ? 'When can this recurring task start' : '重复任务最早什么时候可以开始'}
+              description={theme === 'pixel' ? 'WHEN_CAN_START_REPEATING' : t('when_can_start_repeating')}
             >
               <ThemeInput
                 type="datetime-local"
@@ -1357,22 +1357,22 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
             {/* 2. 连续完成次数（可选） */}
             <ThemeFormField
-              label={theme === 'pixel' ? 'CONSECUTIVE_COUNT' : theme === 'modern' ? 'Consecutive Count' : '连续完成次数'}
-              description={theme === 'pixel' ? 'HOW_MANY_CONSECUTIVE_DAYS' : theme === 'modern' ? 'How many consecutive completions needed? (Leave empty for unlimited)' : '需要连续完成多少次？（留空表示无限重复）'}
+              label={theme === 'pixel' ? 'CONSECUTIVE_COUNT' : t('consecutive_count')}
+              description={theme === 'pixel' ? 'HOW_MANY_CONSECUTIVE_DAYS' : t('how_many_consecutive_days')}
             >
               <ThemeInput
                 type="number"
                 value={newTask.required_count || ''}
                 onChange={(e) => setNewTask(prev => ({ ...prev, required_count: parseInt(e.target.value) || undefined }))}
-                placeholder={theme === 'pixel' ? 'UNLIMITED_IF_EMPTY' : theme === 'modern' ? 'Unlimited if empty' : '留空表示无限重复'}
+                placeholder={theme === 'pixel' ? 'UNLIMITED_IF_EMPTY' : t('unlimited_if_empty')}
                 min="1"
               />
             </ThemeFormField>
 
             {/* 3. 截止时间（可选） */}
             <ThemeFormField
-              label={theme === 'pixel' ? 'DEADLINE' : theme === 'modern' ? 'Deadline' : '截止时间'}
-              description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : theme === 'modern' ? 'When must this recurring task be finished? (Leave empty for no deadline)' : '重复任务最晚什么时候必须完成？（留空表示没有截止时间）'}
+              label={theme === 'pixel' ? 'DEADLINE' : t('deadline')}
+              description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : t('when_must_finish_recurring')}
             >
               <ThemeInput
                 type="datetime-local"
@@ -1384,13 +1384,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
             {/* 4. 每日任务时间段（可选） */}
             <ThemeFormField
-              label={theme === 'pixel' ? 'DAILY_TIME_WINDOW' : theme === 'modern' ? 'Daily Time Window' : '每日任务时间段'}
-              description={theme === 'pixel' ? 'OPTIONAL_DAILY_TIME_LIMIT' : theme === 'modern' ? 'Optional: Specify time window for daily task completion' : '可选：指定每日任务完成的时间窗口'}
+              label={theme === 'pixel' ? 'DAILY_TIME_WINDOW' : t('daily_time_window')}
+              description={theme === 'pixel' ? 'OPTIONAL_DAILY_TIME_LIMIT' : t('optional_daily_time_limit')}
             >
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
-                    {theme === 'pixel' ? 'FROM' : theme === 'modern' ? 'From' : '开始时间'}
+                    {theme === 'pixel' ? 'FROM' : t('from')}
                   </label>
                   <ThemeInput
                     type="time"
@@ -1400,7 +1400,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               </div>
               <div>
                   <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
-                    {theme === 'pixel' ? 'TO' : theme === 'modern' ? 'To' : '结束时间'}
+                    {theme === 'pixel' ? 'TO' : t('to')}
                   </label>
                   <ThemeInput
                   type="time"
@@ -1479,14 +1479,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             theme === 'modern' ? 'text-slate-600' : 'text-gray-600'
           }`}>
             {theme === 'pixel' ? 'TIME_CONSTRAINT_OPTIONAL' :
-             theme === 'modern' ? 'Time constraints (optional)' :
-             '时间限制（可选）'}
+             t('time_constraints_optional_simple')}
           </div>
 
           {/* 开始时间（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'START_TIME' : theme === 'modern' ? 'Start Time' : '开始时间'}
-            description={theme === 'pixel' ? 'WHEN_CAN_START' : theme === 'modern' ? 'When can this task be started' : '任务什么时候可以开始'}
+            label={theme === 'pixel' ? 'START_TIME' : t('start_time')}
+            description={theme === 'pixel' ? 'WHEN_CAN_START' : t('when_can_start_simple')}
           >
             <ThemeInput
                   type="datetime-local"
@@ -1498,8 +1497,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
           {/* 结束时间（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'END_TIME' : theme === 'modern' ? 'End Time' : '结束时间'}
-            description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : theme === 'modern' ? 'When must this task be finished' : '任务什么时候必须完成'}
+            label={theme === 'pixel' ? 'END_TIME' : t('end_time')}
+            description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : t('when_must_finish_simple')}
           >
             <ThemeInput
                   type="datetime-local"
@@ -1519,15 +1518,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             theme === 'modern' ? 'text-slate-600' : 'text-gray-600'
           }`}>
             {theme === 'pixel' ? 'REPEAT_TASK_CONFIG' : 
-             theme === 'modern' ? 'Recurring task configuration' : 
-             '重复任务配置'}
+             t('recurring_task_config')}
           </div>
 
           {/* 1. 最早开始时间（必填） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'EARLIEST_START_TIME' : theme === 'modern' ? 'Earliest Start Time' : '最早开始时间'}
+            label={theme === 'pixel' ? 'EARLIEST_START_TIME' : t('earliest_start_time')}
             required
-            description={theme === 'pixel' ? 'WHEN_CAN_START_REPEATING' : theme === 'modern' ? 'When can this recurring task start' : '重复任务最早什么时候可以开始'}
+            description={theme === 'pixel' ? 'WHEN_CAN_START_REPEATING' : t('when_can_start_repeating')}
           >
             <ThemeInput
               type="datetime-local"
@@ -1539,22 +1537,22 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
           {/* 2. 重复次数（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'CONSECUTIVE_COUNT' : theme === 'modern' ? 'Consecutive Count' : '连续完成次数'}
-            description={theme === 'pixel' ? 'HOW_MANY_CONSECUTIVE_DAYS' : theme === 'modern' ? 'How many consecutive completions needed? (Leave empty for unlimited)' : '需要连续完成多少次？（留空表示无限重复）'}
+            label={theme === 'pixel' ? 'CONSECUTIVE_COUNT' : t('consecutive_count')}
+            description={theme === 'pixel' ? 'HOW_MANY_CONSECUTIVE_DAYS' : t('how_many_consecutive_days')}
           >
             <ThemeInput
               type="number"
               value={editTask.required_count || ''}
               onChange={(e) => setEditTask(prev => ({ ...prev, required_count: parseInt(e.target.value) || undefined }))}
-              placeholder={theme === 'pixel' ? 'UNLIMITED_IF_EMPTY' : theme === 'modern' ? 'Unlimited if empty' : '留空表示无限重复'}
+              placeholder={theme === 'pixel' ? 'UNLIMITED_IF_EMPTY' : t('unlimited_if_empty')}
               min="1"
             />
           </ThemeFormField>
 
           {/* 3. 截止时间（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'DEADLINE' : theme === 'modern' ? 'Deadline' : '截止时间'}
-            description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : theme === 'modern' ? 'When must this recurring task be finished? (Leave empty for no deadline)' : '重复任务最晚什么时候必须完成？（留空表示没有截止时间）'}
+            label={theme === 'pixel' ? 'DEADLINE' : t('deadline')}
+            description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : t('when_must_finish_recurring')}
           >
             <ThemeInput
               type="datetime-local"
@@ -1566,13 +1564,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
           {/* 4. 每日任务时间段（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'DAILY_TIME_WINDOW' : theme === 'modern' ? 'Daily Time Window' : '每日任务时间段'}
-            description={theme === 'pixel' ? 'OPTIONAL_DAILY_TIME_LIMIT' : theme === 'modern' ? 'Optional: Specify time window for daily task completion' : '可选：指定每日任务完成的时间窗口'}
+            label={theme === 'pixel' ? 'DAILY_TIME_WINDOW' : t('daily_time_window')}
+            description={theme === 'pixel' ? 'OPTIONAL_DAILY_TIME_LIMIT' : t('optional_daily_time_limit')}
           >
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
-                  {theme === 'pixel' ? 'FROM' : theme === 'modern' ? 'From' : '开始时间'}
+                    {theme === 'pixel' ? 'FROM' : t('from')}
             </label>
                 <ThemeInput
                   type="time"
@@ -1582,7 +1580,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </div>
               <div>
                 <label className={`block text-xs mb-1 ${theme === 'pixel' ? 'text-pixel-textMuted font-mono' : theme === 'modern' ? 'text-muted-foreground' : 'text-gray-500'}`}>
-                  {theme === 'pixel' ? 'TO' : theme === 'modern' ? 'To' : '结束时间'}
+                    {theme === 'pixel' ? 'TO' : t('to')}
             </label>
                 <ThemeInput
                   type="time"
@@ -1870,7 +1868,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const isOverdue = isTaskOverdue(task);
     
     // 🎯 习惯任务特殊处理
-    const isHabitTask = task.task_type === 'habit';
+    const isHabitTask = task.task_type === 'normal'; // 原来的habit任务现在是normal
     const userHabitChallenge = isHabitTask ? userHabitChallenges.find(c => c.task_id === task.id) : null;
     const canJoinHabit = isHabitTask && task.task_deadline ? canJoinHabitTask(task.task_deadline, getTaskDuration(task)) : false;
     
@@ -2529,16 +2527,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // 显示成功提示
       addToast({
         variant: 'success',
-        title: '重置成功',
-        description: '连续打卡记录已清空，可以重新开始打卡'
+        title: t('reset_success'),
+        description: t('reset_success_desc')
       });
       
     } catch (error) {
       console.error('❌ 重置连续任务失败:', error);
       addToast({
         variant: 'error',
-        title: '重置失败',
-        description: '重置连续记录时发生错误，请稍后重试'
+        title: t('reset_failed'),
+        description: t('reset_failed_desc')
       });
       throw error;
     }
@@ -2562,7 +2560,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const canComplete = !selectedTask.requires_proof || hasProof;
     
     // 🎯 习惯任务特殊处理
-    const isHabitTask = selectedTask.task_type === 'habit';
+    const isHabitTask = selectedTask.task_type === 'normal'; // 原来的habit任务现在是normal
     const userHabitChallenge = isHabitTask ? userHabitChallenges.find(c => c.task_id === selectedTask.id) : null;
     const canJoinHabit = isHabitTask && selectedTask.task_deadline ? canJoinHabitTask(selectedTask.task_deadline, getTaskDuration(selectedTask)) : false;
 
@@ -2634,43 +2632,45 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   />
                 </ThemeFormField>
 
-                {/* 3. 任务类型选择 */}
-                <ThemeFormField
-                  label={theme === 'pixel' ? 'TASK_TYPE' : theme === 'modern' ? 'Task Type' : '任务类型'}
-                  required
-                >
-                  <ThemeSelect
-                    value={editTask.task_type || 'daily'}
-                    onChange={(e) => setEditTask({...editTask, task_type: e.target.value as 'daily' | 'habit' | 'special'})}
-                  >
-                    <option value="daily">{theme === 'pixel' ? 'DAILY_TASK' : theme === 'modern' ? 'Daily Task' : '日常任务'}</option>
-                    <option value="habit">{theme === 'pixel' ? 'HABIT_TASK' : theme === 'modern' ? 'Habit Task' : '习惯任务'}</option>
-                    <option value="special">{theme === 'pixel' ? 'SPECIAL_TASK' : theme === 'modern' ? 'Special Task' : '特殊任务'}</option>
-                  </ThemeSelect>
-                </ThemeFormField>
-
-                {/* 4. 积分奖励 */}
-                <ThemeFormField
-                  label={theme === 'pixel' ? 'POINTS_REWARD' : theme === 'modern' ? 'Points Reward' : '积分奖励'}
-                  required
-                  description={editTask.repeat_frequency !== 'never' ? (theme === 'modern' ? 'Repeating task: earn this reward for each completion' : '重复性任务：每次完成都可获得此积分奖励') : (theme === 'modern' ? 'One-time task: earn this reward upon completion' : '一次性任务：完成后获得此积分奖励')}
-                >
-                  <ThemeInput
-                    type="number"
-                    value={editTask.points || ''}
-                    onChange={(e) => setEditTask({...editTask, points: parseInt(e.target.value) || 0})}
-                    min="1"
-                    max="1000"
-                    placeholder={theme === 'pixel' ? '50' : theme === 'modern' ? 'Enter points (1-1000)' : '输入积分 (1-1000)'}
-                  />
-                </ThemeFormField>
-
-                {/* 5. 需要提交凭证 */}
+                {/* 3. 需要提交凭证 */}
                 <ThemeCheckbox
                   label={theme === 'pixel' ? 'REQUIRES_PROOF' : theme === 'modern' ? 'Requires Proof' : '需要提交凭证'}
                   checked={editTask.requires_proof || false}
                   onChange={(e) => setEditTask({...editTask, requires_proof: e.target.checked})}
                 />
+
+                {/* 4. 任务类型选择 */}
+                <TaskTypeSelector
+                  selectedType={editTask.task_type || 'normal'}
+                  onTypeChange={(typeId) => setEditTask({...editTask, task_type: typeId as 'easy' | 'normal' | 'hard'})}
+                />
+
+                {/* 5. 积分设置 - 仅对单次任务显示智能建议 */}
+                {editTask.repeat_frequency === 'never' ? (
+                  <PointsConfiguration
+                    difficultyId={editTask.task_type || 'normal'}
+                    earliestStartTime={editTask.earliest_start_time}
+                    taskDeadline={editTask.task_deadline}
+                    requiresProof={editTask.requires_proof || false}
+                    points={editTask.points || 0}
+                    onPointsChange={(points) => setEditTask({...editTask, points})}
+                  />
+                ) : (
+                  <ThemeFormField
+                    label={theme === 'pixel' ? 'POINTS_REWARD' : theme === 'modern' ? 'Points Reward' : '积分奖励'}
+                    required
+                    description={theme === 'modern' ? 'Repeating task: earn this reward for each completion' : '重复性任务：每次完成都可获得此积分奖励'}
+                  >
+                    <ThemeInput
+                      type="number"
+                      value={editTask.points || ''}
+                      onChange={(e) => setEditTask({...editTask, points: parseInt(e.target.value) || 0})}
+                      min="1"
+                      max="1000"
+                      placeholder={theme === 'pixel' ? '50' : theme === 'modern' ? 'Enter points (1-1000)' : '输入积分 (1-1000)'}
+                    />
+                  </ThemeFormField>
+                )}
 
                 {/* 6. 重复频率 */}
                 <ThemeFormField
@@ -2770,9 +2770,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
                 <DetailField
                   label={theme === 'pixel' ? 'TASK_TYPE' : theme === 'modern' ? 'Task Type' : '任务类型'}
-                  value={selectedTask.task_type === 'daily' ? (theme === 'pixel' ? 'DAILY_TASK' : theme === 'modern' ? 'Daily Task' : '日常任务') : 
-                         selectedTask.task_type === 'habit' ? (theme === 'pixel' ? 'HABIT_TASK' : theme === 'modern' ? 'Habit Task' : '习惯任务') :
-                         selectedTask.task_type === 'special' ? (theme === 'pixel' ? 'SPECIAL_TASK' : theme === 'modern' ? 'Special Task' : '特殊任务') : selectedTask.task_type}
+                  value={selectedTask.task_type === 'easy' ? (theme === 'pixel' ? 'EASY_TASK' : theme === 'modern' ? 'Easy Task' : '简单任务') : 
+                         selectedTask.task_type === 'normal' ? (theme === 'pixel' ? 'NORMAL_TASK' : theme === 'modern' ? 'Normal Task' : '普通任务') :
+                         selectedTask.task_type === 'hard' ? (theme === 'pixel' ? 'HARD_TASK' : theme === 'modern' ? 'Hard Task' : '困难任务') : selectedTask.task_type}
                 />
 
                 <DetailField
@@ -2891,9 +2891,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                           if (startTime && endTime) {
                             return `${startTime} - ${endTime}`;
                           } else if (startTime) {
-                            return `${theme === 'pixel' ? 'FROM' : theme === 'modern' ? 'From' : '从'} ${startTime}`;
+                            return `${theme === 'pixel' ? 'FROM' : t('from')} ${startTime}`;
                           } else if (endTime) {
-                            return `${theme === 'pixel' ? 'UNTIL' : theme === 'modern' ? 'Until' : '到'} ${endTime}`;
+                            return `${theme === 'pixel' ? 'UNTIL' : t('until')} ${endTime}`;
                           }
                           return '--';
                         })()}
@@ -3315,13 +3315,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                               setEditTask({});
                             }}
                           >
-                            {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : '取消'}
+                            {theme === 'pixel' ? 'CANCEL' : t('cancel')}
                           </ThemeButton>
                           <ThemeButton
                             variant="primary"
                             onClick={handleSaveEdit}
                           >
-                            {theme === 'pixel' ? 'SAVE' : theme === 'modern' ? 'Save' : '保存'}
+                            {theme === 'pixel' ? 'SAVE' : t('save')}
                           </ThemeButton>
                         </>
                       ) : (
@@ -3337,14 +3337,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                   setIsEditing(true);
                                 }}
                               >
-                                {theme === 'pixel' ? 'EDIT' : theme === 'modern' ? 'Edit' : '编辑'}
+                                {theme === 'pixel' ? 'EDIT' : t('edit')}
                               </ThemeButton>
                               
                               <ThemeButton
                                 variant="danger"
                                 onClick={() => handleDeleteTask(selectedTask.id)}
                               >
-                                {theme === 'pixel' ? 'DELETE' : theme === 'modern' ? 'Delete' : '删除'}
+                                {theme === 'pixel' ? 'DELETE' : t('delete')}
                               </ThemeButton>
                             </>
                           )}
@@ -3450,7 +3450,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                       handleCloseTaskDetail();
                                     }}
                                   >
-                                    {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : '放弃'}
+                                    {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : t('abandon')}
                                   </ThemeButton>
                     </div>
                               );
@@ -3470,7 +3470,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                       handleCloseTaskDetail();
                                     }}
                                   >
-                                    {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : '放弃'}
+                                    {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : t('abandon')}
                                   </ThemeButton>
                 </div>
               );
@@ -3493,7 +3493,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                       handleCloseTaskDetail();
                                     }}
                                   >
-                                    {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : '放弃'}
+                                    {theme === 'pixel' ? 'ABANDON' : theme === 'modern' ? 'Abandon' : t('abandon')}
                                   </ThemeButton>
                                 </div>
                               );
@@ -3572,12 +3572,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                                 // 功能暂时禁用
                                 addToast({
                                   variant: 'warning',
-                                  title: '功能暂时禁用',
-                                  description: '重新发布功能正在完善中'
+                                  title: t('feature_disabled'),
+                                  description: t('feature_disabled_desc')
                                 });
                               }}
                             >
-                              {theme === 'pixel' ? 'REPUBLISH' : theme === 'modern' ? 'Republish' : '重新发布'}
+                              {theme === 'pixel' ? 'REPUBLISH' : theme === 'modern' ? 'Republish' : t('republish')}
                             </ThemeButton>
                           )}
 
@@ -3663,7 +3663,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             variant="secondary"
                             onClick={handleCloseTaskDetail}
                           >
-                            {theme === 'pixel' ? 'CLOSE' : theme === 'modern' ? 'Close' : '关闭'}
+                            {theme === 'pixel' ? 'CLOSE' : t('close')}
                           </ThemeButton>
                         </>
                       )}
@@ -4085,9 +4085,43 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       // available 视图 - 带有"即将过期"标签
     return (
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {taskList.map(task => renderTaskCard(task))}
-          </div>
+          {taskList.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {taskList.map(task => renderTaskCard(task))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className={`mb-4 ${
+                theme === 'pixel' 
+                  ? 'text-pixel-textMuted' 
+                  : theme === 'modern'
+                  ? 'text-muted-foreground'
+                  : 'text-gray-500'
+              }`}>
+                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className={`text-lg font-medium mb-2 ${
+                theme === 'pixel' 
+                  ? 'text-pixel-text font-mono uppercase' 
+                  : theme === 'modern'
+                  ? 'text-foreground'
+                  : 'text-gray-700'
+              }`}>
+                {theme === 'pixel' ? 'NO_TASKS_AVAILABLE' : theme === 'modern' ? t('no_available_tasks') : t('no_available_tasks')}
+              </h3>
+              <p className={`text-sm ${
+                theme === 'pixel' 
+                  ? 'text-pixel-textMuted font-mono' 
+                  : theme === 'modern'
+                  ? 'text-muted-foreground'
+                  : 'text-gray-500'
+              } max-w-md`}>
+                {theme === 'pixel' ? 'CHECK_BACK_LATER...' : theme === 'modern' ? t('no_available_tasks_subtitle') : t('no_available_tasks_subtitle')}
+              </p>
+            </div>
+          )}
         </div>
     );
     }
@@ -4111,40 +4145,36 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       {/* 测试时间控制器 - 仅开发环境显示 */}
       {process.env.NODE_ENV === 'development' && <TestTimeController />}
       
+      
       {/* Page Header - Sticky定位 */}
       <div className="sticky top-0 z-20 bg-background px-4 py-2">
         <PageHeader
-        title={theme === 'pixel' ? 'TASK_MANAGER.EXE' : theme === 'modern' ? 'Task Board' : '任务看板'}
+        title={theme === 'pixel' ? 'TASK_MANAGER.EXE' : t('task_board')}
         viewSwitcher={{
           views: [
-            { id: 'assigned', name: theme === 'pixel' ? 'MY_CLAIMED' : theme === 'modern' ? 'My Claimed' : '我领取的' },
-            { id: 'available', name: theme === 'pixel' ? 'AVAILABLE' : theme === 'modern' ? 'Available' : '可领取的' },
-            { id: 'published', name: theme === 'pixel' ? 'MY_PUBLISHED' : theme === 'modern' ? 'My Published' : '我发布的' }
+            { id: 'assigned', name: theme === 'pixel' ? 'MY_CLAIMED' : t('my_claimed') },
+            { id: 'available', name: theme === 'pixel' ? 'AVAILABLE' : t('available_tasks') },
+            { id: 'published', name: theme === 'pixel' ? 'MY_PUBLISHED' : t('my_published') }
           ],
           currentView: view,
           onViewChange: (viewId) => setView(viewId as any)
         }}
         actions={[
-          // 🎯 用户积分显示
           {
-            label: `${theme === 'pixel' ? 'POINTS:' : theme === 'modern' ? 'Points:' : '积分:'} ${userProfile?.points || 0}`,
-            variant: 'secondary',
-            icon: 'gift',
-            onClick: () => {}, // 点击无操作，仅用于显示
-            disabled: true
-          },
-          {
-            label: theme === 'pixel' ? 'REFRESH' : theme === 'modern' ? 'Refresh' : '刷新',
+            // 刷新按钮 - 仅图标，与日历样式一致
             variant: 'secondary',
             icon: 'refresh',
             onClick: handleRefresh,
-            loading: isRefreshing
+            loading: isRefreshing,
+            iconOnly: true, // 新增标识，仅显示图标
+            className: 'h-8 w-8 p-0', // 与日历刷新按钮样式一致
+            title: theme === 'pixel' ? 'REFRESH' : t('refresh_text')
           },
           {
-            label: theme === 'pixel' ? 'NEW_TASK' : theme === 'modern' ? 'New Task' : '新建任务',
+            label: theme === 'pixel' ? 'NEW_TASK' : t('create_task'),
             variant: 'primary',
-            icon: 'plus',
-            onClick: () => setShowAddForm(true)
+            onClick: () => setShowAddForm(true),
+            className: 'h-8' // 与日历添加按钮样式一致
           }
         ]}
         />
@@ -4155,8 +4185,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             {loading || !tasksLoaded || !userProfile ? (
               <LoadingSpinner
                 size="lg"
-                title={theme === 'pixel' ? 'LOADING TASKS...' : theme === 'modern' ? 'Loading Tasks...' : '正在加载任务列表...'}
-                subtitle={theme === 'pixel' ? 'FETCHING DATA...' : theme === 'modern' ? 'Fetching task data from database' : '正在从数据库获取任务数据'}
+                title={theme === 'pixel' ? 'LOADING TASKS...' : theme === 'modern' ? 'Loading Tasks...' : t('loading_tasks')}
+                subtitle={theme === 'pixel' ? 'FETCHING DATA...' : theme === 'modern' ? 'Fetching task data from database' : t('loading_task_data')}
               />
             ) : (
               <>
@@ -4179,8 +4209,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             setNewTask({
               title: '',
               description: '',
-              task_type: 'daily',
-              points: 50,
+              task_type: 'normal',
+              points: 0,
               requires_proof: false,
               // 🎯 新数据结构字段
               repeat_frequency: 'never',
@@ -4197,9 +4227,32 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         }}
       >
         <DialogHeader>
-          <DialogTitle>
-            {theme === 'pixel' ? 'CREATE_NEW_TASK' : theme === 'modern' ? 'Create New Task' : '新建任务'}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              {theme === 'pixel' ? 'CREATE_NEW_TASK' : t('create_new_task')}
+            </DialogTitle>
+            {theme === 'modern' ? (
+              <button
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
+                onClick={() => setShowAddForm(false)}
+                aria-label="关闭"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            ) : (
+              <button
+                className={`rounded-full p-2 transition-colors ${
+                  theme === 'pixel'
+                    ? 'bg-pixel-card border-2 border-pixel-border hover:bg-pixel-accent text-pixel-text' 
+                    : 'bg-white border border-gray-200 hover:bg-gray-100 text-gray-600'
+                }`}
+                onClick={() => setShowAddForm(false)}
+                aria-label="关闭"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            )}
+          </div>
         </DialogHeader>
         
         <DialogContent>
@@ -4230,46 +4283,45 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 />
               </ThemeFormField>
 
-              {/* 3. 任务类型 */}
-              <ThemeFormField
-                label={theme === 'pixel' ? 'TASK_TYPE' : theme === 'modern' ? 'Task Type' : '任务类型'}
-                required
-              >
-                <ThemeSelect
-                  value={newTask.task_type}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, task_type: e.target.value as 'daily' | 'habit' | 'special' }))}
-                >
-                  <option value="daily">{theme === 'pixel' ? 'DAILY_TASK' : theme === 'modern' ? 'Daily Task' : '日常任务'}</option>
-                  <option value="habit">{theme === 'pixel' ? 'HABIT_TASK' : theme === 'modern' ? 'Habit Task' : '习惯任务'}</option>
-                  <option value="special">{theme === 'pixel' ? 'SPECIAL_TASK' : theme === 'modern' ? 'Special Task' : '特殊任务'}</option>
-                </ThemeSelect>
-              </ThemeFormField>
-
-              {/* 4. 积分奖励 */}
-              <ThemeFormField
-                label={theme === 'pixel' ? 'POINTS_REWARD' : theme === 'modern' ? 'Points Reward' : '积分奖励'}
-                required
-                description={newTask.repeat_frequency !== 'never' 
-                  ? (theme === 'modern' ? 'Repeating task: earn this reward for each completion' : '重复性任务：每次完成都可获得此积分奖励')
-                  : (theme === 'modern' ? 'One-time task: earn this reward upon completion' : '一次性任务：完成后获得此积分奖励')
-                }
-              >
-                <ThemeInput
-                  type="number"
-                  value={newTask.points}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, points: parseInt(e.target.value) || 0 }))}
-                  min="1"
-                  max="1000"
-                  placeholder={theme === 'pixel' ? '50' : theme === 'modern' ? 'Enter points (1-1000)' : '输入积分 (1-1000)'}
-                />
-              </ThemeFormField>
-
-              {/* 5. 需要凭证 */}
+              {/* 3. 需要凭证 */}
               <ThemeCheckbox
                 label={theme === 'pixel' ? 'REQUIRES_PROOF' : theme === 'modern' ? 'Requires Proof' : '需要提交凭证'}
-                    checked={newTask.requires_proof}
+                checked={newTask.requires_proof}
                 onChange={(e) => setNewTask(prev => ({ ...prev, requires_proof: e.target.checked }))}
               />
+
+              {/* 4. 任务类型选择 */}
+              <TaskTypeSelector
+                selectedType={newTask.task_type}
+                onTypeChange={(typeId) => setNewTask(prev => ({ ...prev, task_type: typeId as 'easy' | 'normal' | 'hard' }))}
+              />
+
+              {/* 5. 积分设置 - 仅对单次任务显示智能建议 */}
+              {newTask.repeat_frequency === 'never' ? (
+                <PointsConfiguration
+                  difficultyId={newTask.task_type}
+                  earliestStartTime={newTask.earliest_start_time}
+                  taskDeadline={newTask.task_deadline}
+                  requiresProof={newTask.requires_proof}
+                  points={newTask.points}
+                  onPointsChange={(points) => setNewTask(prev => ({ ...prev, points }))}
+                />
+              ) : (
+                <ThemeFormField
+                  label={theme === 'pixel' ? 'POINTS_REWARD' : theme === 'modern' ? 'Points Reward' : '积分奖励'}
+                  required
+                  description={theme === 'modern' ? 'Repeating task: earn this reward for each completion' : '重复性任务：每次完成都可获得此积分奖励'}
+                >
+                  <ThemeInput
+                    type="number"
+                    value={newTask.points}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, points: parseInt(e.target.value) || 0 }))}
+                    min="1"
+                    max="1000"
+                    placeholder={theme === 'pixel' ? '50' : theme === 'modern' ? 'Enter points (1-1000)' : '输入积分 (1-1000)'}
+                  />
+                </ThemeFormField>
+              )}
 
               {/* 6. 重复频率 */}
               <ThemeFormField
@@ -4341,8 +4393,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               setNewTask({
                 title: '',
                 description: '',
-                task_type: 'daily',
-                points: 50,
+                task_type: 'normal',
+                points: 0,
                 requires_proof: false,
                 // 🎯 新数据结构字段
                 repeat_frequency: 'never',
@@ -4357,13 +4409,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               });
             }}
           >
-            {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : '取消'}
+            {theme === 'pixel' ? 'CANCEL' : theme === 'modern' ? 'Cancel' : t('cancel')}
           </ThemeButton>
           <ThemeButton
             variant="primary"
             onClick={handleCreateTask}
           >
-            {theme === 'pixel' ? 'CREATE_TASK' : theme === 'modern' ? 'Create Task' : '创建任务'}
+            {theme === 'pixel' ? 'CREATE_TASK' : theme === 'modern' ? 'Create Task' : t('create_task')}
           </ThemeButton>
         </DialogFooter>
       </ThemeDialog>
@@ -4385,16 +4437,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       <AlertDialog
         open={showDeleteTaskConfirm}
         onOpenChange={setShowDeleteTaskConfirm}
-        title={deleteAction === 'abandon' ? '放弃任务' : '删除任务'}
+        title={deleteAction === 'abandon' ? t('abandon_task_title') : t('delete_task_title')}
         description={taskToDelete ? 
           deleteAction === 'abandon' 
-            ? `确定要放弃任务"${tasks.find(t => t.id === taskToDelete)?.title}"吗？任务将从您的列表中移除。`
-            : `确定要删除任务"${tasks.find(t => t.id === taskToDelete)?.title}"吗？此操作无法撤销。`
-          : deleteAction === 'abandon' ? '确定要放弃此任务吗？' : '确定要删除此任务吗？'
+            ? t('confirm_abandon_task_detail').replace('{title}', tasks.find(t => t.id === taskToDelete)?.title || '')
+            : t('confirm_delete_task_detail').replace('{title}', tasks.find(t => t.id === taskToDelete)?.title || '')
+          : deleteAction === 'abandon' ? t('confirm_abandon_task') : t('confirm_delete_task')
         }
         variant="destructive"
-        confirmText={deleteAction === 'abandon' ? '确定放弃' : '确定删除'}
-        cancelText="取消"
+        confirmText={deleteAction === 'abandon' ? t('confirm_abandon') : t('confirm_delete')}
+        cancelText={t('cancel')}
         onConfirm={confirmTaskAction}
         onCancel={() => {
           setShowDeleteTaskConfirm(false);

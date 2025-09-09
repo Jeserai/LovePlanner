@@ -14,6 +14,7 @@ import { ThemeButton } from './ui/Components'
 import { Card } from './ui/card'
 import { colorService, CoupleColors } from '../services/colorService'
 import { useTranslation } from '../utils/i18n'
+import Icon from './ui/Icon'
 
 interface SelectionDetails {
   endDate: string
@@ -833,7 +834,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       {/* 工具栏 - 在sticky容器内固定 */}
       <div className="bg-card border-b p-4 flex-shrink-0">
                  {/* 集成式工具栏：导航 + 标题 + 统计 + 视图切换 + 过滤 */}
-         <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-4">
+         <div className="flex flex-col xl:flex-row items-center justify-between gap-2 xl:gap-4 mb-4 overflow-x-auto">
            {/* 左侧：导航按钮组 */}
            <div className="flex items-center space-x-3">
              <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1">
@@ -864,9 +865,9 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
            </div>
 
            {/* 中间：标题和统计信息 */}
-           <div className="flex flex-col items-center text-center">
+           <div className="flex flex-col items-center text-center flex-shrink-0">
              <div className={`
-               text-2xl font-bold
+               text-2xl font-bold whitespace-nowrap
                ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'}
              `}>
                {calendarTitle}
@@ -880,14 +881,14 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
            </div>
 
            {/* 右侧：视图切换 + 事件过滤 + 操作按钮 */}
-           <div className="flex items-center space-x-3">
+           <div className="flex items-center space-x-2 justify-center xl:justify-end flex-shrink-0">
              {/* 日历视图切换 */}
-             <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1">
+             <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1 flex-shrink-0">
                <ThemeButton
                  onClick={() => handleViewChange('dayGridMonth')}
                  variant={currentCalendarView === 'dayGridMonth' ? 'primary' : 'secondary'}
                  size="sm"
-                 className="h-8"
+                 className="h-8 px-2"
                >
                  {theme === 'pixel' ? 'MON' : t('month')}
                </ThemeButton>
@@ -895,7 +896,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                  onClick={() => handleViewChange('timeGridWeek')}
                  variant={currentCalendarView === 'timeGridWeek' ? 'primary' : 'secondary'}
                  size="sm"
-                 className="h-8"
+                 className="h-8 px-2"
                >
                  {theme === 'pixel' ? 'WEK' : t('week')}
                </ThemeButton>
@@ -903,7 +904,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                  onClick={() => handleViewChange('timeGridDay')}
                  variant={currentCalendarView === 'timeGridDay' ? 'primary' : 'secondary'}
                  size="sm"
-                 className="h-8"
+                 className="h-8 px-2"
                >
                  {theme === 'pixel' ? 'DAY' : t('day')}
                </ThemeButton>
@@ -911,48 +912,53 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                  onClick={() => handleViewChange('listWeek')}
                  variant={currentCalendarView === 'listWeek' ? 'primary' : 'secondary'}
                  size="sm"
-                 className="h-8"
+                 className="h-8 px-2"
                >
                  {theme === 'pixel' ? 'LST' : t('list')}
                </ThemeButton>
              </div>
 
-             {/* 事件过滤按钮组 */}
-             {onViewChange && (
-               <div className="flex items-center space-x-1 bg-muted/30 rounded-lg p-1">
-                 {(['all', 'my', 'partner', 'shared'] as const).map((view) => {
-                   const isActive = currentView === view
-                   return (
-                     <button
-                       key={view}
-                       onClick={() => onViewChange(view)}
-                       className={`
-                         h-8 px-3 rounded-md text-sm font-medium transition-all duration-200
-                         ${getViewThemeButtonStyle(view, isActive)}
-                       `}
-                       style={getViewThemeButtonBackground(view, isActive)}
-                     >
-                       {view === 'all' && (theme === 'pixel' ? 'ALL' : t('all'))}
-                       {view === 'my' && (theme === 'pixel' ? 'MY' : t('my'))}
-                       {view === 'partner' && (theme === 'pixel' ? 'PTN' : t('partner'))}
-                       {view === 'shared' && (theme === 'pixel' ? 'SHR' : t('shared'))}
-                     </button>
-                   )
-                 })}
-               </div>
-             )}
+            {/* 事件过滤按钮组 */}
+            {onViewChange && (
+              <div className="flex items-center space-x-1 bg-muted/30 rounded-lg p-1 flex-shrink-0">
+                {(['all', 'my', 'partner', 'shared'] as const).map((view) => {
+                  const isActive = currentView === view
+                  return (
+                    <button
+                      key={view}
+                      onClick={() => onViewChange(view)}
+                      className={`
+                        h-8 px-3 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
+                        ${getViewThemeButtonStyle(view, isActive)}
+                      `}
+                      style={getViewThemeButtonBackground(view, isActive)}
+                    >
+                      {view === 'all' && (theme === 'pixel' ? 'ALL' : t('all'))}
+                      {view === 'my' && (theme === 'pixel' ? 'MY' : t('my'))}
+                      {view === 'partner' && (theme === 'pixel' ? 'PTN' : t('partner'))}
+                      {view === 'shared' && (theme === 'pixel' ? 'SHR' : t('shared'))}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
              {/* 操作按钮组 */}
-             <div className="flex items-center space-x-2">
+             <div className="flex items-center space-x-2 flex-shrink-0">
                {onRefresh && (
                  <ThemeButton
                    onClick={onRefresh}
                    variant="secondary"
                    size="sm"
-                   className="h-8"
+                   className="h-8 w-8 p-0"
                    disabled={isRefreshing}
+                   title={isRefreshing ? t('loading') : t('refresh')}
                  >
-                   {isRefreshing ? (theme === 'pixel' ? 'REFRESH...' : t('loading')) : (theme === 'pixel' ? 'REFRESH' : t('refresh'))}
+                   <Icon 
+                     name="refresh" 
+                     size="sm" 
+                     className={isRefreshing ? 'animate-spin' : ''}
+                   />
                  </ThemeButton>
                )}
                

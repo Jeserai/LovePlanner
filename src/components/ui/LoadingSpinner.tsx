@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Spinner } from './spinner';
+import { useTranslation } from '../../utils/i18n';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -15,7 +16,12 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   subtitle,
   className = ''
 }) => {
-  const { theme } = useTheme();
+  const { theme, language } = useTheme();
+  const t = useTranslation(language);
+  
+  // 默认加载文本
+  const defaultTitle = title || (theme === 'pixel' ? 'LOADING...' : t('loading'));
+  const defaultSubtitle = subtitle || (theme === 'pixel' ? 'PLEASE WAIT...' : t('please_wait'));
 
   const sizeClasses = {
     sm: 'w-6 h-6',
@@ -57,7 +63,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         )}
         
         {/* 主要文字 */}
-        {title && (
+        {(title || !title) && (
           <div className={`${textSizeClasses[size]} font-medium ${
             theme === 'pixel' 
               ? 'text-pixel-text font-mono uppercase' 
@@ -65,12 +71,12 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
               ? 'text-foreground'
               : 'text-gray-700'
           }`}>
-            {title}
+            {defaultTitle}
           </div>
         )}
         
         {/* 副标题 */}
-        {subtitle && (
+        {(subtitle || !subtitle) && (
           <div className={`text-sm ${
             theme === 'pixel' 
               ? 'text-pixel-textMuted font-mono opacity-75' 
@@ -78,7 +84,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
               ? 'text-muted-foreground'
               : 'text-gray-500 opacity-75'
           }`}>
-            {subtitle}
+            {defaultSubtitle}
           </div>
         )}
       </div>

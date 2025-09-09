@@ -1,7 +1,7 @@
 // 🎯 新的任务类型定义 - 基于优化后的单表结构
 
 export type RepeatFrequency = 'never' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'forever';
-export type TaskType = 'daily' | 'habit' | 'special';
+export type TaskType = 'easy' | 'normal' | 'hard' | 'daily' | 'habit' | 'special';
 export type TaskStatus = 'recruiting' | 'assigned' | 'in_progress' | 'completed' | 'abandoned' | 'pending_review';
 
 // 🎯 核心任务接口 - 匹配数据库结构

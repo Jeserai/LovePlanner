@@ -7,7 +7,7 @@ const TestTimezoneController: React.FC = () => {
   const [isTestMode, setIsTestMode] = useState(false);
   const [selectedTimezone, setSelectedTimezone] = useState<string>('');
   const [status, setStatus] = useState(testTimezoneManager.getStatus());
-  const [isMinimized, setIsMinimized] = useState(false); // 🆕 最小化状态
+  const [isMinimized, setIsMinimized] = useState(true); // 🆕 最小化状态
 
   // 更新状态
   const updateStatus = () => {

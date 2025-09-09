@@ -18,12 +18,15 @@ interface PageHeaderProps {
   };
   // 右侧操作按钮
   actions?: Array<{
-    label: string;
+    label?: string;
     variant?: 'primary' | 'secondary';
     icon?: string;
     onClick: () => void;
     loading?: boolean;
     disabled?: boolean;
+    iconOnly?: boolean; // 仅显示图标
+    className?: string; // 自定义样式
+    title?: string; // tooltip提示
   }>;
   className?: string;
 }
@@ -133,16 +136,27 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 
       {/* 右侧：操作按钮 */}
       {actions.length > 0 && (
-        <div className="flex space-x-3">
+        <div className="flex items-center space-x-2">
           {actions.map((action, index) => (
             <ThemeButton
               key={index}
               onClick={action.onClick}
               variant={action.variant || 'primary'}
-              size="md"
+              size="sm"
               disabled={action.loading || action.disabled}
+              className={action.className}
+              title={action.title}
             >
-              {action.label}
+              {action.icon && (
+                <Icon 
+                  name={action.icon as any} 
+                  size="sm" 
+                  className={action.loading ? 'animate-spin' : ''}
+                />
+              )}
+              {!action.iconOnly && action.label && (
+                <span className={action.icon ? 'ml-2' : ''}>{action.label}</span>
+              )}
             </ThemeButton>
           ))}
         </div>

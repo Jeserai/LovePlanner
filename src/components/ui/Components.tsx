@@ -445,7 +445,14 @@ export const ThemeDialog: React.FC<ThemeDialogProps> = ({
     : 'bg-white rounded-xl shadow-xl border border-gray-200';
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onOpenChange) {
+          onOpenChange(false);
+        }
+      }}
+    >
       <div className={cn('p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto', dialogClasses)}>
         {children}
       </div>

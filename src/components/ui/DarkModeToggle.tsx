@@ -22,10 +22,7 @@ const DarkModeToggle: React.FC<DarkModeToggleProps> = ({ className = '' }) => {
         transition-all duration-200 focus-visible:outline-none 
         focus-visible:ring-2 focus-visible:ring-ring 
         disabled:pointer-events-none disabled:opacity-50
-        ${isDarkMode 
-          ? 'text-foreground hover:bg-accent hover:text-accent-foreground' 
-          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-        }
+        text-muted-foreground hover:bg-accent hover:text-foreground
         ${className}
       `}
       title={isDarkMode ? '切换到浅色模式' : '切换到深色模式'}

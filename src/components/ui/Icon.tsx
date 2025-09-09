@@ -37,7 +37,10 @@ import {
   Sparkles,
   AtSign,
   Sun,
-  Moon
+  Moon,
+  Bell,
+  Globe,
+  Menu
 } from 'lucide-react';
 
 // Heroicons 导入 (用于清新主题)
@@ -72,7 +75,10 @@ import {
   SparklesIcon,
   AtSymbolIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  BellIcon,
+  GlobeAltIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 
 // 图标名称类型定义
@@ -110,7 +116,10 @@ export type IconName =
   | 'sparkles'
   | 'at-sign'
   | 'sun'
-  | 'moon';
+  | 'moon'
+  | 'bell'
+  | 'globe'
+  | 'menu';
 
 interface IconProps {
   name: IconName;
@@ -185,7 +194,10 @@ const Icon: React.FC<IconProps> = ({
       'sparkles': Sparkles,
       'at-sign': AtSign,
       'sun': Sun,
-      'moon': Moon
+      'moon': Moon,
+      'bell': Bell,
+      'globe': Globe,
+      'menu': Menu
     };
 
     const LucideIcon = lucideIcons[name];
@@ -234,7 +246,10 @@ const Icon: React.FC<IconProps> = ({
     'sparkles': SparklesIcon,
     'at-sign': AtSymbolIcon,
     'sun': SunIcon,
-    'moon': MoonIcon
+    'moon': MoonIcon,
+    'bell': BellIcon,
+    'globe': GlobeAltIcon,
+    'menu': Bars3Icon
   };
 
   const HeroIcon = heroIcons[name];

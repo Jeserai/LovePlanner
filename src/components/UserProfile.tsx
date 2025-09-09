@@ -5,6 +5,7 @@ import { UserIcon, CalendarIcon, EnvelopeIcon, AtSymbolIcon, GiftIcon } from '@h
 import PixelIcon from './PixelIcon';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { getUserDisplayInfo } from '../services/authService';
+import { useTranslation } from '../utils/i18n';
 
 // 本地使用的UserProfile类型（与UserContext中的保持一致）
 interface UserProfile {
@@ -20,7 +21,8 @@ interface UserProfile {
 
 
 const UserProfile: React.FC = () => {
-  const { theme } = useTheme();
+  const { theme, language } = useTheme();
+  const t = useTranslation(language);
   const { userProfile: profile, loading, updateUserProfile } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<UserProfile>>({});
@@ -44,9 +46,8 @@ const UserProfile: React.FC = () => {
     if (!profile || !editForm) return;
 
     try {
-      // 使用全局状态的更新方法
+      // 使用全局状态的更新方法 (不再更新用户名)
       await updateUserProfile({
-        username: editForm.username,
         display_name: editForm.display_name,
         birthday: editForm.birthday
       });
@@ -55,7 +56,7 @@ const UserProfile: React.FC = () => {
       console.log('✅ 用户资料更新成功');
     } catch (error) {
       console.error('保存用户资料时出错:', error);
-      alert('保存失败，请重试');
+      alert(t('save_failed_retry'));
     }
   };
 
@@ -104,8 +105,8 @@ const UserProfile: React.FC = () => {
     return (
       <LoadingSpinner
         size="lg"
-        title={theme === 'pixel' ? 'LOADING PROFILE...' : theme === 'modern' ? 'Loading Profile...' : '正在加载用户资料...'}
-        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : theme === 'modern' ? 'Please wait, fetching your profile data' : '请稍候，正在从数据库获取您的信息'}
+        title={theme === 'pixel' ? 'LOADING PROFILE...' : theme === 'modern' ? t('loading_profile') : t('loading_profile')}
+        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : theme === 'modern' ? t('loading_profile_subtitle') : t('loading_profile_subtitle')}
         className="min-h-[400px]"
       />
     );
@@ -130,8 +131,8 @@ const UserProfile: React.FC = () => {
     return (
       <LoadingSpinner
         size="lg"
-        title={theme === 'pixel' ? 'LOADING PROFILE...' : theme === 'modern' ? 'Loading Profile...' : '正在加载用户资料...'}
-        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : theme === 'modern' ? 'Please wait, fetching your profile data' : '请稍候，正在从数据库获取您的信息'}
+        title={theme === 'pixel' ? 'LOADING PROFILE...' : theme === 'modern' ? t('loading_profile') : t('loading_profile')}
+        subtitle={theme === 'pixel' ? 'PLEASE WAIT...' : theme === 'modern' ? t('loading_profile_subtitle') : t('loading_profile_subtitle')}
         className="min-h-[400px]"
       />
     );
@@ -210,21 +211,13 @@ const UserProfile: React.FC = () => {
               )}
             </div>
 
-            {/* 用户名 */}
+            {/* 用户名 (只读) */}
             <div>
               <label className="block text-pixel-cyan font-mono text-sm mb-2 uppercase">Username</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editForm.username || ''}
-                  onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                  className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono focus:border-pixel-accent focus:outline-none"
-                />
-              ) : (
-                <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-text rounded-pixel px-4 py-3 font-mono">
-                  @{profile?.username}
-                </div>
-              )}
+              <div className="w-full border-4 border-pixel-border bg-pixel-card text-pixel-textMuted rounded-pixel px-4 py-3 font-mono">
+                @{profile?.username}
+              </div>
+              <p className="text-xs text-pixel-textMuted font-mono mt-1">用户名不可更改</p>
             </div>
 
             {/* 邮箱 */}
@@ -346,21 +339,13 @@ const UserProfile: React.FC = () => {
               )}
             </div>
 
-            {/* 用户名 */}
+            {/* 用户名 (只读) */}
             <div>
               <label className="block  font-medium mb-2">用户名</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editForm.username || ''}
-                  onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                  className="w-full border  bg-white  rounded-fresh px-4 py-3 focus: focus:outline-none focus:ring-2 focus:ring-fresh-accent/20"
-                />
-              ) : (
-                <div className="w-full border    rounded-fresh px-4 py-3">
-                  @{profile?.username}
-                </div>
-              )}
+              <div className="w-full border    rounded-fresh px-4 py-3">
+                @{profile?.username}
+              </div>
+              <p className="text-xs  mt-1">用户名不可更改</p>
             </div>
 
             {/* 邮箱 */}
@@ -481,22 +466,14 @@ const UserProfile: React.FC = () => {
             )}
           </div>
 
-          {/* 用户名 */}
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">用户名</label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editForm.username || ''}
-                onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                className="w-full border border-gray-300 bg-white text-gray-800 rounded-lg px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            ) : (
-              <div className="w-full border border-gray-300 bg-gray-50 text-gray-800 rounded-lg px-4 py-3">
+            {/* 用户名 (只读) */}
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">用户名</label>
+              <div className="w-full border border-gray-300 bg-gray-50 text-gray-600 rounded-lg px-4 py-3">
                 @{profile?.username}
               </div>
-            )}
-          </div>
+              <p className="text-xs text-gray-500 mt-1">用户名不可更改</p>
+            </div>
 
           {/* 邮箱 */}
           <div>

@@ -78,7 +78,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
 
   // 获取创建者
   const getEventCreatedBy = (event: Event) => {
-    if (!event.createdBy || !coupleUsers) return t('unknown');
+    if (!event.createdBy || !coupleUsers) return t('unknown_user');
     
     if (event.createdBy === coupleUsers.user1.id) {
       return coupleUsers.user1.display_name;
@@ -86,7 +86,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
     if (event.createdBy === coupleUsers.user2.id) {
       return coupleUsers.user2.display_name;
     }
-    return t('unknown');
+    return t('unknown_user');
   };
 
   // 获取创建时间

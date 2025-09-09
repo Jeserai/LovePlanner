@@ -12,7 +12,7 @@ const TestTimeController: React.FC = () => {
   const [isTestMode, setIsTestMode] = useState(false);
   const [inputDate, setInputDate] = useState('');
   const [inputTime, setInputTime] = useState('');
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
 
   // 更新当前时间显示
   const updateTimeDisplay = () => {

@@ -8,6 +8,7 @@ import { useEventForm } from '../hooks/calendar/useEventForm'
 import FullCalendarComponent from './FullCalendarComponent'
 import EventDetail from './calendar/EventDetail'
 import EventForm from './calendar/EventForm'
+import Icon from './ui/Icon'
 import TodoList, { TodoListRef } from './calendar/TodoList'
 import { ThemeButton } from './ui/Components'
 import { Card } from './ui/card'
@@ -646,7 +647,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 console.log('📝 待办事项已从列表中移除:', todoId)
               }}
             />
-                    </div>
+                      </div>
 
           {/* 拖拽调整宽度的手柄 */}
           <div 
@@ -707,12 +708,35 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       {/* 事件详情弹窗 */}
       <ThemeDialog open={showDetailModal} onOpenChange={(open) => !open && closeDetailModal()}>
         <DialogHeader>
-          <DialogTitle>
-            {isEditing 
-              ? (theme === 'pixel' ? 'EDIT_EVENT' : theme === 'modern' ? 'Edit Event' : '编辑事件')
-              : (theme === 'pixel' ? 'EVENT_DETAILS' : theme === 'modern' ? 'Event Details' : '事件详情')
-            }
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              {isEditing 
+                ? (theme === 'pixel' ? 'EDIT_EVENT' : theme === 'modern' ? 'Edit Event' : '编辑事件')
+                : (theme === 'pixel' ? 'EVENT_DETAILS' : theme === 'modern' ? 'Event Details' : '事件详情')
+              }
+            </DialogTitle>
+            {theme === 'modern' ? (
+              <button
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
+                onClick={closeDetailModal}
+                aria-label="关闭"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            ) : (
+              <button
+                className={`rounded-full p-2 transition-colors ${
+                  theme === 'pixel'
+                    ? 'bg-pixel-card border-2 border-pixel-border hover:bg-pixel-accent text-pixel-text' 
+                    : 'bg-white border border-gray-200 hover:bg-gray-100 text-gray-600'
+                }`}
+                onClick={closeDetailModal}
+                aria-label="关闭"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            )}
+          </div>
         </DialogHeader>
         <DialogContent>
           {selectedEvent && !isEditing ? (
@@ -790,9 +814,32 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       {/* 新建事件弹窗 */}
       <ThemeDialog open={showNewEventDialog} onOpenChange={(open) => !open && setShowNewEventDialog(false)}>
         <DialogHeader>
-          <DialogTitle>
-            {theme === 'pixel' ? 'CREATE_EVENT' : theme === 'modern' ? 'Create Event' : '新建事件'}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              {theme === 'pixel' ? 'CREATE_EVENT' : theme === 'modern' ? 'Create Event' : '新建事件'}
+            </DialogTitle>
+            {theme === 'modern' ? (
+              <button
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
+                onClick={() => setShowNewEventDialog(false)}
+                aria-label="关闭"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            ) : (
+              <button
+                className={`rounded-full p-2 transition-colors ${
+                  theme === 'pixel'
+                    ? 'bg-pixel-card border-2 border-pixel-border hover:bg-pixel-accent text-pixel-text' 
+                    : 'bg-white border border-gray-200 hover:bg-gray-100 text-gray-600'
+                }`}
+                onClick={() => setShowNewEventDialog(false)}
+                aria-label="关闭"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            )}
+          </div>
         </DialogHeader>
         <DialogContent>
                       <EventForm
