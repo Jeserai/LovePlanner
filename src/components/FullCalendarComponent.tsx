@@ -825,8 +825,8 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       className={`p-0 ${className} flex flex-col overflow-hidden`} 
       style={{ 
         height: useSidebarLayout 
-          ? 'calc(100vh - 8rem)'  // 侧边栏布局
-          : 'calc(100vh - 9rem)',  // 顶部导航布局
+          ? 'calc(100vh - 2rem)'  // 侧边栏布局：与TaskBoard一致
+          : 'calc(100vh - 5rem)',  // 顶部导航布局：与TaskBoard一致
         minHeight: '600px' // 确保最小高度
       }}
     >

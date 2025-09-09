@@ -102,6 +102,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [publishedPage, setPublishedPage] = useState<string>('active'); // 添加分页状态
+  const [assignedPage, setAssignedPage] = useState<string>('active'); // 我领取的页面分页状态
   // 🎯 创建任务表单状态 - 完全匹配CreateTaskForm + UI控制字段
   const [newTask, setNewTask] = useState<CreateTaskForm & {
     isUnlimited: boolean;
@@ -716,9 +717,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       } else {
         console.log('🗑️ 删除任务:', { taskId: taskToDelete });
         
-        // 这里需要调用删除任务的API
-        // 暂时使用abandon作为删除的替代方案
-        await taskService.abandonTask(taskToDelete);
+        // 调用真正的删除任务API
+        await taskService.deleteTask(taskToDelete);
         
         // 成功反馈
         addToast({
@@ -1687,7 +1687,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     switch (category) {
       case 'daily': return 'bg-blue-500';
       case 'habit': return 'bg-green-500';
-      case 'special': return 'bg-secondary-500';
+      case 'special': return 'bg-purple-600';
       default: return 'bg-gray-500';
     }
   };
@@ -2599,34 +2599,6 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           
           <DialogContent>
             <div className="space-y-4">
-              {/* 没有权限时显示只读标识 */}
-              {!(isTaskOwner && (isRecruiting || isAbandoned)) && (
-                <div className={`flex items-center space-x-2 px-3 py-1 mb-4 ${
-                theme === 'pixel'
-                    ? 'bg-pixel-card border-2 border-pixel-border rounded-pixel'
-                    : theme === 'modern'
-                    ? 'bg-muted rounded-md'
-                    : 'bg-gray-100 rounded-lg'
-                }`}>
-                  <span className={`text-xs ${
-              theme === 'pixel'
-                      ? 'text-pixel-textMuted font-mono uppercase'
-                      : theme === 'modern'
-                      ? 'text-muted-foreground'
-                      : 'text-gray-500'
-                  }`}>
-              {theme === 'pixel' ? (
-                      <div className="flex items-center space-x-1">
-                        <span>READONLY</span>
-          </div>
-              ) : (
-                      <div className="flex items-center space-x-1">
-                        <span>只读</span>
-          </div>
-              )}
-                  </span>
-      </div>
-              )}
 
             {isEditing ? (
               // 编辑表单
@@ -3715,122 +3687,109 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       if (publishedPage === 'active') {
     return (
       <div className="h-full overflow-hidden p-6">
-        {/* 页面导航箭头 */}
-        <div className="relative mb-4">
+        {/* 分栏独立滚动布局 - 3列看板 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full relative">
+          
+          {/* 左侧翻页按钮 */}
           <NavigationButton
             direction="left"
             onClick={() => setPublishedPage('completed')}
             aria-label="上一页"
-            className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10"
+            className="absolute left-0 top-4 z-20"
           />
           
+          {/* 右侧翻页按钮 */}
           <NavigationButton
             direction="right"
             onClick={() => setPublishedPage('completed')}
             aria-label="下一页"
-            className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10"
+            className="absolute right-0 top-4 z-20"
           />
-        </div>
-
-        {/* 分栏独立滚动布局 - 3列看板 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
           
           {/* 招募中列 */}
-          <div className="h-full overflow-hidden">
-            <div className="h-full overflow-y-auto">
-              {/* 列标题 - Sticky */}
-              <div className="sticky top-0 z-10 bg-background border-b p-4">
-                <div className={`text-center ${
-                  theme === 'pixel' ? 'font-mono uppercase' : ''
-                }`}>
-                  <h3 className={`font-bold text-lg mb-1 ${
-                    theme === 'pixel' ? 'text-pixel-info' : 'text-blue-600'
-                  }`}>
-                    {theme === 'pixel' ? 'RECRUITING' : '招募中'}
-                  </h3>
-                  <span className={`text-sm ${
-                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
-                  }`}>
-                    {recruitingTasks.length} 个任务
-                  </span>
+          <div className="h-full overflow-hidden flex flex-col">
+            {/* 列标题 - 固定在顶部 */}
+            <div className={`flex-shrink-0 bg-background border-b p-4 text-center ${
+              theme === 'pixel' ? 'font-mono uppercase' : ''
+            }`}>
+              <h3 className={`font-bold text-lg mb-1 ${
+                theme === 'pixel' ? 'text-pixel-info' : 'text-blue-600'
+              }`}>
+                {theme === 'pixel' ? 'RECRUITING' : '招募中'}
+              </h3>
+              <span className={`text-sm ${
+                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+              }`}>
+                {recruitingTasks.length} 个任务
+              </span>
+            </div>
+            
+            {/* 任务卡片区域 - 可滚动 */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {recruitingTasks.map(task => renderTaskCard(task))}
+              {recruitingTasks.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                  暂无任务
                 </div>
-              </div>
-              
-              {/* 任务卡片区域 */}
-              <div className="p-4 space-y-4">
-                {recruitingTasks.map(task => renderTaskCard(task))}
-                {recruitingTasks.length === 0 && (
-                  <div className="text-center text-muted-foreground py-8">
-                    暂无任务
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
 
           {/* 已分配列 */}
-          <div className="h-full overflow-hidden">
-            <div className="h-full overflow-y-auto">
-              {/* 列标题 - Sticky */}
-              <div className="sticky top-0 z-10 bg-background border-b p-4">
-                <div className={`text-center ${
-                  theme === 'pixel' ? 'font-mono uppercase' : ''
-                }`}>
-                  <h3 className={`font-bold text-lg mb-1 ${
-                    theme === 'pixel' ? 'text-pixel-warning' : 'text-orange-600'
-                  }`}>
-                    {theme === 'pixel' ? 'ASSIGNED' : '已分配'}
-                  </h3>
-                  <span className={`text-sm ${
-                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
-                  }`}>
-                    {assignedTasks.length} 个任务
-                  </span>
+          <div className="h-full overflow-hidden flex flex-col">
+            {/* 列标题 - 固定在顶部 */}
+            <div className={`flex-shrink-0 bg-background border-b p-4 text-center ${
+              theme === 'pixel' ? 'font-mono uppercase' : ''
+            }`}>
+              <h3 className={`font-bold text-lg mb-1 ${
+                theme === 'pixel' ? 'text-pixel-warning' : 'text-orange-600'
+              }`}>
+                {theme === 'pixel' ? 'ASSIGNED' : '已分配'}
+              </h3>
+              <span className={`text-sm ${
+                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+              }`}>
+                {assignedTasks.length} 个任务
+              </span>
+            </div>
+            
+            {/* 任务卡片区域 - 可滚动 */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {assignedTasks.map(task => renderTaskCard(task))}
+              {assignedTasks.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                  暂无任务
                 </div>
-              </div>
-              
-              {/* 任务卡片区域 */}
-              <div className="p-4 space-y-4">
-                {assignedTasks.map(task => renderTaskCard(task))}
-                {assignedTasks.length === 0 && (
-                  <div className="text-center text-muted-foreground py-8">
-                    暂无任务
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
 
           {/* 待审核列 */}
-          <div className="h-full overflow-hidden">
-            <div className="h-full overflow-y-auto">
-              {/* 列标题 - Sticky */}
-              <div className="sticky top-0 z-10 bg-background border-b p-4">
-                <div className={`text-center ${
-                  theme === 'pixel' ? 'font-mono uppercase' : ''
-                }`}>
-                  <h3 className={`font-bold text-lg mb-1 ${
-                    theme === 'pixel' ? 'text-pixel-purple' : 'text-purple-600'
-                  }`}>
-                    {theme === 'pixel' ? 'PENDING_REVIEW' : '待审核'}
-                  </h3>
-                  <span className={`text-sm ${
-                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
-                  }`}>
-                    {pendingReviewTasks.length} 个任务
-                  </span>
+          <div className="h-full overflow-hidden flex flex-col">
+            {/* 列标题 - 固定在顶部 */}
+            <div className={`flex-shrink-0 bg-background border-b p-4 text-center ${
+              theme === 'pixel' ? 'font-mono uppercase' : ''
+            }`}>
+              <h3 className={`font-bold text-lg mb-1 ${
+                theme === 'pixel' ? 'text-pixel-purple' : 'text-purple-600'
+              }`}>
+                {theme === 'pixel' ? 'PENDING_REVIEW' : '待审核'}
+              </h3>
+              <span className={`text-sm ${
+                theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+              }`}>
+                {pendingReviewTasks.length} 个任务
+              </span>
+            </div>
+            
+            {/* 任务卡片区域 - 可滚动 */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {pendingReviewTasks.map(task => renderTaskCard(task))}
+              {pendingReviewTasks.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                  暂无任务
                 </div>
-              </div>
-              
-              {/* 任务卡片区域 */}
-              <div className="p-4 space-y-4">
-                {pendingReviewTasks.map(task => renderTaskCard(task))}
-                {pendingReviewTasks.length === 0 && (
-                  <div className="text-center text-muted-foreground py-8">
-                    暂无任务
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
           
@@ -3839,89 +3798,89 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               );
     } else {
         return (
-          <div className="h-full">
-            {/* 页面导航箭头 */}
-            <div className="relative mb-4">
+          <div className="h-full overflow-hidden p-6">
+            {/* 分栏独立滚动布局 - 3列看板 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full relative">
+              
+              {/* 左侧翻页按钮 */}
               <NavigationButton
                 direction="left"
                 onClick={() => setPublishedPage('active')}
                 aria-label="上一页"
-                className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10"
+                className="absolute left-0 top-4 z-20"
               />
               
+              {/* 已完成列 */}
+              <div className="h-full overflow-hidden flex flex-col">
+                {/* 列标题 - 固定在顶部 */}
+                <div className={`flex-shrink-0 bg-background border-b p-4 text-center ${
+                  theme === 'pixel' ? 'font-mono uppercase' : ''
+                }`}>
+                  <h3 className={`font-bold text-lg mb-1 ${
+                    theme === 'pixel' ? 'text-pixel-success' : 'text-green-600'
+                  }`}>
+                    {theme === 'pixel' ? 'COMPLETED' : '已完成'}
+                  </h3>
+                  <span className={`text-sm ${
+                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+                  }`}>
+                    {completedTasks.length} 个任务
+                  </span>
+                </div>
+                
+                {/* 任务卡片区域 - 可滚动 */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {completedTasks.map(task => renderTaskCard(task))}
+                  {completedTasks.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      暂无任务
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 右侧翻页按钮 */}
               <NavigationButton
                 direction="right"
                 onClick={() => setPublishedPage('active')}
                 aria-label="下一页"
-                className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10"
+                className="absolute right-0 top-4 z-20"
               />
-            </div>
-
-            {/* 分栏独立滚动布局 - 2列看板 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
               
-              {/* 已完成列 */}
-              <div className="h-full overflow-hidden">
-                <div className="h-full overflow-y-auto">
-                  {/* 列标题 - Sticky */}
-                  <div className="sticky top-0 z-10 bg-background border-b p-4">
-                    <div className={`text-center ${
-                      theme === 'pixel' ? 'font-mono uppercase' : ''
-                    }`}>
-                      <h3 className={`font-bold text-lg mb-1 ${
-                        theme === 'pixel' ? 'text-pixel-success' : 'text-green-600'
-                      }`}>
-                        {theme === 'pixel' ? 'COMPLETED' : '已完成'}
-                      </h3>
-                      <span className={`text-sm ${
-                        theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
-                      }`}>
-                        {completedTasks.length} 个任务
-                      </span>
+              {/* 已关闭列 */}
+              <div className="h-full overflow-hidden flex flex-col">
+                {/* 列标题 - 固定在顶部 */}
+                <div className={`flex-shrink-0 bg-background border-b p-4 text-center ${
+                  theme === 'pixel' ? 'font-mono uppercase' : ''
+                }`}>
+                  <h3 className={`font-bold text-lg mb-1 ${
+                    theme === 'pixel' ? 'text-pixel-accent' : 'text-rose-600'
+                  }`}>
+                    {theme === 'pixel' ? 'ABANDONED' : '已关闭'}
+                  </h3>
+                  <span className={`text-sm ${
+                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+                  }`}>
+                    {abandonedTasks.length} 个任务
+                  </span>
+                </div>
+                
+                {/* 任务卡片区域 - 可滚动 */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {abandonedTasks.map(task => renderTaskCard(task))}
+                  {abandonedTasks.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      暂无任务
                     </div>
-                  </div>
-                  
-                  {/* 任务卡片区域 */}
-                  <div className="p-4 space-y-4">
-                    {completedTasks.map(task => renderTaskCard(task))}
-                    {completedTasks.length === 0 && (
-                      <div className="text-center text-muted-foreground py-8">
-                        暂无任务
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
-
-              {/* 已关闭列 */}
+              
+              {/* 空白列3 - 占位 */}
               <div className="h-full overflow-hidden">
                 <div className="h-full overflow-y-auto">
-                  {/* 列标题 - Sticky */}
-                  <div className="sticky top-0 z-10 bg-background border-b p-4">
-                    <div className={`text-center ${
-                      theme === 'pixel' ? 'font-mono uppercase' : ''
-                    }`}>
-                      <h3 className={`font-bold text-lg mb-1 ${
-                        theme === 'pixel' ? 'text-pixel-accent' : 'text-rose-600'
-                      }`}>
-                        {theme === 'pixel' ? 'ABANDONED' : '已关闭'}
-                      </h3>
-                      <span className={`text-sm ${
-                        theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
-                      }`}>
-                        {abandonedTasks.length} 个任务
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* 任务卡片区域 */}
-                  <div className="p-4 space-y-4">
-                    {abandonedTasks.map(task => renderTaskCard(task))}
-                    {abandonedTasks.length === 0 && (
-                      <div className="text-center text-muted-foreground py-8">
-                        暂无任务
-                      </div>
-                    )}
+                  {/* 空白内容 */}
+                  <div className="p-4">
                   </div>
                 </div>
               </div>
@@ -3931,16 +3890,33 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     );
     }
     } else if (type === 'assigned') {
-      // "我领取的"视图 - 按状态分类为四列
+      // "我领取的"视图 - 分页3列布局
       const notStartedTasks = taskList.filter(task => task.status === 'assigned');
       const inProgressTasks = taskList.filter(task => task.status === 'in_progress');
       const completedTasks = taskList.filter(task => task.status === 'completed');
       const abandonedTasks = taskList.filter(task => task.status === 'abandoned');
 
-  return (
-    <div className="h-full overflow-hidden p-6">
-      {/* 分栏独立滚动布局 - 4列看板 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full">
+      if (assignedPage === 'active') {
+        return (
+          <div className="h-full overflow-hidden p-6">
+            {/* 分栏独立滚动布局 - 3列看板 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full relative">
+              
+              {/* 左侧翻页按钮 */}
+              <NavigationButton
+                direction="left"
+                onClick={() => setAssignedPage('closed')}
+                aria-label="上一页"
+                className="absolute left-0 top-4 z-20"
+              />
+              
+              {/* 右侧翻页按钮 */}
+              <NavigationButton
+                direction="right"
+                onClick={() => setAssignedPage('closed')}
+                aria-label="下一页"
+                className="absolute right-0 top-4 z-20"
+              />
         
         {/* 未开始列 */}
         <div className="h-full overflow-hidden flex flex-col">
@@ -4028,60 +4004,93 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             )}
           </div>
         </div>
-
-        {/* 已关闭列 */}
-        <div className="h-full overflow-hidden flex flex-col">
-          {/* 列标题 - 固定在顶部 */}
-          <div className={`flex-shrink-0 bg-background border-b p-4 text-center ${
-            theme === 'pixel' ? 'font-mono uppercase' : ''
-          }`}>
-            <h3 className={`font-bold text-lg mb-1 ${
-              theme === 'pixel' ? 'text-pixel-accent' : 'text-rose-600'
-            }`}>
-              {theme === 'pixel' ? 'ABANDONED' : '已关闭'}
-            </h3>
-            <span className={`text-sm ${
-              theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
-            }`}>
-              {abandonedTasks.length} 个任务
-            </span>
-          </div>
-          
-          {/* 任务卡片区域 - 可滚动 */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {abandonedTasks.map(task => renderTaskCard(task))}
-            {abandonedTasks.length === 0 && (
-              <div className="text-center text-muted-foreground py-8">
-                暂无任务
-              </div>
-            )}
-          </div>
-        </div>
         
       </div>
     </div>
-              );
+        );
+      } else {
+        // 已关闭页面 - 3列布局（保持宽度一致）
+        return (
+          <div className="h-full overflow-hidden p-6">
+            {/* 分栏独立滚动布局 - 3列看板 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full relative">
+              
+              {/* 左侧翻页按钮 */}
+              <NavigationButton
+                direction="left"
+                onClick={() => setAssignedPage('active')}
+                aria-label="上一页"
+                className="absolute left-0 top-4 z-20"
+              />
+              
+              {/* 右侧翻页按钮 */}
+              <NavigationButton
+                direction="right"
+                onClick={() => setAssignedPage('active')}
+                aria-label="下一页"
+                className="absolute right-0 top-4 z-20"
+              />
+              
+              {/* 已关闭列 */}
+              <div className="h-full overflow-hidden flex flex-col">
+                
+                {/* 列标题 - 固定在顶部 */}
+                <div className={`flex-shrink-0 bg-background border-b p-4 text-center ${
+                  theme === 'pixel' ? 'font-mono uppercase' : ''
+                }`}>
+                  <h3 className={`font-bold text-lg mb-1 ${
+                    theme === 'pixel' ? 'text-pixel-accent' : 'text-rose-600'
+                  }`}>
+                    {theme === 'pixel' ? 'ABANDONED' : '已关闭'}
+                  </h3>
+                  <span className={`text-sm ${
+                    theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
+                  }`}>
+                    {abandonedTasks.length} 个任务
+                  </span>
+                </div>
+                
+                {/* 任务卡片区域 - 可滚动 */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {abandonedTasks.map(task => renderTaskCard(task))}
+                  {abandonedTasks.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      暂无任务
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* 空白列2 - 占位 */}
+              <div className="h-full overflow-hidden">
+                <div className="h-full overflow-y-auto">
+                  {/* 空白内容 */}
+                  <div className="p-4">
+                  </div>
+                </div>
+              </div>
+              
+              {/* 空白列3 - 占位 */}
+              <div className="h-full overflow-hidden">
+                <div className="h-full overflow-y-auto">
+                  {/* 空白内容 */}
+                  <div className="p-4">
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+          </div>
+        );
+      }
     } else {
       // available 视图 - 带有"即将过期"标签
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {taskList.map(task => (
-            <div key={task.id} className={`relative ${
-              isTaskExpiringSoon(task.task_deadline || task.task_deadline || null) ? 'animate-pulse' : ''
-            }`}>
-              {isTaskExpiringSoon(task.task_deadline || task.task_deadline || null) && (
-                <div className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold shadow-lg z-10 ${
-            theme === 'pixel'
-                    ? 'bg-pixel-accent text-white border-2 border-pixel-accent animate-pulse'
-                    : 'bg-red-500 text-white animate-bounce'
-                }`}>
-                  {theme === 'pixel' ? 'EXPIRING!' : '⚠️ 即将过期'}
-                </div>
-              )}
-              {renderTaskCard(task)}
-      </div>
-            ))}
-      </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {taskList.map(task => renderTaskCard(task))}
+          </div>
+        </div>
     );
     }
   };
@@ -4092,15 +4101,20 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       style={{ 
         height: useSidebarLayout 
           ? 'calc(100vh - 2rem)'   // 侧边栏布局：减去main的padding
-          : 'calc(100vh - 4rem)',  // 顶部导航布局：减去更多的导航空间
-        minHeight: '600px' // 确保最小高度
+          : 'calc(100vh - 5rem)',  // 顶部导航布局：减去header(64px) + border(1px) + main-pt(16px) = 81px ≈ 5rem
+        minHeight: '600px', // 确保最小高度
+        width: '100%', // 强制使用全宽
+        maxWidth: 'none', // 移除最大宽度限制
+        margin: '0', // 强制移除margin
+        padding: '0' // 强制移除padding
       }}
+      data-view={view} // 调试用：标记当前view
     >
       {/* 测试时间控制器 - 仅开发环境显示 */}
       {process.env.NODE_ENV === 'development' && <TestTimeController />}
       
       {/* Page Header - Sticky定位 */}
-      <div className="sticky top-0 z-20 bg-background p-4">
+      <div className="sticky top-0 z-20 bg-background px-4 py-2">
         <PageHeader
         title={theme === 'pixel' ? 'TASK_MANAGER.EXE' : theme === 'modern' ? 'Task Board' : '任务看板'}
         viewSwitcher={{
@@ -4139,7 +4153,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       </div>
 
       {/* 主要内容区域 - 占用剩余高度，禁止整体滚动 */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden" data-debug-view={view}>
             {loading || !tasksLoaded || !userProfile ? (
               <LoadingSpinner
                 size="lg"

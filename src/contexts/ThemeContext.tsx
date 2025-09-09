@@ -42,7 +42,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeType;
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    const savedLayout = localStorage.getItem('sidebarLayout') === 'true';
+    const savedLayout = localStorage.getItem('sidebarLayout');
     const savedLanguage = (localStorage.getItem('language') as LanguageType) || 'zh';
     
     // 强制使用现代主题，隐藏像素主题选项
@@ -50,7 +50,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     localStorage.setItem('theme', 'modern');
     
     setIsDarkMode(savedDarkMode);
-    setUseSidebarLayout(savedLayout);
+    
+    // 恢复用户的布局选择，如果没有保存过则默认使用侧边栏布局
+    if (savedLayout !== null) {
+      setUseSidebarLayout(savedLayout === 'true');
+    } else {
+      setUseSidebarLayout(true);
+      localStorage.setItem('sidebarLayout', 'true');
+    }
+    
     setLanguageState(savedLanguage);
   }, []);
 

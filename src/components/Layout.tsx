@@ -152,8 +152,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex-1 overflow-hidden">
-        <div className="h-full">
+      <main className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex-1 overflow-hidden pt-4" style={{ width: '100%', maxWidth: '1280px' }}>
+        <div className="h-full w-full" style={{ width: '100%' }}>
           {children}
         </div>
       </main>
@@ -256,9 +256,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
       <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Main Content */}
         <main className="flex-1 p-4">
-          <div className="mx-auto max-w-none">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
     </div>

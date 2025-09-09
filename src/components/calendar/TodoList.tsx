@@ -215,8 +215,8 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       className={`p-4 ${className} flex flex-col`}
       style={{
         height: useSidebarLayout 
-          ? 'calc(100vh - 8rem)' // 侧边栏布局
-          : 'calc(100vh - 9rem)' // 顶部导航布局
+          ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
+          : 'calc(100vh - 5rem)' // 顶部导航布局：与TaskBoard一致
       }}
     >
       <div className="flex items-center justify-between mb-4">

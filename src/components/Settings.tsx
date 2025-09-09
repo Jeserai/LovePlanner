@@ -184,7 +184,15 @@ const Settings: React.FC = () => {
 
   if (theme === 'pixel') {
     return (
-      <div className="space-y-6">
+      <div 
+        className="space-y-6"
+        style={{ 
+          width: '100%',
+          maxWidth: 'none',
+          margin: '0',
+          padding: '0'
+        }}
+      >
         {/* Header */}
         <div className="flex items-center space-x-3">
           <PixelIcon name="settings" className="text-pixel-text" size="lg" glow />
@@ -263,7 +271,15 @@ const Settings: React.FC = () => {
 
   // 默认主题
   return (
-    <div className="space-y-6">
+    <div 
+      className="space-y-6"
+      style={{ 
+        width: '100%',
+        maxWidth: 'none',
+        margin: '0',
+        padding: '0'
+      }}
+    >
       {/* Header */}
       <div className="flex items-center space-x-3">
         <Cog6ToothIcon className="w-8 h-8 text-secondary-600" />

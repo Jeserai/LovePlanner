@@ -7,7 +7,15 @@ const Shop: React.FC = () => {
   const { theme } = useTheme();
 
   return (
-    <div className="space-y-6">
+    <div 
+      className="space-y-6"
+      style={{ 
+        width: '100%',
+        maxWidth: 'none',
+        margin: '0',
+        padding: '0'
+      }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">

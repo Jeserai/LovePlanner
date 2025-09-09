@@ -615,7 +615,15 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   })
 
   return (
-    <div className="h-full flex flex-col">
+    <div 
+      className="h-full flex flex-col"
+      style={{ 
+        width: '100%',
+        maxWidth: 'none',
+        margin: '0',
+        padding: '0'
+      }}
+    >
       {/* 测试时区控制器 */}
       {process.env.NODE_ENV === 'development' && <TestTimezoneController />}
 
@@ -624,8 +632,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         className="flex gap-4 relative" 
         style={{ 
           height: useSidebarLayout 
-            ? 'calc(100vh - 8rem)' // 侧边栏布局
-            : 'calc(100vh - 9rem)' // 顶部导航：视口 - 导航栏 - padding
+            ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
+            : 'calc(100vh - 5rem)' // 顶部导航布局：与TaskBoard一致
         }}
       >
         {/* 左侧 To-Do List - 可调整宽度 */}
