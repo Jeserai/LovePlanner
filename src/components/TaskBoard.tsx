@@ -1884,12 +1884,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       >
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center space-x-2 flex-1">
-            <h4 className={`font-bold ${
+          <h4 className={`font-bold ${
                 theme === 'pixel' ? 'text-pixel-text font-mono uppercase' : 
                 isDarkMode ? 'text-gray-100' : 'text-gray-800'
-              }`}>
-              {task.title}
-            </h4>
+          }`}>
+            {task.title}
+          </h4>
             {/* 即将过期提示图标 */}
             {isTaskExpiringSoon(task.task_deadline) && (
               <div className={`flex items-center space-x-1 ${
@@ -2737,7 +2737,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               // 🎯 任务详情显示 - 左右分栏布局
               <div className="flex gap-6">
                 {/* 左侧：基本信息 */}
-                <div className="flex-1 space-y-4">
+                <div className="flex-1 min-w-0 space-y-4">
                 <DetailField
                   label={theme === 'pixel' ? 'TASK_TITLE' : theme === 'modern' ? 'Task Title' : '任务标题'}
                   value={selectedTask.title}
@@ -2973,7 +2973,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
                 {/* 右侧：进度信息面板 */}
                 {selectedTask.repeat_frequency !== 'never' && isAssignee && (selectedTask.status === 'assigned' || selectedTask.status === 'in_progress') && (
-                  <div className={`w-80 space-y-4 p-4 rounded-lg ${
+                  <div className={`w-64 space-y-4 p-4 rounded-lg ${
                     theme === 'pixel' ? 'bg-pixel-bgSecondary border-2 border-pixel-border' : 
                     theme === 'modern' ? 'bg-gray-50 border border-gray-200' : 'bg-blue-50 border border-blue-200'
                   }`}>
@@ -3005,7 +3005,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             theme === 'modern' ? 'text-green-600' : 'text-green-600'
                           }`}>
                             {selectedTask.completed_count || 0}
-        </div>
+          </div>
                           <div className={`text-xs ${
                             theme === 'pixel' ? 'text-pixel-textMuted font-mono' : 'text-gray-500'
                           }`}>
@@ -3157,9 +3157,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     </span>
                 </div>
                               
-                              <div className={`max-h-48 overflow-y-auto ${
-                                theme === 'pixel' ? 'scrollbar-pixel' : 'scrollbar-thin'
-                              }`}>
+                              <div className="max-h-48 overflow-y-auto auto-hide-scrollbar">
                                 <div className="space-y-2">
                                   {completionRecord.slice().reverse().map((record, index) => {
                                     // 解析日期并格式化显示
@@ -3725,7 +3723,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
             </div>
             
             {/* 任务卡片区域 - 可滚动 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
               {recruitingTasks.map(task => renderTaskCard(task))}
               {recruitingTasks.length === 0 && (
                 <div className="text-center text-muted-foreground py-8">
@@ -3751,10 +3749,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               }`}>
                 {assignedTasks.length} 个任务
               </span>
-            </div>
-            
+        </div>
+
             {/* 任务卡片区域 - 可滚动 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
               {assignedTasks.map(task => renderTaskCard(task))}
               {assignedTasks.length === 0 && (
                 <div className="text-center text-muted-foreground py-8">
@@ -3780,24 +3778,24 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               }`}>
                 {pendingReviewTasks.length} 个任务
               </span>
-            </div>
+              </div>
             
             {/* 任务卡片区域 - 可滚动 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
               {pendingReviewTasks.map(task => renderTaskCard(task))}
               {pendingReviewTasks.length === 0 && (
                 <div className="text-center text-muted-foreground py-8">
                   暂无任务
-                </div>
-              )}
-            </div>
           </div>
-          
+              )}
+        </div>
+      </div>
+
         </div>
       </div>
               );
     } else {
-        return (
+  return (
           <div className="h-full overflow-hidden p-6">
             {/* 分栏独立滚动布局 - 3列看板 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full relative">
@@ -3825,11 +3823,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
                   }`}>
                     {completedTasks.length} 个任务
-                  </span>
+              </span>
                 </div>
                 
                 {/* 任务卡片区域 - 可滚动 */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
                   {completedTasks.map(task => renderTaskCard(task))}
                   {completedTasks.length === 0 && (
                     <div className="text-center text-muted-foreground py-8">
@@ -3862,29 +3860,29 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
                   }`}>
                     {abandonedTasks.length} 个任务
-                  </span>
+              </span>
                 </div>
                 
                 {/* 任务卡片区域 - 可滚动 */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
                   {abandonedTasks.map(task => renderTaskCard(task))}
                   {abandonedTasks.length === 0 && (
                     <div className="text-center text-muted-foreground py-8">
                       暂无任务
                     </div>
                   )}
-                </div>
-              </div>
-              
+          </div>
+        </div>
+
               {/* 空白列3 - 占位 */}
               <div className="h-full overflow-hidden">
-                <div className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto auto-hide-scrollbar">
                   {/* 空白内容 */}
                   <div className="p-4">
                   </div>
                 </div>
-              </div>
-              
+      </div>
+
             </div>
           </div>
     );
@@ -3928,7 +3926,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               theme === 'pixel' ? 'text-pixel-warning' : 'text-amber-600'
             }`}>
               {theme === 'pixel' ? 'NOT_STARTED' : '未开始'}
-            </h3>
+          </h3>
             <span className={`text-sm ${
               theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
             }`}>
@@ -3937,13 +3935,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </div>
           
           {/* 任务卡片区域 - 可滚动 */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
             {notStartedTasks.map(task => renderTaskCard(task))}
             {notStartedTasks.length === 0 && (
               <div className="text-center text-muted-foreground py-8">
                 暂无任务
-              </div>
-            )}
+                  </div>
+                  )}
           </div>
         </div>
 
@@ -3957,7 +3955,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               theme === 'pixel' ? 'text-pixel-warning' : 'text-orange-600'
             }`}>
               {theme === 'pixel' ? 'IN_PROGRESS' : '进行中'}
-            </h3>
+          </h3>
             <span className={`text-sm ${
               theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
             }`}>
@@ -3966,13 +3964,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </div>
           
           {/* 任务卡片区域 - 可滚动 */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
             {inProgressTasks.map(task => renderTaskCard(task))}
             {inProgressTasks.length === 0 && (
               <div className="text-center text-muted-foreground py-8">
                 暂无任务
-              </div>
-            )}
+                  </div>
+                )}
           </div>
         </div>
 
@@ -3986,7 +3984,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               theme === 'pixel' ? 'text-pixel-success' : 'text-green-600'
             }`}>
               {theme === 'pixel' ? 'COMPLETED' : '已完成'}
-            </h3>
+          </h3>
             <span className={`text-sm ${
               theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
             }`}>
@@ -3995,16 +3993,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           </div>
           
           {/* 任务卡片区域 - 可滚动 */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
             {completedTasks.map(task => renderTaskCard(task))}
             {completedTasks.length === 0 && (
               <div className="text-center text-muted-foreground py-8">
                 暂无任务
-              </div>
-            )}
+                  </div>
+                )}
           </div>
-        </div>
-        
+      </div>
+
       </div>
     </div>
         );
@@ -4042,7 +4040,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     theme === 'pixel' ? 'text-pixel-accent' : 'text-rose-600'
                   }`}>
                     {theme === 'pixel' ? 'ABANDONED' : '已关闭'}
-                  </h3>
+            </h3>
                   <span className={`text-sm ${
                     theme === 'pixel' ? 'text-pixel-textMuted' : 'text-gray-500'
                   }`}>
@@ -4051,7 +4049,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 </div>
                 
                 {/* 任务卡片区域 - 可滚动 */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto auto-hide-scrollbar p-4 space-y-4">
                   {abandonedTasks.map(task => renderTaskCard(task))}
                   {abandonedTasks.length === 0 && (
                     <div className="text-center text-muted-foreground py-8">
@@ -4059,11 +4057,11 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     </div>
                   )}
                 </div>
-              </div>
-              
+            </div>
+            
               {/* 空白列2 - 占位 */}
               <div className="h-full overflow-hidden">
-                <div className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto auto-hide-scrollbar">
                   {/* 空白内容 */}
                   <div className="p-4">
                   </div>
@@ -4072,7 +4070,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
               
               {/* 空白列3 - 占位 */}
               <div className="h-full overflow-hidden">
-                <div className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto auto-hide-scrollbar">
                   {/* 空白内容 */}
                   <div className="p-4">
                   </div>
@@ -4150,7 +4148,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           }
         ]}
         />
-      </div>
+                </div>
 
       {/* 主要内容区域 - 占用剩余高度，禁止整体滚动 */}
       <div className="flex-1 overflow-hidden" data-debug-view={view}>
@@ -4167,7 +4165,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                 {view === 'available' && renderTaskList(getAvailableTasks(), 'available')}
               </>
             )}
-      </div>
+              </div>
 
       {/* 任务详情弹窗 */}
       {selectedTask && renderTaskDetailModal()}

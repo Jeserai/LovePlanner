@@ -48,21 +48,22 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     }
   };
 
-  // 获取视图切换器样式
+  // 获取视图切换器样式 - 与日历页面一致
   const getViewSwitcherStyles = () => {
     switch (theme) {
       case 'pixel':
         return 'border-4 border-pixel-border bg-pixel-card shadow-pixel';
       case 'modern':
-        return 'bg-muted/50 border border-border rounded-lg';
+        return 'bg-muted/50 rounded-lg p-1';
       default:
         return 'border border-gray-200 rounded-lg';
     }
   };
 
-  // 获取视图按钮样式
+  // 获取视图按钮样式 - 与日历页面ThemeButton一致
   const getViewButtonStyles = (viewId: string, isActive: boolean) => {
-    const baseStyles = 'flex items-center justify-center px-3 py-2 text-sm font-medium transition-all duration-200';
+    // 使用与日历页面相同的ThemeButton样式
+    const baseStyles = 'inline-flex items-center justify-center px-3 py-2 text-sm font-medium transition-colors h-8';
     
     switch (theme) {
       case 'pixel':
@@ -72,10 +73,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             : 'text-pixel-text hover:bg-pixel-panel hover:text-pixel-accent border-2 border-transparent'
         }`;
       case 'modern':
-        return `${baseStyles} ${
+        return `${baseStyles} rounded-md ${
           isActive 
-            ? 'bg-background text-foreground shadow-sm border border-border' 
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent/10'
+            ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
         }`;
       default:
         return `${baseStyles} ${
@@ -97,18 +98,12 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         
         {/* 视图切换器 */}
         {viewSwitcher && (
-          <div className={`flex overflow-hidden w-full sm:w-auto ${getViewSwitcherStyles()}`}>
+          <div className={`flex items-center space-x-1 w-full sm:w-auto ${getViewSwitcherStyles()}`}>
             {viewSwitcher.views.map((view, index) => (
               <button
                 key={view.id}
                 onClick={() => viewSwitcher.onViewChange(view.id)}
-                className={`${getViewButtonStyles(view.id, viewSwitcher.currentView === view.id)} ${
-                  index === 0 
-                    ? theme === 'modern' ? 'rounded-l-md' : 'rounded-l-lg' 
-                    : index === viewSwitcher.views.length - 1 
-                    ? theme === 'modern' ? 'rounded-r-md' : 'rounded-r-lg' 
-                    : ''
-                }`}
+                className={getViewButtonStyles(view.id, viewSwitcher.currentView === view.id)}
               >
                 {view.icon && (
                   <Icon 

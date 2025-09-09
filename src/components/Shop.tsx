@@ -4,7 +4,7 @@ import { ShoppingBagIcon, ExclamationTriangleIcon, ClockIcon } from '@heroicons/
 import PixelIcon from './PixelIcon';
 
 const Shop: React.FC = () => {
-  const { theme } = useTheme();
+  const { theme, useSidebarLayout } = useTheme();
 
   return (
     <div 
@@ -13,7 +13,11 @@ const Shop: React.FC = () => {
         width: '100%',
         maxWidth: 'none',
         margin: '0',
-        padding: '0'
+        padding: '0',
+        height: useSidebarLayout 
+          ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
+          : 'calc(100vh - 5rem)', // 顶部导航布局：与TaskBoard一致
+        minHeight: '600px' // 确保最小高度
       }}
     >
       {/* Header */}
@@ -32,7 +36,7 @@ const Shop: React.FC = () => {
       </div>
 
       {/* Under Development Notice */}
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center flex-1">
         <div className={`max-w-md w-full p-8 text-center ${
           theme === 'pixel' 
             ? 'bg-pixel-card border-4 border-pixel-border rounded-pixel shadow-pixel'

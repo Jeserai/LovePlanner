@@ -296,7 +296,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
       {/* 待办事项列表 */}
       <div 
         ref={todoListRef} 
-        className="space-y-2 overflow-y-auto custom-scrollbar flex-1"
+        className="space-y-2 overflow-y-auto auto-hide-scrollbar flex-1"
       >
         {filteredTodos.length === 0 ? (
           <div className={`text-sm text-center py-8 ${

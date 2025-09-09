@@ -5,7 +5,7 @@ import PixelIcon from './PixelIcon';
 import UserProfile from './UserProfile';
 
 const Settings: React.FC = () => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, useSidebarLayout } = useTheme();
   const [activeSection, setActiveSection] = useState('profile');
 
   const sections = [
@@ -190,7 +190,11 @@ const Settings: React.FC = () => {
           width: '100%',
           maxWidth: 'none',
           margin: '0',
-          padding: '0'
+          padding: '0',
+          height: useSidebarLayout 
+            ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
+            : 'calc(100vh - 5rem)', // 顶部导航布局：与TaskBoard一致
+          minHeight: '600px' // 确保最小高度
         }}
       >
         {/* Header */}
@@ -231,7 +235,19 @@ const Settings: React.FC = () => {
 
   if (false) {
     return (
-      <div className="space-y-6">
+      <div 
+        className="space-y-6"
+        style={{ 
+          width: '100%',
+          maxWidth: 'none',
+          margin: '0',
+          padding: '0',
+          height: useSidebarLayout 
+            ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
+            : 'calc(100vh - 5rem)', // 顶部导航布局：与TaskBoard一致
+          minHeight: '600px' // 确保最小高度
+        }}
+      >
         {/* Header */}
         <div className="flex items-center space-x-3">
           <Cog6ToothIcon className="w-8 h-8 " />
@@ -277,7 +293,11 @@ const Settings: React.FC = () => {
         width: '100%',
         maxWidth: 'none',
         margin: '0',
-        padding: '0'
+        padding: '0',
+        height: useSidebarLayout 
+          ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
+          : 'calc(100vh - 5rem)', // 顶部导航布局：与TaskBoard一致
+        minHeight: '600px' // 确保最小高度
       }}
     >
       {/* Header */}

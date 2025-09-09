@@ -534,9 +534,14 @@
   outline: none !important; /* 移除焦点轮廓 */
 }
 
-/* 应用自定义滚动条样式到FullCalendar */
+/* 应用自动隐藏滚动条样式到FullCalendar */
 .fc-scroller {
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.fc-scroller:hover {
   scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
 }
 
@@ -549,12 +554,16 @@
 }
 
 .fc-scroller::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
+  background: transparent;
   border-radius: 3px;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.3s ease;
 }
 
-.fc-scroller::-webkit-scrollbar-thumb:hover {
+.fc-scroller:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+}
+
+.fc-scroller:hover::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
