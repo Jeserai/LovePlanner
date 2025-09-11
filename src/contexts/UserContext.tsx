@@ -13,6 +13,7 @@ interface UserProfile {
   birthday: string;
   points: number;
   timezone: string;
+  couple_id?: string; // 情侣关系ID（可选）
 }
 
 // 用户上下文接口
@@ -60,6 +61,20 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // 获取用户的实际浏览器时区
         const actualTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         
+        // 获取情侣关系信息
+        let coupleId: string | undefined = undefined;
+        try {
+          const coupleRelation = await userService.getCoupleRelation(profile.id);
+          if (coupleRelation) {
+            coupleId = coupleRelation.id;
+            console.log(`💝 找到情侣关系: ${coupleId}`);
+          } else {
+            console.log(`💔 尚未建立情侣关系`);
+          }
+        } catch (error) {
+          console.warn('⚠️ 获取情侣关系时出错:', error);
+        }
+        
         const formattedProfile: UserProfile = {
           id: profile.id,
           username: profile.username,
@@ -67,12 +82,13 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           email: profile.email,
           birthday: profile.birthday || '1990-01-01',
           points: profile.points || 0,
-          timezone: actualTimezone // 使用用户的实际时区而不是数据库中的值
+          timezone: actualTimezone, // 使用用户的实际时区而不是数据库中的值
+          couple_id: coupleId // 添加情侣关系ID
         };
         
         setUserProfile(formattedProfile);
         const userInfo = getUserDisplayInfo(profile);
-        console.log(`✅ 全局用户档案加载成功: ${profile.display_name} (${userInfo?.uiTheme})`);
+        console.log(`✅ 全局用户档案加载成功: ${profile.display_name} (${userInfo?.uiTheme})`, { couple_id: coupleId });
       } else {
         setError('未找到用户档案');
         console.warn('⚠️ 未找到用户档案，可能需要完善信息');

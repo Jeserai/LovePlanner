@@ -672,8 +672,16 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
       const draggedEl = eventInfo.draggedEl
       const todoId = draggedEl?.getAttribute('data-todo-id')
       const todoTitle = draggedEl?.getAttribute('data-todo-title')
+      const taskId = draggedEl?.getAttribute('data-task-id')
+      const taskTitle = draggedEl?.getAttribute('data-task-title')
+      const taskPoints = draggedEl?.getAttribute('data-task-points')
       
-      if (todoId && todoTitle && onTodoDrop) {
+      console.log('🎯 Drop事件检测到的数据:', {
+        todoId, todoTitle,
+        taskId, taskTitle, taskPoints
+      })
+      
+      if ((todoId && todoTitle) || (taskId && taskTitle)) {
         // 从事件对象获取日期时间
         const event = eventInfo.event
         let dropDate: string
@@ -732,8 +740,8 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         }
         
         console.log('📅 从FullCalendar事件解析:', {
-          todoId,
-          todoTitle,
+          todoId, todoTitle,
+          taskId, taskTitle, taskPoints,
           解析后日期: dropDate,
           解析后时间: dropTime,
           是否全天: event.allDay,
@@ -743,8 +751,21 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         // 阻止FullCalendar自动创建事件，我们手动处理
         eventInfo.revert()
         
-        // 传递待办事项数据到我们的处理函数
-        onTodoDrop({ id: todoId, title: todoTitle }, dropDate, dropTime)
+        // 根据拖拽类型传递数据
+        if (todoId && todoTitle && onTodoDrop) {
+          // 传递待办事项数据
+          onTodoDrop({ id: todoId, title: todoTitle }, dropDate, dropTime)
+        } else if (taskId && taskTitle && onTodoDrop) {
+          // 传递任务数据
+          onTodoDrop({ 
+            id: taskId, 
+            title: taskTitle, 
+            taskId: taskId,
+            points: parseInt(taskPoints) || 0,
+            fromTask: true,
+            originalTask: { id: taskId, title: taskTitle, points: parseInt(taskPoints) || 0 }
+          }, dropDate, dropTime)
+        }
       }
     } catch (error) {
       console.error('事件接收处理失败:', error)

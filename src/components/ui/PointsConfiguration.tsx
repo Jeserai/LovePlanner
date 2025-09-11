@@ -171,7 +171,10 @@ const PointsConfiguration: React.FC<PointsConfigurationProps> = ({
         <input
           type="number"
           value={points}
-          onChange={(e) => onPointsChange(Number(e.target.value) || 0)}
+          onChange={(e) => {
+            const value = Number(e.target.value);
+            onPointsChange((value && value > 0) ? value : 1);
+          }}
           min="1"
           max="1000"
           className={getInputStyles()}

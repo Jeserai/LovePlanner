@@ -853,6 +853,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       return;
     }
 
+    // 验证积分不能为0
+    if (!editTask.points || editTask.points <= 0) {
+      alert(t('points_must_greater_zero'));
+      return;
+    }
+
     try {
       // 🎯 验证逻辑（参考创建任务的验证）
       if (!editTask.isUnlimited) {
@@ -980,7 +986,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       }
       
       // 发送全局事件
-      globalEventService.emit('TASKS_UPDATED');
+      globalEventService.emit(GlobalEvents.TASKS_UPDATED);
       
       // 关闭编辑模式（但保持任务详情弹窗打开）
       setIsEditing(false);
@@ -1111,11 +1117,26 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     };
   }, []);
 
+  // 防重复提交状态
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+
   // 创建新任务
   const handleCreateTask = async () => {
+    // 防止重复提交
+    if (isCreatingTask) {
+      console.log('⚠️ 任务创建中，忽略重复点击');
+      return;
+    }
+
     // 验证必填字段
     if (!newTask.title.trim()) {
       alert(t('please_enter_title'));
+      return;
+    }
+
+    // 验证积分不能为0
+    if (!newTask.points || newTask.points <= 0) {
+      alert(t('points_must_greater_zero'));
       return;
     }
 
@@ -1211,6 +1232,9 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       }
     }
 
+    // 所有验证通过，开始创建任务
+    setIsCreatingTask(true);
+
     if (user && coupleId) {
       try {
         // 🎯 直接使用新数据结构创建任务
@@ -1256,6 +1280,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           description: error?.message || t('create_task_failed_desc')
         });
         return;
+      } finally {
+        setIsCreatingTask(false); // 无论成功失败都重置状态
       }
                     } else {
       addToast({
@@ -1263,6 +1289,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         title: t('create_task_failed'),
         description: t('user_not_logged_in')
       });
+      setIsCreatingTask(false); // 重置创建状态
       return;
     }
 
@@ -1497,7 +1524,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
           {/* 结束时间（可选） */}
           <ThemeFormField
-            label={theme === 'pixel' ? 'END_TIME' : t('end_time')}
+            label={theme === 'pixel' ? 'END_TIME' : t('deadline')}
             description={theme === 'pixel' ? 'WHEN_MUST_FINISH' : t('when_must_finish_simple')}
           >
             <ThemeInput
@@ -1867,8 +1894,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const isExpiringSoon = isTaskExpiringSoon(task.task_deadline || task.task_deadline || null);
     const isOverdue = isTaskOverdue(task);
     
-    // 🎯 习惯任务特殊处理
-    const isHabitTask = task.task_type === 'normal'; // 原来的habit任务现在是normal
+    // 🎯 习惯任务特殊处理 - 基于重复频率判断，而不是任务类型
+    const isHabitTask = task.repeat_frequency !== 'never'; // 重复任务才是习惯任务
     const userHabitChallenge = isHabitTask ? userHabitChallenges.find(c => c.task_id === task.id) : null;
     const canJoinHabit = isHabitTask && task.task_deadline ? canJoinHabitTask(task.task_deadline, getTaskDuration(task)) : false;
     
@@ -2559,8 +2586,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     const hasProof = selectedTask.proof_url !== undefined;
     const canComplete = !selectedTask.requires_proof || hasProof;
     
-    // 🎯 习惯任务特殊处理
-    const isHabitTask = selectedTask.task_type === 'normal'; // 原来的habit任务现在是normal
+    // 🎯 习惯任务特殊处理 - 基于重复频率判断，而不是任务类型
+    const isHabitTask = selectedTask.repeat_frequency !== 'never'; // 重复任务才是习惯任务
     const userHabitChallenge = isHabitTask ? userHabitChallenges.find(c => c.task_id === selectedTask.id) : null;
     const canJoinHabit = isHabitTask && selectedTask.task_deadline ? canJoinHabitTask(selectedTask.task_deadline, getTaskDuration(selectedTask)) : false;
 
@@ -2664,7 +2691,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                     <ThemeInput
                       type="number"
                       value={editTask.points || ''}
-                      onChange={(e) => setEditTask({...editTask, points: parseInt(e.target.value) || 0})}
+                      onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      setEditTask({...editTask, points: (value && value > 0) ? value : 1});
+                    }}
                       min="1"
                       max="1000"
                       placeholder={theme === 'pixel' ? '50' : theme === 'modern' ? 'Enter points (1-1000)' : '输入积分 (1-1000)'}
@@ -2790,7 +2820,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   value={selectedTask.requires_proof ? (theme === 'pixel' ? 'YES' : theme === 'modern' ? 'Yes' : '是') : (theme === 'pixel' ? 'NO' : theme === 'modern' ? 'No' : '否')}
                 />
 
-                {/* 🎯 习惯任务特殊信息显示 */}
+                {/* 🎯 任务时间信息显示 */}
+                {/* 习惯任务特殊信息 */}
                 {isHabitTask && (
                   <>
                     <DetailField
@@ -2809,7 +2840,39 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                         value={calculateLatestJoinDate(selectedTask.task_deadline, getTaskDuration(selectedTask))}
                       />
                     )}
+                  </>
+                )}
+
+                {/* 单次任务时间信息 */}
+                {!isHabitTask && (
+                  <>
+                    {selectedTask.earliest_start_time && (
+                      <DetailField
+                        label={theme === 'pixel' ? 'START_TIME' : theme === 'modern' ? 'Start Time' : t('start_time')}
+                        value={formatDateTimeDisplay(selectedTask.earliest_start_time)}
+                      />
+                    )}
                     
+                    {selectedTask.task_deadline && (
+                      <DetailField
+                        label={theme === 'pixel' ? 'DEADLINE' : theme === 'modern' ? 'Deadline' : t('deadline')}
+                        value={formatDateTimeDisplay(selectedTask.task_deadline)}
+                      />
+                    )}
+                    
+                    <DetailField
+                      label={theme === 'pixel' ? 'LATEST_JOIN_DATE' : theme === 'modern' ? 'Latest Join Date' : '最晚加入日期'}
+                      value={selectedTask.task_deadline 
+                        ? formatDateTimeDisplay(selectedTask.task_deadline)
+                        : (theme === 'pixel' ? 'NO_LIMIT' : theme === 'modern' ? 'No Limit' : t('no_limit'))
+                      }
+                    />
+                  </>
+                )}
+
+                {/* 习惯任务进度信息 */}
+                {isHabitTask && (
+                  <>
                     {userHabitChallenge && (
                       <>
                         <DetailField
@@ -3415,21 +3478,36 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                             </>
                           )}
                           
-                          {/* 普通任务的领取按钮 - 招募中 */}
+                          {/* 单次任务的领取按钮 - 招募中且未过截止时间 */}
                           {!isHabitTask && !isTaskOwner && isRecruiting && (
-                            <ThemeButton
-                              variant="primary"
-                              onClick={async () => {
-                                try {
-                                  await handleAcceptTask(selectedTask.id);
-                        handleCloseTaskDetail();
-                                } catch (error) {
-                                  console.error('❌ 领取任务按钮处理失败:', error);
-                                }
-                              }}
-                            >
-                              {theme === 'pixel' ? 'ACCEPT_TASK' : theme === 'modern' ? 'Accept Task' : '领取任务'}
-                            </ThemeButton>
+                            <>
+                              {/* 检查是否可以领取：没有截止时间或未过截止时间 */}
+                              {(!selectedTask.task_deadline || new Date() <= new Date(selectedTask.task_deadline)) ? (
+                                <ThemeButton
+                                  variant="primary"
+                                  onClick={async () => {
+                                    try {
+                                      await handleAcceptTask(selectedTask.id);
+                                      handleCloseTaskDetail();
+                                    } catch (error) {
+                                      console.error('❌ 领取任务按钮处理失败:', error);
+                                    }
+                                  }}
+                                >
+                                  {theme === 'pixel' ? 'ACCEPT_TASK' : theme === 'modern' ? 'Accept Task' : '领取任务'}
+                                </ThemeButton>
+                              ) : (
+                                <div className={`text-sm ${
+                                  theme === 'pixel' ? 'text-pixel-textMuted' :
+                                  theme === 'modern' ? 'text-slate-600' :
+                                  'text-gray-600'
+                                }`}>
+                                  {theme === 'pixel' ? 'DEADLINE_PASSED' : 
+                                   theme === 'modern' ? 'Deadline has passed' : 
+                                   t('deadline_passed')}
+                                </div>
+                              )}
+                            </>
                           )}
 
                                                     {/* 任务时间状态显示和操作按钮 */}
@@ -4315,7 +4393,10 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                   <ThemeInput
                     type="number"
                     value={newTask.points}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, points: parseInt(e.target.value) || 0 }))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      setNewTask(prev => ({ ...prev, points: (value && value > 0) ? value : 1 }));
+                    }}
                     min="1"
                     max="1000"
                     placeholder={theme === 'pixel' ? '50' : theme === 'modern' ? 'Enter points (1-1000)' : '输入积分 (1-1000)'}
@@ -4414,8 +4495,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           <ThemeButton
             variant="primary"
             onClick={handleCreateTask}
+            disabled={isCreatingTask}
           >
-            {theme === 'pixel' ? 'CREATE_TASK' : theme === 'modern' ? 'Create Task' : t('create_task')}
+            {isCreatingTask 
+              ? (theme === 'pixel' ? 'CREATING...' : t('creating_task') || '创建中...')
+              : (theme === 'pixel' ? 'CREATE_TASK' : theme === 'modern' ? 'Create Task' : t('create_task'))
+            }
           </ThemeButton>
         </DialogFooter>
       </ThemeDialog>

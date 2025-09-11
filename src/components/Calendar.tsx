@@ -10,6 +10,7 @@ import EventDetail from './calendar/EventDetail'
 import EventForm from './calendar/EventForm'
 import Icon from './ui/Icon'
 import TodoList, { TodoListRef } from './calendar/TodoList'
+import TaskList, { TaskListRef } from './calendar/TaskList'
 import { ThemeButton } from './ui/Components'
 import { Card } from './ui/card'
 import LoadingSpinner from './ui/LoadingSpinner'
@@ -24,6 +25,7 @@ import {
 } from './ui/Components'
 import TestTimezoneController from './TestTimezoneController'
 import type { Event, CalendarProps } from '../types/event'
+import type { Task } from '../types/task'
 import { convertUserTimeToUTC } from '../utils/timezoneService'
 import { eventService } from '../services/eventService'
 import { colorService, CoupleColors } from '../services/colorService'
@@ -55,7 +57,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     }
     return 300
   })
+  // 任务详情弹窗状态
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const todoListRef = useRef<TodoListRef>(null)
+  const taskListRef = useRef<TaskListRef>(null)
 
   const {
     events,
@@ -424,9 +429,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     return filteredEvents.filter(event => event.date === selectedDate)
   }, [selectedDate, events, getFilteredEvents])
 
-  // 处理待办事项拖拽到日历
+  // 处理待办事项和任务拖拽到日历
   const handleTodoDrop = useCallback(async (todoData: any, date: string, time?: string | null) => {
-    console.log('📅 处理待办事项拖拽:', { todoData, date, time })
+    console.log('📅 处理待办事项/任务拖拽:', { todoData, date, time })
     
     // 验证日期格式
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -490,29 +495,45 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       startDateTime,
       endDateTime,
       isAllDay: false,
-      description: `从待办事项创建: ${todoData.title}`,
+      description: todoData.fromTask 
+        ? `从任务创建: ${todoData.title} (${todoData.points || 0}分)`
+        : `从待办事项创建: ${todoData.title}`,
       includesUser1,
       includesUser2,
       // 🗑️ 移除date字段，因为createEvent不再需要它
       isRecurring: false,
       recurrenceType: null,
       recurrenceEnd: null,
-      originalDate: ''
+      originalDate: '',
+      extendedProps: {
+        fromTask: todoData.fromTask || false,
+        taskId: todoData.taskId,
+        originalTask: todoData.originalTask,
+        points: todoData.points || 0
+      }
     }
     
-    console.log('🚀 从待办事项创建事件:', eventData)
+    console.log(todoData.fromTask ? '🚀 从任务创建事件:' : '🚀 从待办事项创建事件:', eventData)
     
     try {
       // 使用现有的事件创建逻辑
       await handleEventSubmit('create', eventData)
-      console.log('✅ 待办事项成功转换为事件')
+      console.log(todoData.fromTask ? '✅ 任务成功转换为事件' : '✅ 待办事项成功转换为事件')
       
-      // 成功后从to-do list中移除待办事项
-      if (todoListRef.current && todoListRef.current.removeTodo) {
+      // 成功后处理项目移除
+      if (todoData.fromTask) {
+        // 任务不从列表中移除，允许为同一任务创建多个日程时段
+        console.log('📋 任务已创建日程事件，但保留在任务列表中供重复安排')
+        if (taskListRef.current && taskListRef.current.removeTask) {
+          // 调用handleTaskDropped进行日志记录，但不实际移除
+          taskListRef.current.removeTask(todoData.taskId || todoData.id)
+        }
+      } else if (todoListRef.current && todoListRef.current.removeTodo) {
+        // 待办事项正常移除（因为通常是一次性的）
         todoListRef.current.removeTodo(todoData.id)
       }
     } catch (error) {
-      console.error('❌ 待办事项转换失败:', error)
+      console.error(todoData.fromTask ? '❌ 任务转换失败:' : '❌ 待办事项转换失败:', error)
     }
   }, [currentView, user, coupleUsers, handleEventSubmit])
 
@@ -637,17 +658,34 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             : 'calc(100vh - 5rem)' // 顶部导航布局：与TaskBoard一致
         }}
       >
-        {/* 左侧 To-Do List - 可调整宽度 */}
+        {/* 左侧 To-Do List 和 Task List - 可调整宽度 */}
         <div className="flex-shrink-0 relative" style={{ width: `${todoListWidth}px` }}>
-          <div className="sticky top-0 z-20">
-            <TodoList 
-              ref={todoListRef}
-              useSidebarLayout={useSidebarLayout}
-              onTodoDropped={(todoId) => {
-                console.log('📝 待办事项已从列表中移除:', todoId)
-              }}
-            />
-                      </div>
+          <div className="sticky top-0 z-20 h-full flex flex-col gap-4">
+            {/* 待办事项列表 - 占50%高度 */}
+            <div className="flex-1 min-h-0">
+              <TodoList 
+                ref={todoListRef}
+                useSidebarLayout={useSidebarLayout}
+                onTodoDropped={(todoId) => {
+                  console.log('📝 待办事项已从列表中移除:', todoId)
+                }}
+              />
+            </div>
+            
+            {/* 任务列表 - 占50%高度 */}
+            <div className="flex-1 min-h-0">
+              <TaskList 
+                ref={taskListRef}
+                useSidebarLayout={useSidebarLayout}
+                onTaskDropped={(taskId) => {
+                  console.log('⚡ 任务已从列表中移除:', taskId)
+                }}
+                onTaskClick={(task) => {
+                  setSelectedTask(task)
+                }}
+              />
+            </div>
+          </div>
 
           {/* 拖拽调整宽度的手柄 */}
           <div 
@@ -877,6 +915,87 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         description={confirmDialog.message}
         onConfirm={confirmDialog.onConfirm}
       />
+
+      {/* 任务详情弹窗 */}
+      {selectedTask && (
+        <ThemeDialog open={true} onOpenChange={() => setSelectedTask(null)}>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>
+                {theme === 'pixel' ? 'TASK_DETAILS' : '任务详情'}
+              </DialogTitle>
+              <button
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10"
+                onClick={() => setSelectedTask(null)}
+                aria-label="关闭"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            </div>
+          </DialogHeader>
+          <DialogContent>
+            <div className="space-y-4">
+              {/* 任务标题 */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">{selectedTask.title}</h3>
+                {selectedTask.description && (
+                  <p className="text-sm text-muted-foreground">{selectedTask.description}</p>
+                )}
+              </div>
+
+              {/* 任务信息 */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">状态：</span>
+                  <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                    selectedTask.status === 'assigned' ? 'bg-blue-100 text-blue-800' :
+                    selectedTask.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                    selectedTask.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {selectedTask.status === 'assigned' ? '已分配' :
+                     selectedTask.status === 'in_progress' ? '进行中' :
+                     selectedTask.status === 'completed' ? '已完成' :
+                     selectedTask.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">积分：</span>
+                  <span className="ml-1 text-blue-600 font-semibold">{selectedTask.points}分</span>
+                </div>
+                {selectedTask.task_deadline && (
+                  <div className="col-span-2">
+                    <span className="font-medium">截止时间：</span>
+                    <span className="ml-1">
+                      {new Date(selectedTask.task_deadline).toLocaleString('zh-CN')}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 操作按钮 */}
+              <div className="flex justify-between pt-4">
+                <ThemeButton
+                  onClick={() => {
+                    // 跳转到任务页面的"我领取的"页面
+                    window.location.hash = '#tasks?view=my_claimed';
+                    setSelectedTask(null);
+                  }}
+                  variant="secondary"
+                >
+                  查看完整详情
+                </ThemeButton>
+                <ThemeButton
+                  onClick={() => setSelectedTask(null)}
+                  variant="primary"
+                >
+                  关闭
+                </ThemeButton>
+              </div>
+            </div>
+          </DialogContent>
+        </ThemeDialog>
+      )}
     </div>
   )
 }

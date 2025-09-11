@@ -212,12 +212,7 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
 
   return (
     <Card 
-      className={`p-4 ${className} flex flex-col`}
-      style={{
-        height: useSidebarLayout 
-          ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
-          : 'calc(100vh - 5rem)' // 顶部导航布局：与TaskBoard一致
-      }}
+      className={`p-4 ${className} flex flex-col h-full`}
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className={`font-semibold ${
@@ -390,25 +385,16 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
                     </ThemeButton>
                   </div>
                 ) : (
-                  <>
-                    {!todo.completed && (
-                      <span className={`text-xs ${
-                        theme === 'pixel' ? 'text-pixel-textMuted' : 'text-muted-foreground'
-                      } opacity-0 group-hover:opacity-100 transition-opacity`}>
-                        {theme === 'pixel' ? 'DRAG' : t('drag')}
-                      </span>
-                    )}
-                    <div style={{ pointerEvents: 'auto' }}>
-                      <ThemeButton
-                        onClick={() => handleDeleteTodo(todo.id)}
-                        variant="secondary"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        {theme === 'pixel' ? 'DEL' : t('delete')}
-                      </ThemeButton>
-                    </div>
-                  </>
+                  <div style={{ pointerEvents: 'auto' }}>
+                    <ThemeButton
+                      onClick={() => handleDeleteTodo(todo.id)}
+                      variant="secondary"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      {theme === 'pixel' ? 'DEL' : t('delete')}
+                    </ThemeButton>
+                  </div>
                 )}
               </div>
             </div>
