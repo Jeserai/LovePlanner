@@ -4211,7 +4211,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       className="flex flex-col overflow-hidden"
       style={{ 
         height: useSidebarLayout 
-          ? 'calc(100vh - 2rem)'   // 侧边栏布局：减去main的padding
+          ? 'calc(100vh - 6rem)'   // 侧边栏布局：减去TopBar(4rem) + padding(2rem)
           : 'calc(100vh - 5rem)',  // 顶部导航布局：减去header(64px) + border(1px) + main-pt(16px) = 81px ≈ 5rem
         minHeight: '600px', // 确保最小高度
         width: '100%', // 强制使用全宽

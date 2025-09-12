@@ -9,6 +9,8 @@ import { taskService } from '../../services/taskService';
 import type { Task } from '../../types/task';
 import { getCurrentTime } from '../../utils/testTimeManager';
 import { globalEventService, GlobalEvents } from '../../services/globalEventService';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import PixelIcon from '../PixelIcon';
 
 interface TaskListProps {
   className?: string;
@@ -29,7 +31,6 @@ const TaskList = React.forwardRef<TaskListRef, TaskListProps>(({ className = '',
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showScheduled, setShowScheduled] = useState(false);
   const taskListRef = useRef<HTMLDivElement>(null);
   const draggableRef = useRef<Draggable | null>(null);
 
@@ -125,18 +126,10 @@ const TaskList = React.forwardRef<TaskListRef, TaskListProps>(({ className = '',
 
   // 过滤和排序任务
   const sortedTasks = useMemo(() => {
-    let filteredTasks = tasks;
-    
-    // 过滤逻辑：默认只显示未排期的任务，如果开启显示已排期则显示所有任务
-    if (!showScheduled) {
-      // 只显示进行中和已分配的任务（排除已完成的任务）
-      filteredTasks = tasks.filter(task => 
-        task.status === 'assigned' || task.status === 'in_progress'
-      );
-    } else {
-      // 显示所有任务（包括已完成，可能已排期的任务）
-      filteredTasks = tasks;
-    }
+    // 只显示进行中和已分配的任务（排除已完成的任务）
+    let filteredTasks = tasks.filter(task => 
+      task.status === 'assigned' || task.status === 'in_progress'
+    );
     
 
     // 按紧急程度排序
@@ -169,7 +162,7 @@ const TaskList = React.forwardRef<TaskListRef, TaskListProps>(({ className = '',
       // 最后按创建时间排序
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [tasks, showScheduled, getTaskUrgency]);
+  }, [tasks, getTaskUrgency]);
 
   // 处理任务被拖拽后的处理（不移除，保留供重复使用）
   const handleTaskDropped = useCallback((taskId: string) => {
@@ -291,23 +284,18 @@ const TaskList = React.forwardRef<TaskListRef, TaskListProps>(({ className = '',
         </h3>
         <div className="flex items-center space-x-2">
           <ThemeButton
-            onClick={() => setShowScheduled(!showScheduled)}
-            variant="secondary"
-            size="sm"
-            className="text-xs"
-          >
-            {showScheduled 
-              ? (theme === 'pixel' ? 'HIDE_SCHEDULED' : '隐藏已排期') 
-              : (theme === 'pixel' ? 'SHOW_SCHEDULED' : '显示已排期')
-            }
-          </ThemeButton>
-          <ThemeButton
             onClick={fetchMyTasks}
             variant="secondary"
             size="sm"
+            className="p-2"
             disabled={loading}
+            title={theme === 'pixel' ? 'REFRESH' : (loading ? t('loading') : t('refresh'))}
           >
-            {theme === 'pixel' ? 'REFRESH' : (loading ? t('loading') : t('refresh'))}
+            {theme === 'pixel' ? (
+              <PixelIcon name="refresh" className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            ) : (
+              <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            )}
           </ThemeButton>
         </div>
       </div>

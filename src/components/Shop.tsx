@@ -15,8 +15,8 @@ const Shop: React.FC = () => {
         margin: '0',
         padding: '0',
         height: useSidebarLayout 
-          ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
-          : 'calc(100vh - 5rem)', // 顶部导航布局：与TaskBoard一致
+          ? 'calc(100vh - 6rem)' // 侧边栏布局：减去TopBar(4rem) + padding(2rem)
+          : 'calc(100vh - 5rem)', // 顶部导航布局：减去header + padding
         minHeight: '600px' // 确保最小高度
       }}
     >

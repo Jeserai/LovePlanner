@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../hooks/useAuth'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useEventData } from '../hooks/calendar/useEventData'
 import { useEventForm } from '../hooks/calendar/useEventForm'
 import FullCalendarComponent from './FullCalendarComponent'
@@ -50,18 +51,17 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showNewEventDialog, setShowNewEventDialog] = useState(false)
   const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null)
-  const [todoListWidth, setTodoListWidth] = useState(() => {
-    // 从localStorage恢复宽度设置，默认300px
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('todoListWidth')
-      return saved ? parseInt(saved, 10) : 300
-    }
-    return 300
+  // 使用安全的localStorage hook
+  const [todoListWidth, setTodoListWidth] = useLocalStorage('todoListWidth', 300, {
+    serialize: (value: number) => value.toString(),
+    deserialize: (value: string) => parseInt(value, 10) || 300
   })
   // 任务详情弹窗状态
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [calendarWidth, setCalendarWidth] = useState<number>(800) // 日历区域宽度
   const todoListRef = useRef<TodoListRef>(null)
   const taskListRef = useRef<TaskListRef>(null)
+  const calendarContainerRef = useRef<HTMLDivElement>(null)
 
   const {
     events,
@@ -100,10 +100,41 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     loadCoupleColors()
   }, [coupleUsers])
 
-  // 保存待办列表宽度到localStorage
+  // 待办列表宽度现在由useLocalStorage hook自动保存
+
+  // 监听容器宽度变化并计算日历宽度
   useEffect(() => {
-    localStorage.setItem('todoListWidth', todoListWidth.toString())
-  }, [todoListWidth])
+    const updateCalendarWidth = () => {
+      if (calendarContainerRef.current) {
+        const containerWidth = calendarContainerRef.current.offsetWidth
+        setCalendarWidth(containerWidth)
+      }
+    }
+
+    // 初始计算
+    updateCalendarWidth()
+
+    // 监听窗口大小变化
+    const handleResize = () => {
+      updateCalendarWidth()
+    }
+
+    window.addEventListener('resize', handleResize)
+    
+    // 创建 ResizeObserver 来监听容器大小变化
+    const resizeObserver = new ResizeObserver(() => {
+      updateCalendarWidth()
+    })
+
+    if (calendarContainerRef.current) {
+      resizeObserver.observe(calendarContainerRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      resizeObserver.disconnect()
+    }
+  }, [todoListWidth]) // 当待办列表宽度变化时重新计算
 
   // 获取过滤后的事件
   const getFilteredEvents = useCallback((allEvents: Event[]): Event[] => {
@@ -655,8 +686,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         className="flex gap-4 relative" 
         style={{ 
           height: useSidebarLayout 
-            ? 'calc(100vh - 2rem)' // 侧边栏布局：与TaskBoard一致
-            : 'calc(100vh - 5rem)' // 顶部导航布局：与TaskBoard一致
+            ? 'calc(100vh - 6rem)' // 侧边栏布局：减去TopBar(4rem) + padding(2rem)
+            : 'calc(100vh - 5rem)' // 顶部导航布局：减去header + padding
         }}
       >
         {/* 左侧 To-Do List 和 Task List - 可调整宽度 */}
@@ -690,7 +721,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
           {/* 拖拽调整宽度的手柄 */}
           <div 
-            className="absolute top-0 -right-3 w-6 h-full cursor-col-resize z-30 flex items-center justify-center group"
+            className="absolute top-0 -right-5 w-6 h-full cursor-col-resize z-30 flex items-center justify-center group"
             onMouseDown={(e) => {
               e.preventDefault();
               const startX = e.clientX;
@@ -704,8 +735,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               const handleMouseUp = () => {
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
-                // 拖拽结束后保存到localStorage
-                localStorage.setItem('todoListWidth', todoListWidth.toString());
+                // 拖拽结束 - 宽度会自动保存到localStorage by useLocalStorage hook
               };
               
               document.addEventListener('mousemove', handleMouseMove);
@@ -722,7 +752,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         </div>
 
         {/* FullCalendar 主视图 - 占据剩余空间 */}
-        <div className="flex-1 min-w-0">
+        <div ref={calendarContainerRef} className="flex-1 min-w-0">
           <div className="sticky top-0 z-10">
           <FullCalendarComponent
             events={filteredEvents}
@@ -739,6 +769,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             isRefreshing={isRefreshing}
             filteredEventsCount={filteredEvents.length}
             useSidebarLayout={useSidebarLayout}
+            calendarWidth={calendarWidth}
                 />
               </div>
                 </div>

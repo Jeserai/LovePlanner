@@ -15,6 +15,8 @@ import { Card } from './ui/card'
 import { colorService, CoupleColors } from '../services/colorService'
 import { useTranslation } from '../utils/i18n'
 import Icon from './ui/Icon'
+import { CalendarIcon, ClockIcon, ArrowPathIcon, PlusIcon } from '@heroicons/react/24/outline'
+import PixelIcon from './PixelIcon'
 
 interface SelectionDetails {
   endDate: string
@@ -48,6 +50,7 @@ interface FullCalendarComponentProps {
   filteredEventsCount?: number
   className?: string
   useSidebarLayout?: boolean
+  calendarWidth?: number
 }
 
 const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
@@ -65,13 +68,82 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
   isRefreshing = false,
   filteredEventsCount = 0,
   className = '',
-  useSidebarLayout = false
+  useSidebarLayout = false,
+  calendarWidth = 800
 }) => {
   const { theme, isDarkMode, language } = useTheme()
   const t = useTranslation(language)
   const [currentCalendarView, setCurrentCalendarView] = useState('timeGridWeek')
   const [coupleColors, setCoupleColors] = useState<CoupleColors | null>(null)
   const calendarRef = useRef<FullCalendar>(null)
+
+  // 根据容器宽度确定最适合的视图和配置
+  const getResponsiveConfig = useMemo(() => {
+    const width = calendarWidth
+    
+    // 定义断点
+    const breakpoints = {
+      mobile: 480,     // 极窄 - 强制列表视图
+      tablet: 768,     // 中等 - 限制工具栏选项
+      desktop: 1024    // 宽敞 - 完整功能
+    }
+    
+    if (width <= breakpoints.mobile) {
+      // 极窄模式：两行布局 + 图标化
+      return {
+        forcedView: 'listWeek',
+        layoutMode: 'two-rows',
+        useIcons: true,
+        compactMode: true,
+        headerToolbar: {
+          left: 'prev,next',
+          center: 'title',
+          right: 'today'
+        },
+        availableViews: ['listWeek', 'listMonth']
+      }
+    } else if (width <= breakpoints.tablet) {
+      // 中等宽度：紧凑单行布局
+      return {
+        forcedView: null,
+        layoutMode: 'single-row-compact',
+        useIcons: false,
+        compactMode: true,
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title', 
+          right: 'timeGridWeek,listWeek'
+        },
+        availableViews: ['timeGridWeek', 'listWeek', 'dayGridMonth']
+      }
+    } else {
+      // 宽敞模式：完整功能
+      return {
+        forcedView: null,
+        layoutMode: 'single-row-full',
+        useIcons: false,
+        compactMode: false,
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+        },
+        availableViews: ['dayGridMonth', 'timeGridWeek', 'timeGridDay', 'listWeek', 'listMonth']
+      }
+    }
+  }, [calendarWidth])
+
+  // 当容器宽度变化时，可能需要调整当前视图
+  useEffect(() => {
+    if (getResponsiveConfig.forcedView && currentCalendarView !== getResponsiveConfig.forcedView) {
+      setCurrentCalendarView(getResponsiveConfig.forcedView)
+    } else if (getResponsiveConfig.forcedView === null && getResponsiveConfig.availableViews.length > 0) {
+      // 如果当前视图不在可用视图列表中，切换到第一个可用视图
+      if (!getResponsiveConfig.availableViews.includes(currentCalendarView)) {
+        setCurrentCalendarView(getResponsiveConfig.availableViews[0])
+      }
+    }
+  }, [getResponsiveConfig, currentCalendarView])
   
 
   // 加载情侣颜色配置
@@ -835,168 +907,367 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
     )
   }
 
-  // 工具栏配置
-  const headerToolbar = {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-  }
+  // 响应式工具栏配置
+  const headerToolbar = getResponsiveConfig.headerToolbar
 
   return (
     <Card 
       className={`p-0 ${className} flex flex-col overflow-hidden`} 
       style={{ 
         height: useSidebarLayout 
-          ? 'calc(100vh - 2rem)'  // 侧边栏布局：与TaskBoard一致
-          : 'calc(100vh - 5rem)',  // 顶部导航布局：与TaskBoard一致
+          ? 'calc(100vh - 6rem)'  // 侧边栏布局：减去TopBar(4rem) + padding(2rem)
+          : 'calc(100vh - 5rem)',  // 顶部导航布局：减去header + padding
         minHeight: '600px' // 确保最小高度
       }}
     >
-      {/* 工具栏 - 在sticky容器内固定 */}
+      {/* 工具栏 - 响应式布局 */}
       <div className="bg-card border-b p-4 flex-shrink-0">
-                 {/* 集成式工具栏：导航 + 标题 + 统计 + 视图切换 + 过滤 */}
-         <div className="flex flex-col xl:flex-row items-center justify-between gap-2 xl:gap-4 mb-4 overflow-x-auto">
-           {/* 左侧：导航按钮组 */}
-           <div className="flex items-center space-x-3">
-             <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1">
-               <ThemeButton
-                 onClick={handlePrev}
-                 variant="secondary"
-                 size="sm"
-                 className="h-8 w-8 p-0"
-               >
-                 {theme === 'pixel' ? '<' : '←'}
-               </ThemeButton>
-               <ThemeButton
-                 onClick={handleNext}
-                 variant="secondary"
-                 size="sm"
-                 className="h-8 w-8 p-0"
-               >
-                 {theme === 'pixel' ? '>' : '→'}
-               </ThemeButton>
-             </div>
-             <ThemeButton
-               onClick={handleToday}
-               variant="secondary"
-               size="sm"
-             >
-               {theme === 'pixel' ? 'TODAY' : t('today')}
-             </ThemeButton>
-           </div>
-
-           {/* 中间：标题和统计信息 */}
-           <div className="flex flex-col items-center text-center flex-shrink-0">
-             <div className={`
-               text-2xl font-bold whitespace-nowrap
-               ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'}
-             `}>
-               {calendarTitle}
-             </div>
-             <div className="text-sm text-muted-foreground mt-1">
-               {currentView === 'all' ? t('all_calendar') : 
-                currentView === 'my' ? t('my_calendar') : 
-                currentView === 'partner' ? t('partner_calendar') : 
-                t('shared_calendar')} • {filteredEventsCount} {language === 'zh' ? '个事件' : 'events'}
-             </div>
-           </div>
-
-           {/* 右侧：视图切换 + 事件过滤 + 操作按钮 */}
-           <div className="flex items-center space-x-2 justify-center xl:justify-end flex-shrink-0">
-             {/* 日历视图切换 */}
-             <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1 flex-shrink-0">
-               <ThemeButton
-                 onClick={() => handleViewChange('dayGridMonth')}
-                 variant={currentCalendarView === 'dayGridMonth' ? 'primary' : 'secondary'}
-                 size="sm"
-                 className="h-8 px-2"
-               >
-                 {theme === 'pixel' ? 'MON' : t('month')}
-               </ThemeButton>
-               <ThemeButton
-                 onClick={() => handleViewChange('timeGridWeek')}
-                 variant={currentCalendarView === 'timeGridWeek' ? 'primary' : 'secondary'}
-                 size="sm"
-                 className="h-8 px-2"
-               >
-                 {theme === 'pixel' ? 'WEK' : t('week')}
-               </ThemeButton>
-               <ThemeButton
-                 onClick={() => handleViewChange('timeGridDay')}
-                 variant={currentCalendarView === 'timeGridDay' ? 'primary' : 'secondary'}
-                 size="sm"
-                 className="h-8 px-2"
-               >
-                 {theme === 'pixel' ? 'DAY' : t('day')}
-               </ThemeButton>
-               <ThemeButton
-                 onClick={() => handleViewChange('listWeek')}
-                 variant={currentCalendarView === 'listWeek' ? 'primary' : 'secondary'}
-                 size="sm"
-                 className="h-8 px-2"
-               >
-                 {theme === 'pixel' ? 'LST' : t('list')}
-               </ThemeButton>
-             </div>
-
-            {/* 事件过滤按钮组 */}
-            {onViewChange && (
-              <div className="flex items-center space-x-1 bg-muted/30 rounded-lg p-1 flex-shrink-0">
-                {(['all', 'my', 'partner', 'shared'] as const).map((view) => {
-                  const isActive = currentView === view
-                  return (
-                    <button
-                      key={view}
-                      onClick={() => onViewChange(view)}
-                      className={`
-                        h-8 px-3 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
-                        ${getViewThemeButtonStyle(view, isActive)}
-                      `}
-                      style={getViewThemeButtonBackground(view, isActive)}
-                    >
-                      {view === 'all' && (theme === 'pixel' ? 'ALL' : t('all'))}
-                      {view === 'my' && (theme === 'pixel' ? 'MY' : t('my'))}
-                      {view === 'partner' && (theme === 'pixel' ? 'PTN' : t('partner'))}
-                      {view === 'shared' && (theme === 'pixel' ? 'SHR' : t('shared'))}
-                    </button>
-                  )
-                })}
+        {getResponsiveConfig.layoutMode === 'two-rows' ? (
+          /* 两行布局 - 用于极窄屏幕 */
+          <div className="space-y-3">
+            {/* 第一行：上一周 + 标题 + 下一周 */}
+            <div className="flex items-center justify-between">
+              <ThemeButton
+                onClick={handlePrev}
+                variant="secondary"
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                {theme === 'pixel' ? '<' : '←'}
+              </ThemeButton>
+              <div className={`
+                text-lg font-bold text-center flex-1
+                ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'}
+              `}>
+                {calendarTitle}
               </div>
-            )}
+              <ThemeButton
+                onClick={handleNext}
+                variant="secondary"
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                {theme === 'pixel' ? '>' : '→'}
+              </ThemeButton>
+            </div>
 
-             {/* 操作按钮组 */}
-             <div className="flex items-center space-x-2 flex-shrink-0">
-               {onRefresh && (
-                 <ThemeButton
-                   onClick={onRefresh}
-                   variant="secondary"
-                   size="sm"
-                   className="h-8 w-8 p-0"
-                   disabled={isRefreshing}
-                   title={isRefreshing ? t('loading') : t('refresh')}
-                 >
-                   <Icon 
-                     name="refresh" 
-                     size="sm" 
-                     className={isRefreshing ? 'animate-spin' : ''}
-                   />
-                 </ThemeButton>
-               )}
-               
-               {onAddEvent && (
-                 <ThemeButton
-                   onClick={onAddEvent}
-                   variant="primary"
-                   size="sm"
-                   className="h-8"
-                   disabled={currentView === 'partner'}
-                 >
-                   {theme === 'pixel' ? 'ADD_EVENT' : t('add_event')}
-                 </ThemeButton>
-               )}
-             </div>
-           </div>
-         </div>
+            {/* 第二行：今天 + 视图切换 + 事件过滤 */}
+            <div className="flex items-center justify-between space-x-2">
+              {/* 左侧：今天 + 视图切换 */}
+              <div className="flex items-center space-x-2">
+                <ThemeButton
+                  onClick={handleToday}
+                  variant="secondary"
+                  size="sm"
+                  className="p-2"
+                  title={theme === 'pixel' ? 'TODAY' : t('today')}
+                >
+                  {theme === 'pixel' ? (
+                    <PixelIcon name="calendar" className="w-4 h-4" />
+                  ) : (
+                    <CalendarIcon className="w-4 h-4" />
+                  )}
+                </ThemeButton>
+                <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1 flex-shrink-0">
+                {getResponsiveConfig.availableViews.includes('dayGridMonth') && (
+                  <ThemeButton
+                    onClick={() => handleViewChange('dayGridMonth')}
+                    variant={currentCalendarView === 'dayGridMonth' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    title={theme === 'pixel' ? 'MON' : t('month')}
+                  >
+                    {theme === 'pixel' ? 'M' : '月'}
+                  </ThemeButton>
+                )}
+                {getResponsiveConfig.availableViews.includes('timeGridWeek') && (
+                  <ThemeButton
+                    onClick={() => handleViewChange('timeGridWeek')}
+                    variant={currentCalendarView === 'timeGridWeek' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    title={theme === 'pixel' ? 'WEK' : t('week')}
+                  >
+                    {theme === 'pixel' ? 'W' : '周'}
+                  </ThemeButton>
+                )}
+                {getResponsiveConfig.availableViews.includes('timeGridDay') && (
+                  <ThemeButton
+                    onClick={() => handleViewChange('timeGridDay')}
+                    variant={currentCalendarView === 'timeGridDay' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    title={theme === 'pixel' ? 'DAY' : t('day')}
+                  >
+                    {theme === 'pixel' ? 'D' : '日'}
+                  </ThemeButton>
+                )}
+                {getResponsiveConfig.availableViews.includes('listWeek') && (
+                  <ThemeButton
+                    onClick={() => handleViewChange('listWeek')}
+                    variant={currentCalendarView === 'listWeek' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    title={theme === 'pixel' ? 'LST' : t('list')}
+                  >
+                    {theme === 'pixel' ? 'L' : '列'}
+                  </ThemeButton>
+                )}
+                </div>
+              </div>
+
+              {/* 右侧：事件过滤 + 操作按钮 */}
+              <div className="flex items-center space-x-2">
+              {/* 事件过滤按钮组 - 极窄模式下简化为图标 */}
+              {onViewChange && (
+                <div className="flex items-center space-x-1 bg-muted/30 rounded-lg p-1 flex-shrink-0">
+                  {(['all', 'my', 'partner', 'shared'] as const).map((view) => {
+                    const isActive = currentView === view
+                    return (
+                      <button
+                        key={view}
+                        onClick={() => onViewChange(view)}
+                        className={`
+                          h-8 w-8 rounded-md text-xs font-medium transition-all duration-200 flex-shrink-0 flex items-center justify-center
+                          ${getViewThemeButtonStyle(view, isActive)}
+                        `}
+                        style={getViewThemeButtonBackground(view, isActive)}
+                        title={
+                          view === 'all' ? (theme === 'pixel' ? 'ALL' : t('all')) :
+                          view === 'my' ? (theme === 'pixel' ? 'MY' : t('my')) :
+                          view === 'partner' ? (theme === 'pixel' ? 'PTN' : t('partner')) :
+                          (theme === 'pixel' ? 'SHR' : t('shared'))
+                        }
+                      >
+                        {view === 'all' && (theme === 'pixel' ? 'A' : '全')}
+                        {view === 'my' && (theme === 'pixel' ? 'M' : '我')}
+                        {view === 'partner' && (theme === 'pixel' ? 'P' : '伴')}
+                        {view === 'shared' && (theme === 'pixel' ? 'S' : '共')}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              
+              {/* 操作按钮组 */}
+              <div className="flex items-center space-x-1 flex-shrink-0">
+                {onRefresh && (
+                  <ThemeButton
+                    onClick={onRefresh}
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={isRefreshing}
+                    title={isRefreshing ? t('loading') : t('refresh')}
+                  >
+                    {theme === 'pixel' ? (
+                      <PixelIcon name="refresh" className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    ) : (
+                      <ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    )}
+                  </ThemeButton>
+                )}
+                
+                {onAddEvent && (
+                  <ThemeButton
+                    onClick={onAddEvent}
+                    variant="primary"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    title={t('add_event')}
+                  >
+                    {theme === 'pixel' ? (
+                      <PixelIcon name="plus" className="w-4 h-4" />
+                    ) : (
+                      <PlusIcon className="w-4 h-4" />
+                    )}
+                  </ThemeButton>
+                )}
+              </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* 单行布局 - 用于中等和宽屏 */
+          <div className={`flex ${getResponsiveConfig.layoutMode === 'single-row-compact' ? 'flex-col space-y-2' : 'flex-row'} items-center justify-between gap-2 ${getResponsiveConfig.layoutMode === 'single-row-full' ? 'xl:gap-4' : 'gap-2'}`}>
+            {/* 左侧：上一周按钮 */}
+            <ThemeButton
+              onClick={handlePrev}
+              variant="secondary"
+              size="sm"
+              className="h-8 w-8 p-0"
+            >
+              {theme === 'pixel' ? '<' : '←'}
+            </ThemeButton>
+
+            {/* 中间：标题和统计信息 */}
+            <div className="flex flex-col items-center text-center flex-1">
+              <div className={`
+                ${getResponsiveConfig.compactMode ? 'text-lg' : 'text-2xl'} font-bold whitespace-nowrap
+                ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'}
+              `}>
+                {calendarTitle}
+              </div>
+              {!getResponsiveConfig.compactMode && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  {currentView === 'all' ? t('all_calendar') : 
+                   currentView === 'my' ? t('my_calendar') : 
+                   currentView === 'partner' ? t('partner_calendar') : 
+                   t('shared_calendar')} • {filteredEventsCount} {language === 'zh' ? '个事件' : 'events'}
+                </div>
+              )}
+            </div>
+
+            {/* 右侧第一部分：下一周按钮 */}
+            <ThemeButton
+              onClick={handleNext}
+              variant="secondary"
+              size="sm"
+              className="h-8 w-8 p-0"
+            >
+              {theme === 'pixel' ? '>' : '→'}
+            </ThemeButton>
+
+            {/* 右侧第二部分：今天 + 视图切换 + 事件过滤 + 操作按钮 */}
+            <div className="flex items-center space-x-2 justify-center xl:justify-end flex-shrink-0">
+              {/* 今天按钮 */}
+              <ThemeButton
+                onClick={handleToday}
+                variant="secondary"
+                size="sm"
+                className={getResponsiveConfig.compactMode ? "p-2" : ""}
+                title={getResponsiveConfig.compactMode ? (theme === 'pixel' ? 'TODAY' : t('today')) : undefined}
+              >
+                {getResponsiveConfig.compactMode ? (
+                  theme === 'pixel' ? (
+                    <PixelIcon name="calendar" className="w-4 h-4" />
+                  ) : (
+                    <CalendarIcon className="w-4 h-4" />
+                  )
+                ) : (
+                  theme === 'pixel' ? 'TODAY' : t('today')
+                )}
+              </ThemeButton>
+              {/* 日历视图切换 - 响应式显示 */}
+              <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1 flex-shrink-0">
+                {getResponsiveConfig.availableViews.includes('dayGridMonth') && (
+                  <ThemeButton
+                    onClick={() => handleViewChange('dayGridMonth')}
+                    variant={currentCalendarView === 'dayGridMonth' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="h-8 px-2"
+                  >
+                    {theme === 'pixel' ? 'MON' : t('month')}
+                  </ThemeButton>
+                )}
+                {getResponsiveConfig.availableViews.includes('timeGridWeek') && (
+                  <ThemeButton
+                    onClick={() => handleViewChange('timeGridWeek')}
+                    variant={currentCalendarView === 'timeGridWeek' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="h-8 px-2"
+                  >
+                    {theme === 'pixel' ? 'WEK' : t('week')}
+                  </ThemeButton>
+                )}
+                {getResponsiveConfig.availableViews.includes('timeGridDay') && (
+                  <ThemeButton
+                    onClick={() => handleViewChange('timeGridDay')}
+                    variant={currentCalendarView === 'timeGridDay' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="h-8 px-2"
+                  >
+                    {theme === 'pixel' ? 'DAY' : t('day')}
+                  </ThemeButton>
+                )}
+                {getResponsiveConfig.availableViews.includes('listWeek') && (
+                  <ThemeButton
+                    onClick={() => handleViewChange('listWeek')}
+                    variant={currentCalendarView === 'listWeek' ? 'primary' : 'secondary'}
+                    size="sm"
+                    className="h-8 px-2"
+                  >
+                    {theme === 'pixel' ? 'LST' : t('list')}
+                  </ThemeButton>
+                )}
+              </div>
+
+              {/* 事件过滤按钮组 */}
+              {onViewChange && (
+                <div className="flex items-center space-x-1 bg-muted/30 rounded-lg p-1 flex-shrink-0">
+                  {(['all', 'my', 'partner', 'shared'] as const).map((view) => {
+                    const isActive = currentView === view
+                    return (
+                      <button
+                        key={view}
+                        onClick={() => onViewChange(view)}
+                        className={`
+                          h-8 ${getResponsiveConfig.compactMode ? 'w-8 text-xs' : 'px-3'} rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 flex items-center justify-center
+                          ${getViewThemeButtonStyle(view, isActive)}
+                        `}
+                        style={getViewThemeButtonBackground(view, isActive)}
+                        title={getResponsiveConfig.compactMode ? (
+                          view === 'all' ? (theme === 'pixel' ? 'ALL' : t('all')) :
+                          view === 'my' ? (theme === 'pixel' ? 'MY' : t('my')) :
+                          view === 'partner' ? (theme === 'pixel' ? 'PTN' : t('partner')) :
+                          (theme === 'pixel' ? 'SHR' : t('shared'))
+                        ) : undefined}
+                      >
+                        {getResponsiveConfig.compactMode ? (
+                          view === 'all' ? (theme === 'pixel' ? 'A' : '全') :
+                          view === 'my' ? (theme === 'pixel' ? 'M' : '我') :
+                          view === 'partner' ? (theme === 'pixel' ? 'P' : '伴') :
+                          (theme === 'pixel' ? 'S' : '共')
+                        ) : (
+                          view === 'all' ? (theme === 'pixel' ? 'ALL' : t('all')) :
+                          view === 'my' ? (theme === 'pixel' ? 'MY' : t('my')) :
+                          view === 'partner' ? (theme === 'pixel' ? 'PTN' : t('partner')) :
+                          (theme === 'pixel' ? 'SHR' : t('shared'))
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* 操作按钮组 */}
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                {onRefresh && (
+                  <ThemeButton
+                    onClick={onRefresh}
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={isRefreshing}
+                    title={isRefreshing ? t('loading') : t('refresh')}
+                  >
+                    {theme === 'pixel' ? (
+                      <PixelIcon name="refresh" className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    ) : (
+                      <ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    )}
+                  </ThemeButton>
+                )}
+                
+                {onAddEvent && (
+                  <ThemeButton
+                    onClick={onAddEvent}
+                    variant="primary"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    title={t('add_event')}
+                  >
+                    {theme === 'pixel' ? (
+                      <PixelIcon name="plus" className="w-4 h-4" />
+                    ) : (
+                      <PlusIcon className="w-4 h-4" />
+                    )}
+                  </ThemeButton>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         
       </div>
 

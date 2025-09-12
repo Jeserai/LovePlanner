@@ -4,6 +4,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Card } from '../ui/card';
 import { ThemeButton, ThemeInput } from '../ui/Components';
 import { useTranslation } from '../../utils/i18n';
+import { EyeIcon, EyeSlashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import PixelIcon from '../PixelIcon';
 
 interface TodoItem {
   id: string;
@@ -226,12 +228,21 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
             onClick={() => setShowCompleted(!showCompleted)}
             variant="secondary"
             size="sm"
-            className="text-xs"
-          >
-            {showCompleted 
+            className="p-2"
+            title={showCompleted 
               ? (theme === 'pixel' ? 'HIDE_DONE' : t('hide_completed')) 
               : (theme === 'pixel' ? 'SHOW_DONE' : t('show_completed'))
             }
+          >
+            {theme === 'pixel' ? (
+              <PixelIcon name={showCompleted ? "eye-slash" : "eye"} className="w-4 h-4" />
+            ) : (
+              showCompleted ? (
+                <EyeSlashIcon className="w-4 h-4" />
+              ) : (
+                <EyeIcon className="w-4 h-4" />
+              )
+            )}
           </ThemeButton>
           <ThemeButton
             onClick={() => {
@@ -245,8 +256,14 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
             }}
             variant="secondary"
             size="sm"
+            className="p-2"
+            title={theme === 'pixel' ? 'ADD' : t('add')}
           >
-            {theme === 'pixel' ? 'ADD' : t('add')}
+            {theme === 'pixel' ? (
+              <PixelIcon name="plus" className="w-4 h-4" />
+            ) : (
+              <PlusIcon className="w-4 h-4" />
+            )}
           </ThemeButton>
         </div>
       </div>
