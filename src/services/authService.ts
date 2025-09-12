@@ -210,5 +210,133 @@ export const authService = {
 
       return null;
     }
+  },
+
+  /**
+   * 修改密码
+   */
+  async changePassword(currentPassword: string, newPassword: string) {
+    try {
+      // 获取当前用户
+      const currentUser = this.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('用户未登录');
+      }
+
+      // 获取当前 Supabase 会话
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('用户会话已过期，请重新登录');
+      }
+
+      const userEmail = session.user.email;
+      if (!userEmail) {
+        throw new Error('无法获取用户邮箱');
+      }
+
+      // 验证当前密码：通过重新登录验证
+      try {
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+          email: userEmail,
+          password: currentPassword
+        });
+
+        if (verifyError) {
+          throw new Error('当前密码错误');
+        }
+      } catch (verifyError: any) {
+        console.error('验证当前密码失败:', verifyError);
+        throw new Error('当前密码错误');
+      }
+
+      // 使用 Supabase Auth 更新密码
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        console.error('Supabase 密码更新失败:', updateError);
+        throw new Error(`密码更新失败: ${updateError.message}`);
+      }
+
+      console.log('✅ 密码修改成功');
+      
+      return {
+        success: true,
+        message: '密码修改成功'
+      };
+
+    } catch (error: any) {
+      console.error('修改密码失败:', error);
+      throw new Error(error.message || '修改密码失败');
+    }
+  },
+
+  /**
+   * 验证密码强度
+   */
+  validatePasswordStrength(password: string) {
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    const errors: string[] = [];
+    
+    if (password.length < minLength) {
+      errors.push(`密码长度至少${minLength}位`);
+    }
+    
+    if (!hasUpperCase) {
+      errors.push('需要包含大写字母');
+    }
+    
+    if (!hasLowerCase) {
+      errors.push('需要包含小写字母');
+    }
+    
+    if (!hasNumbers) {
+      errors.push('需要包含数字');
+    }
+    
+    if (!hasSpecialChar) {
+      errors.push('需要包含特殊字符');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      strength: this.calculatePasswordStrength(password)
+    };
+  },
+
+  /**
+   * 计算密码强度（0-100）
+   */
+  calculatePasswordStrength(password: string): number {
+    let score = 0;
+    
+    // 长度分数 (0-30分)
+    if (password.length >= 8) score += 15;
+    if (password.length >= 12) score += 10;
+    if (password.length >= 16) score += 5;
+    
+    // 字符类型分数 (0-40分)
+    if (/[a-z]/.test(password)) score += 10;
+    if (/[A-Z]/.test(password)) score += 10;
+    if (/\d/.test(password)) score += 10;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 10;
+    
+    // 复杂度分数 (0-30分)
+    if (password.length >= 12 && /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/.test(password)) {
+      score += 30;
+    } else if (password.length >= 10 && /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      score += 20;
+    } else if (password.length >= 8 && /(?=.*[a-z])(?=.*[A-Z])/.test(password)) {
+      score += 10;
+    }
+    
+    return Math.min(100, score);
   }
 };

@@ -1,12 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { PaintBrushIcon, HeartIcon } from '@heroicons/react/24/outline';
+import { PaintBrushIcon, HeartIcon, KeyIcon, TrashIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 import UserProfile from './UserProfile';
+import ChangePasswordForm from './ChangePasswordForm';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
+import { ThemeButton, ThemeDialog } from './ui/Components';
+import { useTranslation } from '../utils/i18n';
+import { lastEmailService } from '../services/lastEmailService';
 
 const Settings: React.FC = () => {
-  const { theme, setTheme, useSidebarLayout } = useTheme();
+  const { theme, setTheme, useSidebarLayout, language } = useTheme();
+  const t = useTranslation(language);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [hasLastEmail, setHasLastEmail] = useState(false);
+
+  // 检查是否有保存的邮箱
+  useEffect(() => {
+    const lastEmail = lastEmailService.getLastEmail();
+    setHasLastEmail(!!lastEmail);
+  }, []);
+
+  // 清除保存的邮箱
+  const handleClearLastEmail = () => {
+    if (confirm('确定要清除保存的邮箱地址吗？')) {
+      lastEmailService.clearLastEmail();
+      setHasLastEmail(false);
+      alert('已清除保存的邮箱地址');
+    }
+  };
 
   const modernThemes = [
     {
@@ -139,8 +161,91 @@ const Settings: React.FC = () => {
       {/* 用户档案 */}
       <UserProfile />
 
+      {/* 密码和安全 */}
+      {(theme as any) === 'pixel' ? (
+        <div className="bg-pixel-panel border-4 border-black rounded-pixel shadow-pixel-lg p-8 neon-border pixel-matrix">
+          <h3 className="text-xl font-bold mb-4 text-pixel-text font-retro uppercase tracking-wider">
+            {'>>> SECURITY SETTINGS'}
+          </h3>
+          <p className="text-sm mb-6 text-pixel-textMuted font-mono">
+            PROTECT YOUR ACCOUNT!
+          </p>
+          
+          <div className="space-y-4">
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="w-full p-4 bg-pixel-accent text-pixel-bg font-retro text-sm uppercase tracking-wider border-2 border-black hover:bg-pixel-accentLight transition-colors duration-200 shadow-pixel flex items-center justify-center space-x-2"
+            >
+              <PixelIcon name="key" className="w-5 h-5" />
+              <span>CHANGE PASSWORD</span>
+            </button>
+            {hasLastEmail && (
+              <button
+                onClick={handleClearLastEmail}
+                className="w-full p-4 bg-red-600 text-white font-retro text-sm uppercase tracking-wider border-2 border-black hover:bg-red-700 transition-colors duration-200 shadow-pixel flex items-center justify-center space-x-2"
+              >
+                <PixelIcon name="trash" className="w-5 h-5" />
+                <span>CLEAR SAVED EMAIL</span>
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <KeyIcon className="w-5 h-5" />
+              <span>{t('security_settings')}</span>
+            </CardTitle>
+            <CardDescription>
+              {t('security_settings_desc')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <ThemeButton
+                onClick={() => setShowChangePassword(true)}
+                variant="secondary"
+                className="w-full"
+              >
+                <div className="flex items-center justify-center space-x-2">
+                  <KeyIcon className="w-4 h-4" />
+                  <span>{t('change_password')}</span>
+                </div>
+              </ThemeButton>
+              {hasLastEmail && (
+                <ThemeButton
+                  onClick={handleClearLastEmail}
+                  variant="danger"
+                  className="w-full"
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    <TrashIcon className="w-4 h-4" />
+                    <span>清除保存的邮箱</span>
+                  </div>
+                </ThemeButton>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 主题选择 */}
       {renderThemeSelection()}
+
+      {/* 修改密码弹窗 */}
+      {showChangePassword && (
+        <ThemeDialog open={showChangePassword} onOpenChange={setShowChangePassword}>
+          <ChangePasswordForm
+            onSuccess={() => {
+              setShowChangePassword(false);
+            }}
+            onCancel={() => {
+              setShowChangePassword(false);
+            }}
+          />
+        </ThemeDialog>
+      )}
     </div>
   );
 };

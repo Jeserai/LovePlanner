@@ -9,6 +9,7 @@ import DarkModeToggle from './ui/DarkModeToggle';
 import TopBar from './TopBar';
 import { useTranslation } from '../utils/i18n';
 import Icon from './ui/Icon';
+import SessionMonitor from './debug/SessionMonitor';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -333,7 +334,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, curre
     </div>
   );
 
-  return useSidebarLayout ? renderSidebarLayout() : renderTopNavLayout();
+  return (
+    <>
+      {useSidebarLayout ? renderSidebarLayout() : renderTopNavLayout()}
+      <SessionMonitor />
+    </>
+  );
 };
 
 export default Layout; 

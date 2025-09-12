@@ -24,6 +24,7 @@ import {
   RecurringEventActionDialog
 } from './ui/Components'
 import TestTimezoneController from './TestTimezoneController'
+import { enableDebugFeatures } from '../config/environment'
 import type { Event, CalendarProps } from '../types/event'
 import type { Task } from '../types/task'
 import { convertUserTimeToUTC } from '../utils/timezoneService'
@@ -647,7 +648,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }}
     >
       {/* 测试时区控制器 */}
-      {process.env.NODE_ENV === 'development' && <TestTimezoneController />}
+      {enableDebugFeatures && <TestTimezoneController />}
 
       {/* 主要内容区域 - 使用flex布局支持可调整宽度 */}
       <div 

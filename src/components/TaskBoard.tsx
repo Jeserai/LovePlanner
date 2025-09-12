@@ -45,6 +45,7 @@ import { globalEventService, GlobalEvents } from '../services/globalEventService
 import type { Task, CreateTaskForm, EditTaskForm } from '../types/task';
 import TestTimeController from './TestTimeController';
 import { getCurrentTime, getTodayString } from '../utils/testTimeManager';
+import { enableDebugFeatures } from '../config/environment';
 
 // 🎯 使用统一的Task类型，不再重复定义
 
@@ -4220,8 +4221,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
       }}
       data-view={view} // 调试用：标记当前view
     >
-      {/* 测试时间控制器 - 仅开发环境显示 */}
-      {process.env.NODE_ENV === 'development' && <TestTimeController />}
+      {/* 测试时间控制器 - 根据调试功能配置显示 */}
+      {enableDebugFeatures && <TestTimeController />}
       
       
       {/* Page Header - Sticky定位 */}

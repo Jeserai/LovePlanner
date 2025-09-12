@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 import { authService, PRESET_USERS, getUserDisplayInfo } from '../services/authService';
@@ -6,6 +6,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { ThemeCard, ThemeFormField, ThemeInput, ThemeButton } from './ui/Components';
 import { useTranslation } from '../utils/i18n';
 import LanguageToggle from './ui/LanguageToggle';
+import { enablePresetQuickLogin } from '../config/environment';
+import { lastEmailService } from '../services/lastEmailService';
 
 
 
@@ -23,6 +25,33 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // 加载最后登录的邮箱地址
+  useEffect(() => {
+    const lastEmail = lastEmailService.getLastEmail();
+    if (lastEmail) {
+      setFormData(prev => ({ ...prev, email: lastEmail }));
+    }
+  }, []);
+
+  // 预设用户选项（仅测试环境）
+  const presetUsers = enablePresetQuickLogin ? [
+    {
+      ...PRESET_USERS.cat,
+      displayName: PRESET_USERS.cat.displayName
+    },
+    {
+      ...PRESET_USERS.cow,
+      displayName: PRESET_USERS.cow.displayName
+    }
+  ] : [];
+
+  // 获取预设用户的UI主题
+  const getPresetUserUITheme = (user: any): 'cat' | 'cow' => {
+    if (user.email.includes('cat')) return 'cat';
+    if (user.email.includes('cow')) return 'cow';
+    return 'cat'; // 默认
+  };
 
   // 根据主题获取颜色配置
   const getThemeColors = () => {
@@ -66,23 +95,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
     return null;
   };
 
-  // 预设用户选项
-  const quickLogins = [
-    {
-      ...PRESET_USERS.cat,
-      displayName: PRESET_USERS.cat.displayName
-    },
-    {
-      ...PRESET_USERS.cow,
-      displayName: PRESET_USERS.cow.displayName
-    }
-  ];
-
-  // 获取预设用户的UI主题（仅用于显示）
-  const getPresetUserUITheme = (presetUser: any): 'cat' | 'cow' => {
-    const userInfo = getUserDisplayInfo(presetUser);
-    return userInfo?.uiTheme === 'cow' ? 'cow' : 'cat';
-  };
+  // 已保存的账号选项（用于快速登录）
+  // 注意：现在 quickLogins 基于用户实际登录过的账号，而不是预设用户
 
   // 获取用户图标，根据主题和用户类型区分
   const getUserIcon = (userType: 'cat' | 'cow', size: 'sm' | 'md' | 'lg' = 'md') => {
@@ -129,6 +143,10 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
       await new Promise(resolve => setTimeout(resolve, 800)); // 模拟网络延迟
 
       const { user, profile } = await authService.loginWithEmail(formData.email, formData.password);
+      
+      // 保存最后登录的邮箱地址（便于下次登录）
+      lastEmailService.saveLastEmail(formData.email);
+      
       onAuthSuccess(user, profile);
 
     } catch (err: any) {
@@ -138,20 +156,16 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
     }
   };
 
-  // 快速登录
-  const handleQuickLogin = async (user: typeof quickLogins[0]) => {
-    setFormData(prev => ({ ...prev, email: user.email, password: user.password }));
+  // 预设用户快速登录（测试环境）
+  const handlePresetQuickLogin = async (presetUser: any) => {
     setError('');
     setIsLoading(true);
 
     try {
       await new Promise(resolve => setTimeout(resolve, 600)); // 模拟网络延迟
 
-      // 直接从用户预设数据判断类型（用于快速登录）
-      const userInfo = getUserDisplayInfo(user);
-      const userType = userInfo?.uiTheme === 'cow' ? 'cow' : 'cat';
-      const { user: authUser, profile } = await authService.quickLogin(userType);
-      onAuthSuccess(authUser, profile);
+      const { user, profile } = await authService.loginWithEmail(presetUser.email, presetUser.password);
+      onAuthSuccess(user, profile);
 
     } catch (err: any) {
       setError(err.message || t('quick_login_failed'));
@@ -159,6 +173,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
       setIsLoading(false);
     }
   };
+
 
   // 根据主题渲染不同风格
   if (theme === 'modern') {
@@ -198,46 +213,51 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
               </div>
             )}
 
-            {/* 快速登录 */}
-            <div className="space-y-4">
-              <div className="text-center">
-                <p className="text-sm font-medium text-foreground">{t('quick_login')}</p>
-                <p className="text-xs text-muted-foreground">{t('choose_profile')}</p>
+            {/* 预设用户快速登录 - 仅测试环境 */}
+            {enablePresetQuickLogin && presetUsers.length > 0 && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-foreground">{t('quick_login')}</p>
+                  <p className="text-xs text-muted-foreground">{t('choose_profile')}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {presetUsers.map((user) => (
+                    <button
+                      key={user.id}
+                      onClick={() => handlePresetQuickLogin(user)}
+                      disabled={isLoading}
+                      className="p-4 rounded-md border border-border transition-all duration-200 flex flex-col items-center space-y-2 hover:bg-accent hover:border-primary/20 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="w-10 h-10 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-lg">
+                        {getPresetUserUITheme(user) === 'cat' ? '🐱' : '🐮'}
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-foreground text-sm">{user.displayName}</div>
+                      </div>
+                      {isLoading && (
+                        <div className="w-4 h-4 border-2 border-muted-foreground/20 border-t-muted-foreground rounded-full animate-spin" />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                {quickLogins.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => handleQuickLogin(user)}
-                    disabled={isLoading}
-                    className="p-4 rounded-md border border-border transition-all duration-200 flex flex-col items-center space-y-2 hover:bg-accent hover:border-primary/20 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div className="w-10 h-10 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-lg">
-                      {getPresetUserUITheme(user) === 'cat' ? '🐱' : '🐮'}
-                    </div>
-                    <div className="text-center">
-                      <div className="font-medium text-foreground text-sm">{user.displayName}</div>
-                    </div>
-                    {isLoading && (
-                      <div className="w-4 h-4 border-2 border-muted-foreground/20 border-t-muted-foreground rounded-full animate-spin" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
-            {/* 分割线 */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
+
+            {/* 分割线 - 仅在显示快速登录时显示 */}
+            {enablePresetQuickLogin && presetUsers.length > 0 && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    {t('or')}
+                  </span>
+                </div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  {t('or_continue_with')}
-                </span>
-              </div>
-            </div>
+            )}
 
             {/* 登录表单 */}
             <form onSubmit={handleLogin} className="space-y-4">
@@ -368,43 +388,48 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
               </div>
             )}
 
-            {/* 快速登录按钮 */}
-            <div className="space-y-4 mb-6">
-              <h2 className="text-lg font-medium text-center" style={{color: colors.text}}>
-                选择你的身份
-              </h2>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {quickLogins.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => handleQuickLogin(user)}
-                    disabled={isLoading}
-                    className="p-4  border transition-all duration-300 hover:scale-102 disabled:opacity-50 fresh-glow-effect"
-                    style={{
-                      background: `linear-gradient(135deg, ${colors.accent}08, ${(colors as any).mint || colors.accent}08)`,
-                      borderColor: colors.border,
-                      color: colors.text
-                    }}
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      {getUserIcon(getPresetUserUITheme(user), 'lg')}
-                      <span className="font-medium">{user.displayName}</span>
-                      <span className="text-sm" style={{color: colors.textMuted}}>
-                        {getPresetUserUITheme(user) === 'cat' ? '清新小猫' : '简约小牛'}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+            {/* 预设用户快速登录 - 仅测试环境 */}
+            {enablePresetQuickLogin && presetUsers.length > 0 && (
+              <div className="space-y-4 mb-6">
+                <h2 className="text-lg font-medium text-center" style={{color: colors.text}}>
+                  选择你的身份
+                </h2>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {presetUsers.map((user) => (
+                    <button
+                      key={user.id}
+                      onClick={() => handlePresetQuickLogin(user)}
+                      disabled={isLoading}
+                      className="p-4  border transition-all duration-300 hover:scale-102 disabled:opacity-50 fresh-glow-effect"
+                      style={{
+                        background: `linear-gradient(135deg, ${colors.accent}08, ${(colors as any).mint || colors.accent}08)`,
+                        borderColor: colors.border,
+                        color: colors.text
+                      }}
+                    >
+                      <div className="flex flex-col items-center space-y-2">
+                        {getUserIcon(getPresetUserUITheme(user), 'lg')}
+                        <span className="font-medium">{user.displayName}</span>
+                        <span className="text-sm" style={{color: colors.textMuted}}>
+                          {getPresetUserUITheme(user) === 'cat' ? '清新小猫' : '简约小牛'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* 表单分割线 */}
-            <div className="flex items-center my-6">
-              <div className="flex-1 h-px" style={{background: colors.border}}></div>
-              <span className="px-4 text-sm" style={{color: colors.textMuted}}>或者</span>
-              <div className="flex-1 h-px" style={{background: colors.border}}></div>
-            </div>
+
+            {/* 表单分割线 - 仅在显示快速登录时显示 */}
+            {enablePresetQuickLogin && presetUsers.length > 0 && (
+              <div className="flex items-center my-6">
+                <div className="flex-1 h-px" style={{background: colors.border}}></div>
+                <span className="px-4 text-sm" style={{color: colors.textMuted}}>或者</span>
+                <div className="flex-1 h-px" style={{background: colors.border}}></div>
+              </div>
+            )}
 
             {/* 登录表单 */}
             <form onSubmit={handleLogin} className="space-y-4">
@@ -551,50 +576,56 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
             </p>
           </div>
 
-          {/* 快速登录选项 */}
-          <div className="space-y-3 mb-6">
-            <div className="border-2 rounded-pixel p-3" style={{ background: colors.panel, borderColor: colors.border }}>
-              <p className="text-sm font-mono text-center mb-3 uppercase tracking-wide" style={{ color: colors.text }}>
-                &gt;&gt;&gt; QUICK LOGIN &lt;&lt;&lt;
-              </p>
-              {quickLogins.map((user) => (
-                <button
-                  key={user.email}
-                  onClick={() => handleQuickLogin(user)}
-                  disabled={isLoading}
-                  className={`w-full p-4 mb-2 border-4 border-black transition-all duration-200 flex items-center space-x-4 rounded-pixel ${
-                    isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:translate-y-[-2px]'
-                  }`}
-                  style={{
-                    background: getPresetUserUITheme(user) === 'cat' ? colors.warning : colors.info,
-                    color: 'white'
-                  }}
-                >
-                  <div className="w-12 h-12 border-2 border-black rounded-pixel flex items-center justify-center text-2xl" style={{
-                    background: getPresetUserUITheme(user) === 'cat' ? colors.warning : colors.info
-                  }}>
-                    {getUserIcon(getPresetUserUITheme(user), 'sm')}
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="font-mono text-current uppercase tracking-wide font-bold">
-                      {user.displayName.toUpperCase()}
+          {/* 预设用户快速登录 - 仅测试环境 */}
+          {enablePresetQuickLogin && presetUsers.length > 0 && (
+            <div className="space-y-3 mb-6">
+              <div className="border-2 rounded-pixel p-3" style={{ background: colors.panel, borderColor: colors.border }}>
+                <p className="text-sm font-mono text-center mb-3 uppercase tracking-wide" style={{ color: colors.text }}>
+                  &gt;&gt;&gt; QUICK LOGIN &lt;&lt;&lt;
+                </p>
+                {presetUsers.map((user) => (
+                  <button
+                    key={user.email}
+                    onClick={() => handlePresetQuickLogin(user)}
+                    disabled={isLoading}
+                    className={`w-full p-4 mb-2 border-4 border-black transition-all duration-200 flex items-center space-x-4 rounded-pixel ${
+                      isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:translate-y-[-2px]'
+                    }`}
+                    style={{
+                      background: getPresetUserUITheme(user) === 'cat' ? colors.warning : colors.info,
+                      color: 'white'
+                    }}
+                  >
+                    <div className="w-12 h-12 border-2 border-black rounded-pixel flex items-center justify-center text-2xl" style={{
+                      background: getPresetUserUITheme(user) === 'cat' ? colors.warning : colors.info
+                    }}>
+                      {getUserIcon(getPresetUserUITheme(user), 'sm')}
                     </div>
-                    <div className="text-xs opacity-80 font-mono">
-                      [PRESS TO LOGIN]
+                    <div className="flex-1 text-left">
+                      <div className="font-mono text-current uppercase tracking-wide font-bold">
+                        {user.displayName.toUpperCase()}
+                      </div>
+                      <div className="text-xs opacity-80 font-mono">
+                        [PRESS TO LOGIN]
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="flex items-center my-6">
-            <div className="flex-1 h-0.5" style={{ background: colors.border }}></div>
-            <div className="px-3" style={{ background: colors.panel }}>
-              <span className="text-xs font-mono uppercase" style={{ color: colors.textMuted }}>OR MANUAL INPUT</span>
+
+          {/* 分割线 - 仅在显示快速登录时显示 */}
+          {enablePresetQuickLogin && presetUsers.length > 0 && (
+            <div className="flex items-center my-6">
+              <div className="flex-1 h-0.5" style={{ background: colors.border }}></div>
+              <div className="px-3" style={{ background: colors.panel }}>
+                <span className="text-xs font-mono uppercase" style={{ color: colors.textMuted }}>OR MANUAL INPUT</span>
+              </div>
+              <div className="flex-1 h-0.5" style={{ background: colors.border }}></div>
             </div>
-            <div className="flex-1 h-0.5" style={{ background: colors.border }}></div>
-          </div>
+          )}
 
           {/* 登录表单 */}
           <form onSubmit={handleLogin} className="space-y-4">

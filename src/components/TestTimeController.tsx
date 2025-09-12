@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { testTimeManager } from '../utils/testTimeManager';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeButton, ThemeInput, ThemeCard, ThemeCardHeader, ThemeCardTitle, ThemeCardContent } from './ui/Components';
+import { enableDebugFeatures } from '../config/environment';
 
 const TestTimeController: React.FC = () => {
   const { theme } = useTheme();
@@ -67,8 +68,8 @@ const TestTimeController: React.FC = () => {
     updateTimeDisplay();
   };
 
-  // 如果不是开发环境，不显示组件
-  if (process.env.NODE_ENV !== 'development') {
+  // 如果未启用调试功能，不显示组件
+  if (!enableDebugFeatures) {
     return null;
   }
 

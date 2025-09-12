@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
+    "dev:prod": "NEXT_PUBLIC_APP_ENV=production NEXT_PUBLIC_ENABLE_QUICK_LOGIN=false NEXT_PUBLIC_ENABLE_DEBUG_FEATURES=false next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

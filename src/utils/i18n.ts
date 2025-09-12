@@ -265,6 +265,21 @@ const translations = {
     'back': '返回',
     'next': '下一步',
     'previous': '上一步',
+    
+    // Security Settings
+    'security_settings': '密码和安全',
+    'security_settings_desc': '管理您的账户安全设置',
+    'change_password': '修改密码',
+    'current_password': '当前密码',
+    'new_password': '新密码',
+    'confirm_password': '确认新密码',
+    'choose_saved_account': '选择已保存的账号',
+    'quick_fill': '快速填充',
+    'choose_saved_account_fill': '选择账号快速填充邮箱地址',
+    'clear_saved_accounts': '清除已保存的账号',
+    'confirm_clear_saved_accounts': '确定要清除所有已保存的账号吗？此操作无法撤销。',
+    'saved_accounts_cleared': '已保存的账号已清除',
+    'or': '或者',
   },
   en: {
     // Navigation
@@ -529,6 +544,21 @@ const translations = {
     'back': 'Back',
     'next': 'Next',
     'previous': 'Previous',
+    
+    // Security Settings
+    'security_settings': 'Password & Security',
+    'security_settings_desc': 'Manage your account security settings',
+    'change_password': 'Change Password',
+    'current_password': 'Current Password',
+    'new_password': 'New Password',
+    'confirm_password': 'Confirm New Password',
+    'choose_saved_account': 'Choose saved account',
+    'quick_fill': 'Quick Fill',
+    'choose_saved_account_fill': 'Select account to quickly fill email address',
+    'clear_saved_accounts': 'Clear Saved Accounts',
+    'confirm_clear_saved_accounts': 'Are you sure you want to clear all saved accounts? This action cannot be undone.',
+    'saved_accounts_cleared': 'Saved accounts have been cleared',
+    'or': 'or',
   }
 };
 
