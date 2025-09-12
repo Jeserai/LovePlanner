@@ -330,4 +330,3 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSuccess, onCa
 };
 
 export default ChangePasswordForm;
-

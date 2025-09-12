@@ -233,4 +233,3 @@ const SessionMonitor: React.FC = () => {
 };
 
 export default SessionMonitor;
-

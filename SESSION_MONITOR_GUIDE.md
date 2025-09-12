@@ -186,4 +186,3 @@ console.log('Supabase Config:', supabase.auth.settings);
 ---
 
 这个Session Monitor为您的开发和测试提供了强大的会话状态可视化功能！🎉
-
