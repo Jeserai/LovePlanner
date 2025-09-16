@@ -180,48 +180,48 @@ const TaskList = React.forwardRef<TaskListRef, TaskListProps>(({ className = '',
     refreshTasks: fetchMyTasks
   }), [handleTaskDropped, fetchMyTasks]);
 
-  // 获取紧急程度的颜色和图标
+  // 获取紧急程度的颜色和图标 - 支持深色模式
   const getUrgencyStyle = useCallback((urgencyLevel: string) => {
     const styles = {
       overdue: {
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
+        color: 'text-red-600 dark:text-red-400',
+        bgColor: theme === 'pixel' ? 'bg-pixel-panel' : 'bg-card',
+        borderColor: theme === 'pixel' ? 'border-pixel-border' : 'border-red-200 dark:border-red-800',
         icon: '🚨'
       },
       critical: {
-        color: 'text-red-500',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
+        color: 'text-red-500 dark:text-red-400',
+        bgColor: theme === 'pixel' ? 'bg-pixel-panel' : 'bg-card',
+        borderColor: theme === 'pixel' ? 'border-pixel-border' : 'border-red-200 dark:border-red-800',
         icon: '⚠️'
       },
       urgent: {
-        color: 'text-orange-500',
-        bgColor: 'bg-orange-50',
-        borderColor: 'border-orange-200',
+        color: 'text-orange-500 dark:text-orange-400',
+        bgColor: theme === 'pixel' ? 'bg-pixel-panel' : 'bg-card',
+        borderColor: theme === 'pixel' ? 'border-pixel-border' : 'border-orange-200 dark:border-orange-800',
         icon: '🔥'
       },
       normal: {
-        color: 'text-blue-500',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
+        color: 'text-blue-500 dark:text-blue-400',
+        bgColor: theme === 'pixel' ? 'bg-pixel-panel' : 'bg-card',
+        borderColor: theme === 'pixel' ? 'border-pixel-border' : 'border-blue-200 dark:border-blue-800',
         icon: '⏰'
       },
       low: {
-        color: 'text-gray-500',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-200',
+        color: 'text-gray-500 dark:text-gray-400',
+        bgColor: theme === 'pixel' ? 'bg-pixel-panel' : 'bg-card',
+        borderColor: theme === 'pixel' ? 'border-pixel-border' : 'border-border',
         icon: '📅'
       },
       'no-deadline': {
-        color: 'text-gray-400',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-200',
+        color: 'text-gray-400 dark:text-gray-500',
+        bgColor: theme === 'pixel' ? 'bg-pixel-panel' : 'bg-card',
+        borderColor: theme === 'pixel' ? 'border-pixel-border' : 'border-border',
         icon: '📋'
       }
     };
     return styles[urgencyLevel] || styles['no-deadline'];
-  }, []);
+  }, [theme]);
 
   // 初始化FullCalendar Draggable
   useEffect(() => {
@@ -361,7 +361,7 @@ const TaskList = React.forwardRef<TaskListRef, TaskListProps>(({ className = '',
                     {/* 左侧：任务名称 */}
                     <div className="flex-1 min-w-0 mr-3">
                       <span className={`
-                        font-medium text-sm truncate block
+                        font-medium text-sm truncate block text-foreground
                         ${theme === 'pixel' ? 'font-mono' : ''}
                       `}>
                         {task.title}

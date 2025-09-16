@@ -79,11 +79,15 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     editEvent,
     recurringActionDialog,
     confirmDialog,
+    isSubmitting,
+    isDeleting,
     setNewEvent,
     setEditEvent,
     setIsEditing,
     setRecurringActionDialog,
     setConfirmDialog,
+    setIsSubmitting,
+    setIsDeleting,
     handleEventSubmit,
     startEditWithScope,
     deleteEventWithScope,
@@ -436,6 +440,20 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     const defaultStart = `${targetDate}T${(now.getHours() + 1).toString().padStart(2, '0')}:00`
     const defaultEnd = `${targetDate}T${(now.getHours() + 2).toString().padStart(2, '0')}:00`
     
+    // 智能设置参与者 - 根据当前视图决定是否为共同活动
+    const isUser1 = coupleUsers && user && user.id === coupleUsers.user1.id
+    let includesUser1, includesUser2
+    
+    if (currentView === 'shared') {
+      // 共同日历视图 - 默认为共同活动
+      includesUser1 = true
+      includesUser2 = true
+    } else {
+      // 我的/伴侣视图 - 默认为个人活动
+      includesUser1 = isUser1 ? true : false
+      includesUser2 = isUser1 ? false : true
+    }
+    
     setNewEvent({
       title: '',
       location: '',
@@ -443,8 +461,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       endDateTime: defaultEnd,
       isAllDay: false,
       description: '',
-      includesUser1: true,
-      includesUser2: true,
+      includesUser1,
+      includesUser2,
       isRecurring: false,
       recurrenceType: 'daily',
       recurrenceEnd: '',
@@ -452,7 +470,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
     })
     
     setShowNewEventDialog(true)
-  }, [selectedDate, setNewEvent])
+  }, [selectedDate, setNewEvent, coupleUsers, user, currentView])
 
   // 获取选中日期的事件
   const getSelectedDateEvents = useCallback(() => {
@@ -815,6 +833,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               user={user}
               coupleUsers={coupleUsers}
               currentView={currentView}
+              isDeleting={isDeleting}
               onEdit={() => {
                 if (selectedEvent) {
                   // 🔧 直接进入编辑状态，不管是否为重复事件
@@ -826,12 +845,36 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                   // 重复事件显示选择对话框
                   setRecurringActionDialog({
                     open: true,
-                    onThisOnly: () => deleteEventWithScope('this_only'),
-                    onThisAndFuture: () => deleteEventWithScope('this_and_future'),
-                    onAllEvents: () => deleteEventWithScope('all_events')
+                    onThisOnly: async () => {
+                      setIsDeleting(true);
+                      try {
+                        await deleteEventWithScope('this_only');
+                      } finally {
+                        setIsDeleting(false);
+                      }
+                    },
+                    onThisAndFuture: async () => {
+                      setIsDeleting(true);
+                      try {
+                        await deleteEventWithScope('this_and_future');
+                      } finally {
+                        setIsDeleting(false);
+                      }
+                    },
+                    onAllEvents: async () => {
+                      setIsDeleting(true);
+                      try {
+                        await deleteEventWithScope('all_events');
+                      } finally {
+                        setIsDeleting(false);
+                      }
+                    }
                   });
                 } else {
-                  deleteEventWithScope('this_only');
+                  setIsDeleting(true);
+                  deleteEventWithScope('this_only').finally(() => {
+                    setIsDeleting(false);
+                  });
                 }
               }}
               onClose={closeDetailModal}
@@ -843,36 +886,54 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               selectedDate={selectedEvent.date}
               coupleUsers={coupleUsers}
               user={user}
+              isSubmitting={isSubmitting}
               onFormChange={(data) => setEditEvent(prev => ({ ...prev, ...data }))}
-              onSubmit={(eventData) => {
-                const mode = 'edit'
-                if (selectedEvent?.isRecurring) {
-                  // 重复事件显示选择对话框
-                  setRecurringActionDialog({
-                    open: true,
-                    onThisOnly: () => {
-                      handleEventSubmit(mode, eventData, 'this_only').then(() => {
-                        setIsEditing(false);
-                        setRecurringActionDialog(prev => ({ ...prev, open: false }));
-                      });
-                    },
-                    onThisAndFuture: () => {
-                      handleEventSubmit(mode, eventData, 'this_and_future').then(() => {
-                        setIsEditing(false);
-                        setRecurringActionDialog(prev => ({ ...prev, open: false }));
-                      });
-                    },
-                    onAllEvents: () => {
-                      handleEventSubmit(mode, eventData, 'all_events').then(() => {
-                        setIsEditing(false);
-                        setRecurringActionDialog(prev => ({ ...prev, open: false }));
-                      });
-                    }
-                  });
-                } else {
-                  handleEventSubmit(mode, eventData).then(() => {
-                    setIsEditing(false)
-                  })
+              onSubmit={async (eventData) => {
+                setIsSubmitting(true);
+                try {
+                  const mode = 'edit'
+                  if (selectedEvent?.isRecurring) {
+                    // 重复事件显示选择对话框
+                    setRecurringActionDialog({
+                      open: true,
+                      onThisOnly: async () => {
+                        try {
+                          await handleEventSubmit(mode, eventData, 'this_only');
+                          setIsEditing(false);
+                          setRecurringActionDialog(prev => ({ ...prev, open: false }));
+                        } finally {
+                          setIsSubmitting(false);
+                        }
+                      },
+                      onThisAndFuture: async () => {
+                        try {
+                          await handleEventSubmit(mode, eventData, 'this_and_future');
+                          setIsEditing(false);
+                          setRecurringActionDialog(prev => ({ ...prev, open: false }));
+                        } finally {
+                          setIsSubmitting(false);
+                        }
+                      },
+                      onAllEvents: async () => {
+                        try {
+                          await handleEventSubmit(mode, eventData, 'all_events');
+                          setIsEditing(false);
+                          setRecurringActionDialog(prev => ({ ...prev, open: false }));
+                        } finally {
+                          setIsSubmitting(false);
+                        }
+                      }
+                    });
+                  } else {
+                    await handleEventSubmit(mode, eventData);
+                    setIsEditing(false);
+                  }
+                } catch (error) {
+                  console.error('编辑事件失败:', error);
+                } finally {
+                  if (!selectedEvent?.isRecurring) {
+                    setIsSubmitting(false);
+                  }
                 }
               }}
               onCancel={() => setIsEditing(false)}
@@ -918,11 +979,18 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
               selectedDate={selectedDate}
               coupleUsers={coupleUsers}
               user={user}
+              isSubmitting={isSubmitting}
               onFormChange={(data) => setNewEvent(prev => ({ ...prev, ...data }))}
-              onSubmit={(eventData) => {
-                handleEventSubmit('create', eventData).then(() => {
-                  setShowNewEventDialog(false)
-                })
+              onSubmit={async (eventData) => {
+                setIsSubmitting(true);
+                try {
+                  await handleEventSubmit('create', eventData);
+                  setShowNewEventDialog(false);
+                } catch (error) {
+                  console.error('创建事件失败:', error);
+                } finally {
+                  setIsSubmitting(false);
+                }
               }}
               onCancel={() => setShowNewEventDialog(false)}
             />

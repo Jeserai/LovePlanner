@@ -704,6 +704,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     if (!taskToDelete) return;
     
     try {
+      setIsDeletingTask(true);
       const task = tasks.find(t => t.id === taskToDelete);
       if (!task) return;
       
@@ -749,6 +750,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         description: error?.message || t('please_try_later')
       });
     } finally {
+      setIsDeletingTask(false);
       setShowDeleteTaskConfirm(false);
       setTaskToDelete(null);
       setDeleteAction('abandon');
@@ -849,6 +851,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 🎯 保存编辑的任务 - 使用新数据结构
   const handleSaveEdit = async () => {
+    // 防止重复提交
+    if (isSavingEdit) {
+      console.log('⚠️ 任务保存中，忽略重复点击');
+      return;
+    }
+
     if (!selectedTask || !editTask.title?.trim()) {
       alert(t('please_enter_title'));
       return;
@@ -861,6 +869,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
     }
 
     try {
+      setIsSavingEdit(true);
       // 🎯 验证逻辑（参考创建任务的验证）
       if (!editTask.isUnlimited) {
         if (editTask.repeat_frequency === 'never') {
@@ -1010,6 +1019,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
         title: t('update_task_failed'),
         description: error?.message || t('update_task_failed_desc')
       });
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -1120,6 +1131,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
 
   // 防重复提交状态
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
 
   // 创建新任务
   const handleCreateTask = async () => {
@@ -3384,8 +3397,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
                           <ThemeButton
                             variant="primary"
                             onClick={handleSaveEdit}
+                            disabled={isSavingEdit}
                           >
-                            {theme === 'pixel' ? 'SAVE' : t('save')}
+                            {isSavingEdit 
+                              ? (theme === 'pixel' ? 'SAVING...' : t('saving') || '保存中...')
+                              : (theme === 'pixel' ? 'SAVE' : t('save'))
+                            }
                           </ThemeButton>
                         </>
                       ) : (
@@ -4531,9 +4548,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ currentUser }) => {
           : deleteAction === 'abandon' ? t('confirm_abandon_task') : t('confirm_delete_task')
         }
         variant="destructive"
-        confirmText={deleteAction === 'abandon' ? t('confirm_abandon') : t('confirm_delete')}
+        confirmText={isDeletingTask 
+          ? (deleteAction === 'abandon' 
+            ? (theme === 'pixel' ? 'ABANDONING...' : t('abandoning') || '放弃中...') 
+            : (theme === 'pixel' ? 'DELETING...' : t('deleting') || '删除中...'))
+          : (deleteAction === 'abandon' ? t('confirm_abandon') : t('confirm_delete'))
+        }
         cancelText={t('cancel')}
-        onConfirm={confirmTaskAction}
+        onConfirm={isDeletingTask ? undefined : confirmTaskAction}
         onCancel={() => {
           setShowDeleteTaskConfirm(false);
           setTaskToDelete(null);

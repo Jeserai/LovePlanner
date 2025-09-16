@@ -62,18 +62,16 @@ export function useLocalStorage<T>(
     }
   }, [key, serialize])
 
-  // 使用useState但延迟初始化
+  // 使用useState，初始值始终为initialValue避免hydration问题
   const [storedValue, setStoredValue] = useState<T>(initialValue)
-  const [isInitialized, setIsInitialized] = useState(false)
+  const [isHydrated, setIsHydrated] = useState(false)
 
-  // 客户端初始化，读取localStorage
+  // 客户端hydration后读取localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined' && !isInitialized) {
-      const value = readFromStorage()
-      setStoredValue(value)
-      setIsInitialized(true)
-    }
-  }, [readFromStorage, isInitialized])
+    setIsHydrated(true)
+    const value = readFromStorage()
+    setStoredValue(value)
+  }, [readFromStorage])
 
   // 设置值的函数
   const setValue = useCallback((value: T | ((prevValue: T) => T)) => {
@@ -147,8 +145,8 @@ export function useLocalStorage<T>(
     }
   }, [key, deserialize, initialValue])
 
-  // 在客户端初始化完成前，返回初始值
-  return [isInitialized ? storedValue : initialValue, setValue, removeValue]
+  // 始终返回storedValue，避免hydration不一致
+  return [storedValue, setValue, removeValue]
 }
 
 /**

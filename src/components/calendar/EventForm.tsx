@@ -19,6 +19,7 @@ interface EventFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
   user?: any;
+  isSubmitting?: boolean;
 }
 
 const EventForm: React.FC<EventFormProps> = ({
@@ -29,7 +30,8 @@ const EventForm: React.FC<EventFormProps> = ({
   onFormChange,
   onSubmit,
   onCancel,
-  user
+  user,
+  isSubmitting = false
 }) => {
   const { theme, language } = useTheme();
   const t = useTranslation(language);
@@ -199,11 +201,16 @@ const EventForm: React.FC<EventFormProps> = ({
         <ThemeButton type="button" variant="secondary" onClick={onCancel}>
           {theme === 'pixel' ? 'CANCEL' : t('cancel')}
         </ThemeButton>
-        <ThemeButton type="submit" variant="primary">
-          {mode === 'create' 
-            ? (theme === 'pixel' ? 'CREATE_EVENT' : t('create_event'))
-            : (theme === 'pixel' ? 'UPDATE_EVENT' : t('edit_event'))
-          }
+        <ThemeButton type="submit" variant="primary" disabled={isSubmitting}>
+          {isSubmitting ? (
+            mode === 'create' 
+              ? (theme === 'pixel' ? 'CREATING...' : t('creating') || '创建中...')
+              : (theme === 'pixel' ? 'UPDATING...' : t('updating') || '更新中...')
+          ) : (
+            mode === 'create' 
+              ? (theme === 'pixel' ? 'CREATE_EVENT' : t('create_event'))
+              : (theme === 'pixel' ? 'UPDATE_EVENT' : t('edit_event'))
+          )}
         </ThemeButton>
       </div>
     </form>

@@ -280,6 +280,11 @@ const translations = {
     'confirm_clear_saved_accounts': '确定要清除所有已保存的账号吗？此操作无法撤销。',
     'saved_accounts_cleared': '已保存的账号已清除',
     'or': '或者',
+    'saving': '保存中...',
+    'creating': '创建中...',
+    'updating': '更新中...',
+    'deleting': '删除中...',
+    'abandoning': '放弃中...',
   },
   en: {
     // Navigation
@@ -559,6 +564,11 @@ const translations = {
     'confirm_clear_saved_accounts': 'Are you sure you want to clear all saved accounts? This action cannot be undone.',
     'saved_accounts_cleared': 'Saved accounts have been cleared',
     'or': 'or',
+    'saving': 'Saving...',
+    'creating': 'Creating...',
+    'updating': 'Updating...',
+    'deleting': 'Deleting...',
+    'abandoning': 'Abandoning...',
   }
 };
 

@@ -33,6 +33,8 @@ export const useEventForm = (
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 🔧 同步selectedEvent：当events更新时，自动更新selectedEvent
   useEffect(() => {
@@ -384,6 +386,8 @@ export const useEventForm = (
     editEvent,
     recurringActionDialog,
     confirmDialog,
+    isSubmitting,
+    isDeleting,
     
     // 设置函数
     setShowDetailModal,
@@ -393,6 +397,8 @@ export const useEventForm = (
     setEditEvent,
     setRecurringActionDialog,
     setConfirmDialog,
+    setIsSubmitting,
+    setIsDeleting,
     
     // 操作函数
     handleEventSubmit,

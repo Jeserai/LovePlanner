@@ -15,6 +15,7 @@ interface EventDetailProps {
   onDelete: () => void;
   onClose?: () => void;
   currentView?: 'all' | 'my' | 'partner' | 'shared';
+  isDeleting?: boolean;
 }
 
 const EventDetail: React.FC<EventDetailProps> = ({
@@ -24,7 +25,8 @@ const EventDetail: React.FC<EventDetailProps> = ({
   onEdit,
   onDelete,
   onClose,
-  currentView
+  currentView,
+  isDeleting = false
 }) => {
   const { theme, language } = useTheme();
   const t = useTranslation(language);
@@ -224,6 +226,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
             <ThemeButton
               variant="danger"
               onClick={onDelete}
+              disabled={isDeleting}
               className="flex items-center space-x-2"
             >
               {theme === 'pixel' ? (
@@ -231,7 +234,12 @@ const EventDetail: React.FC<EventDetailProps> = ({
               ) : (
                 <TrashIcon className="w-4 h-4" />
               )}
-              <span>{theme === 'pixel' ? 'DELETE' : t('delete')}</span>
+              <span>
+                {isDeleting 
+                  ? (theme === 'pixel' ? 'DELETING...' : t('deleting') || '删除中...')
+                  : (theme === 'pixel' ? 'DELETE' : t('delete'))
+                }
+              </span>
             </ThemeButton>
           </>
         )}

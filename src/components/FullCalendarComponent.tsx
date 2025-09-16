@@ -926,29 +926,25 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
           /* 两行布局 - 用于极窄屏幕 */
           <div className="space-y-3">
             {/* 第一行：上一周 + 标题 + 下一周 */}
-            <div className="flex items-center justify-between">
-              <ThemeButton
+            <div className="flex items-center justify-between gap-2 w-full">
+              <button
                 onClick={handlePrev}
-                variant="secondary"
-                size="sm"
-                className="h-8 w-8 p-0"
+                className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 p-0 min-w-[2rem] rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors border-0"
               >
                 {theme === 'pixel' ? '<' : '←'}
-              </ThemeButton>
+              </button>
               <div className={`
-                text-lg font-bold text-center flex-1
+                text-lg font-bold text-center flex-1 min-w-0 px-2 truncate
                 ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'}
               `}>
                 {calendarTitle}
               </div>
-              <ThemeButton
+              <button
                 onClick={handleNext}
-                variant="secondary"
-                size="sm"
-                className="h-8 w-8 p-0"
+                className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 p-0 min-w-[2rem] rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors border-0"
               >
                 {theme === 'pixel' ? '>' : '→'}
-              </ThemeButton>
+              </button>
             </div>
 
             {/* 第二行：今天 + 视图切换 + 事件过滤 */}
@@ -959,7 +955,7 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
                   onClick={handleToday}
                   variant="secondary"
                   size="sm"
-                  className="p-2"
+                  className="flex-shrink-0 p-2"
                   title={theme === 'pixel' ? 'TODAY' : t('today')}
                 >
                   {theme === 'pixel' ? (
@@ -1090,45 +1086,43 @@ const FullCalendarComponent: React.FC<FullCalendarComponentProps> = ({
         ) : (
           /* 单行布局 - 用于中等和宽屏 */
           <div className={`flex ${getResponsiveConfig.layoutMode === 'single-row-compact' ? 'flex-col space-y-2' : 'flex-row'} items-center justify-between gap-2 ${getResponsiveConfig.layoutMode === 'single-row-full' ? 'xl:gap-4' : 'gap-2'}`}>
-            {/* 左侧：上一周按钮 */}
-            <ThemeButton
-              onClick={handlePrev}
-              variant="secondary"
-              size="sm"
-              className="h-8 w-8 p-0"
-            >
-              {theme === 'pixel' ? '<' : '←'}
-            </ThemeButton>
+            
+            {/* 核心导航组：上一周 + 标题 + 下一周 (始终在同一行) */}
+            <div className="flex items-center justify-center gap-2 flex-shrink-0">
+              <button
+                onClick={handlePrev}
+                className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 p-0 min-w-[2rem] rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors border-0"
+              >
+                {theme === 'pixel' ? '<' : '←'}
+              </button>
 
-            {/* 中间：标题和统计信息 */}
-            <div className="flex flex-col items-center text-center flex-1">
-              <div className={`
-                ${getResponsiveConfig.compactMode ? 'text-lg' : 'text-2xl'} font-bold whitespace-nowrap
-                ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'}
-              `}>
-                {calendarTitle}
-              </div>
-              {!getResponsiveConfig.compactMode && (
-                <div className="text-sm text-muted-foreground mt-1">
-                  {currentView === 'all' ? t('all_calendar') : 
-                   currentView === 'my' ? t('my_calendar') : 
-                   currentView === 'partner' ? t('partner_calendar') : 
-                   t('shared_calendar')} • {filteredEventsCount} {language === 'zh' ? '个事件' : 'events'}
+              {/* 中间：标题和统计信息 */}
+              <div className="flex flex-col items-center text-center min-w-0 mx-4">
+                <div className={`
+                  ${getResponsiveConfig.compactMode ? 'text-lg' : 'text-2xl'} font-bold whitespace-nowrap
+                  ${theme === 'pixel' ? 'font-mono text-green-400' : 'text-foreground'}
+                `}>
+                  {calendarTitle}
                 </div>
-              )}
+                {!getResponsiveConfig.compactMode && (
+                  <div className="text-sm text-muted-foreground mt-1 whitespace-nowrap">
+                    {currentView === 'all' ? t('all_calendar') : 
+                     currentView === 'my' ? t('my_calendar') : 
+                     currentView === 'partner' ? t('partner_calendar') : 
+                     t('shared_calendar')} • {filteredEventsCount} {language === 'zh' ? '个事件' : 'events'}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleNext}
+                className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 p-0 min-w-[2rem] rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors border-0"
+              >
+                {theme === 'pixel' ? '>' : '→'}
+              </button>
             </div>
 
-            {/* 右侧第一部分：下一周按钮 */}
-            <ThemeButton
-              onClick={handleNext}
-              variant="secondary"
-              size="sm"
-              className="h-8 w-8 p-0"
-            >
-              {theme === 'pixel' ? '>' : '→'}
-            </ThemeButton>
-
-            {/* 右侧第二部分：今天 + 视图切换 + 事件过滤 + 操作按钮 */}
+            {/* 功能按钮组 */}
             <div className="flex items-center space-x-2 justify-center xl:justify-end flex-shrink-0">
               {/* 今天按钮 */}
               <ThemeButton
