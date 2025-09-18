@@ -13,9 +13,10 @@ import { lastEmailService } from '../services/lastEmailService';
 
 interface AuthFormProps {
   onAuthSuccess: (user: any, profile: any) => void;
+  onSwitchToRegister?: () => void;
 }
 
-const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
+const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, onSwitchToRegister }) => {
   const { theme, language } = useTheme();
   const t = useTranslation(language);
   const [formData, setFormData] = useState({
@@ -316,10 +317,25 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
             </form>
 
             {/* 底部提示 */}
-            <div className="text-center">
+            <div className="text-center space-y-3">
               <p className="text-xs text-muted-foreground">
                 {t('login_tip')}
               </p>
+              
+              {/* 注册链接 */}
+              {onSwitchToRegister && (
+                <div className="pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground">
+                    {t('dont_have_account')}{' '}
+                    <button
+                      onClick={onSwitchToRegister}
+                      className="text-primary hover:text-primary/80 font-medium transition-colors"
+                    >
+                      {t('register')}
+                    </button>
+                  </p>
+                </div>
+              )}
             </div>
           </ThemeCard>
 

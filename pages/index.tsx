@@ -11,7 +11,7 @@ import Calendar from '../src/components/Calendar';
 import TaskBoard from '../src/components/TaskBoard';
 import Shop from '../src/components/Shop';
 import Settings from '../src/components/Settings';
-import AuthForm from '../src/components/AuthForm';
+import AuthContainer from '../src/components/AuthContainer';
 import { Spinner } from '../src/components/ui/spinner';
 // 路由测试工具已移除（清理调试信息）
 
@@ -201,6 +201,22 @@ const AppContent: React.FC = () => {
     setAppReady(false);
   };
 
+  // 检查来自邮箱验证页面的临时用户数据
+  useEffect(() => {
+    const tempUserData = localStorage.getItem('temp_verified_user');
+    if (tempUserData) {
+      try {
+        const { user, profile } = JSON.parse(tempUserData);
+        console.log('🎉 检测到邮箱验证成功的用户:', user.email);
+        localStorage.removeItem('temp_verified_user');
+        handleAuthSuccess(user, profile);
+      } catch (error) {
+        console.error('❌ 解析临时用户数据失败:', error);
+        localStorage.removeItem('temp_verified_user');
+      }
+    }
+  }, []);
+
   // 处理登出
   const handleLogout = async () => {
     try {
@@ -250,7 +266,7 @@ const AppContent: React.FC = () => {
   // 路由逻辑：
   // 1. 未登录用户 -> 显示认证页面（AuthForm会处理自己的loading状态）
   if (!user) {
-    return <AuthForm onAuthSuccess={handleAuthSuccess} />;
+    return <AuthContainer onAuthSuccess={handleAuthSuccess} />;
   }
 
   // 2. 已登录但应用未就绪 -> 显示加载屏幕（包括用户资料、应用初始化等）
