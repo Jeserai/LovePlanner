@@ -193,29 +193,22 @@ const AppContent: React.FC = () => {
     });
   };
 
-  // 处理认证成功
+  // 处理认证成功（现在主要由 useAuth 自动处理，这里只是补充逻辑）
   const handleAuthSuccess = (authUser: any, profile: any) => {
-    console.log('🎉 认证成功:', authUser.email);
+    console.log('🎉 认证成功回调:', authUser.email);
+    // 重置应用状态，准备重新初始化
     setActiveTab('calendar');
-    // 重置应用就绪状态，让应用重新初始化
     setAppReady(false);
+    
+    // 注意：用户状态现在由 useAuth hook 自动管理
+    // 这个回调主要用于重置应用本地状态
   };
 
-  // 检查来自邮箱验证页面的临时用户数据
-  useEffect(() => {
-    const tempUserData = localStorage.getItem('temp_verified_user');
-    if (tempUserData) {
-      try {
-        const { user, profile } = JSON.parse(tempUserData);
-        console.log('🎉 检测到邮箱验证成功的用户:', user.email);
-        localStorage.removeItem('temp_verified_user');
-        handleAuthSuccess(user, profile);
-      } catch (error) {
-        console.error('❌ 解析临时用户数据失败:', error);
-        localStorage.removeItem('temp_verified_user');
-      }
-    }
-  }, []);
+  // 注意：用户认证现在完全由 useAuth hook 统一处理
+  // 邮箱验证成功后，useAuth 会自动更新用户状态
+
+  // 注意：邮箱验证重定向应该直接配置到 /auth/verify-email
+  // 如果重定向到主页，说明 Supabase 配置有误，请访问 /debug/supabase-config-check 检查配置
 
   // 处理登出
   const handleLogout = async () => {

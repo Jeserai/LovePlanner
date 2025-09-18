@@ -11,13 +11,50 @@ export interface RegistrationData {
 /**
  * 用户注册服务
  */
+/**
+ * 验证用户名格式
+ */
+const validateUsername = (username: string) => {
+  if (!username) {
+    throw new Error('用户名不能为空');
+  }
+  
+  if (username.length < 3) {
+    throw new Error('用户名长度至少需要3位字符');
+  }
+
+  if (username.length > 20) {
+    throw new Error('用户名长度不能超过20个字符');
+  }
+
+  // 检查是否包含空格
+  if (/\s/.test(username)) {
+    throw new Error('用户名不能包含空格');
+  }
+
+  // 检查是否只包含允许的字符：字母、数字、下划线、连字符
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    throw new Error('用户名只能包含字母、数字、下划线和连字符');
+  }
+
+  // 不能以数字、下划线或连字符开头
+  if (/^[0-9_-]/.test(username)) {
+    throw new Error('用户名不能以数字、下划线或连字符开头');
+  }
+
+  return true;
+};
+
 export const registrationService = {
   /**
    * 注册新用户
    */
   async registerUser(data: RegistrationData) {
     try {
-      // 1. 检查用户名是否已存在
+      // 1. 验证用户名格式
+      validateUsername(data.username);
+
+      // 2. 检查用户名是否已存在
       const { data: existingProfile, error: checkError } = await supabase
         .from('user_profiles')
         .select('username')
@@ -71,66 +108,22 @@ export const registrationService = {
         throw new Error('注册失败：用户创建失败');
       }
 
-      // 3. 创建用户档案（如果 Auth 触发器没有自动创建）
-      const profileData = {
-        id: authData.user.id,
-        email: data.email,
-        username: data.username,
-        display_name: data.displayName,
-        birthday: data.birthday,
-        points: 0,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        is_active: true,
-      };
-
-      // 尝试获取现有档案（触发器可能已创建）
-      let { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
-
-      if (profileError && profileError.code === 'PGRST116') {
-        // 档案不存在，手动创建
-        const { data: newProfile, error: createError } = await supabase
-          .from('user_profiles')
-          .insert(profileData)
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('创建用户档案失败:', createError);
-          throw new Error('创建用户档案失败，请重试');
-        }
-
-        profile = newProfile;
-      } else if (profileError) {
-        console.error('获取用户档案失败:', profileError);
-        throw new Error('获取用户档案失败');
-      } else {
-        // 档案存在，更新信息
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from('user_profiles')
-          .update({
-            username: data.username,
-            display_name: data.displayName,
-            birthday: data.birthday,
-          })
-          .eq('id', authData.user.id)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('更新用户档案失败:', updateError);
-          // 不抛出错误，因为基本注册已成功
-        } else {
-          profile = updatedProfile;
-        }
+      console.log('Supabase Auth 注册成功，用户ID:', authData.user.id);
+      console.log('用户邮箱验证状态:', authData.user.email_confirmed);
+      
+      // 暂存用户注册数据，在邮箱验证成功后创建档案
+      if (!authData.user.email_confirmed) {
+        const tempUserData = {
+          username: data.username,
+          display_name: data.displayName,
+          birthday: data.birthday,
+        };
+        localStorage.setItem(`temp_user_data_${authData.user.id}`, JSON.stringify(tempUserData));
       }
 
       return { 
         user: authData.user, 
-        profile,
+        profile: null, // 档案将在邮箱验证后创建
         needsEmailVerification: !authData.user.email_confirmed
       };
 
@@ -167,6 +160,9 @@ export const registrationService = {
    */
   async checkUsernameAvailability(username: string): Promise<boolean> {
     try {
+      // 首先验证用户名格式
+      validateUsername(username);
+
       const { data, error } = await supabase
         .from('user_profiles')
         .select('username')
@@ -252,8 +248,69 @@ export const registrationService = {
         .single();
 
       if (profileError) {
-        console.error('获取用户档案失败:', profileError);
-        throw new Error('获取用户档案失败');
+        if (profileError.code === 'PGRST116') {
+          // 档案不存在，需要创建
+          console.log('用户档案不存在，尝试创建');
+          
+          // 从 localStorage 获取临时用户数据
+          const tempDataKey = `temp_user_data_${session.user.id}`;
+          const tempDataStr = localStorage.getItem(tempDataKey);
+          
+          if (!tempDataStr) {
+            throw new Error('找不到用户注册信息，请重新注册');
+          }
+          
+          const tempUserData = JSON.parse(tempDataStr);
+          
+          // 构建档案数据
+          const now = new Date().toISOString();
+          const profileData = {
+            id: session.user.id,
+            email: session.user.email!,
+            username: tempUserData.username,
+            display_name: tempUserData.display_name,
+            avatar_url: null,
+            birthday: tempUserData.birthday,
+            points: 0,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            created_at: now,
+            updated_at: now,
+            last_login: null,
+            is_active: true,
+          };
+          
+          console.log('创建用户档案，数据:', profileData);
+          
+          // 创建用户档案
+          const { data: newProfile, error: createError } = await supabase
+            .from('user_profiles')
+            .insert(profileData)
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('创建用户档案失败:', createError);
+            
+            // 处理特定错误
+            if (createError.code === '23505') {
+              throw new Error('用户名已被使用，请联系管理员');
+            } else if (createError.code === '23502') {
+              throw new Error('用户信息不完整，请重新注册');
+            }
+            
+            throw new Error(`创建用户档案失败: ${createError.message}`);
+          }
+          
+          // 清理临时数据
+          localStorage.removeItem(tempDataKey);
+          
+          console.log('用户档案创建成功');
+          return { user: session.user, profile: newProfile };
+          
+        } else {
+          console.error('获取用户档案失败:', profileError);
+          throw new Error(`获取用户档案失败: ${profileError.message}`);
+        }
       }
 
       return { user: session.user, profile };

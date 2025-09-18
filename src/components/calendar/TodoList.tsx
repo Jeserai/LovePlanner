@@ -1,11 +1,13 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Draggable } from '@fullcalendar/interaction';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useUser } from '../../contexts/UserContext';
 import { Card } from '../ui/card';
 import { ThemeButton, ThemeInput } from '../ui/Components';
 import { useTranslation } from '../../utils/i18n';
 import { EyeIcon, EyeSlashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import PixelIcon from '../PixelIcon';
+import userAwareStorage from '../../services/userAwareStorageService';
 
 interface TodoItem {
   id: string;
@@ -26,17 +28,39 @@ export interface TodoListRef {
 
 const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '', onTodoDropped, useSidebarLayout = false }, ref) => {
   const { theme, language } = useTheme();
+  const { userProfile } = useUser();
   const t = useTranslation(language);
   
   // 输入框引用
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // 🔧 从localStorage加载待办事项，如果没有则使用默认的测试数据
+  // 🔧 从用户专属存储加载待办事项
   const loadTodosFromStorage = (): TodoItem[] => {
+    if (!userProfile?.id) {
+      console.log('👤 用户未登录，返回空待办列表');
+      return [];
+    }
+
     try {
-      const stored = localStorage.getItem('calendar-todos');
-      if (stored) {
-        const parsedTodos = JSON.parse(stored);
+      // 设置当前用户ID到存储服务
+      userAwareStorage.setCurrentUserId(userProfile.id);
+      
+      // 尝试从用户专属存储读取
+      const stored = userAwareStorage.getItem('calendar-todos');
+      
+      // 如果用户专属存储没有数据，尝试迁移全局数据
+      if (!stored) {
+        console.log('🔄 尝试迁移用户的待办事项数据');
+        userAwareStorage.migrateGlobalData('calendar-todos', 'calendar-todos');
+        const migratedData = userAwareStorage.getItem('calendar-todos');
+        if (migratedData) {
+          console.log('✅ 成功迁移待办事项数据');
+        }
+      }
+      
+      const finalStored = userAwareStorage.getItem('calendar-todos');
+      if (finalStored) {
+        const parsedTodos = JSON.parse(finalStored);
         // 过滤掉测试数据
         const filteredTodos = parsedTodos.filter((todo: any) => 
           !todo.id.startsWith('test-') && 
@@ -53,14 +77,14 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
         }));
       }
     } catch (error) {
-      console.warn('加载待办事项失败:', error);
+      console.warn('加载用户待办事项失败:', error);
     }
     
-    // 返回空数组，不再提供默认测试数据
+    // 返回空数组
     return [];
   };
 
-  const [todos, setTodos] = useState<TodoItem[]>(loadTodosFromStorage);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
   
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -70,20 +94,42 @@ const TodoList = React.forwardRef<TodoListRef, TodoListProps>(({ className = '',
   const todoListRef = useRef<HTMLDivElement>(null);
   const draggableRef = useRef<Draggable | null>(null);
 
-  // 🔧 保存待办事项到localStorage
+  // 🔧 保存待办事项到用户专属存储
   const saveTodosToStorage = useCallback((todosToSave: TodoItem[]) => {
-    try {
-      localStorage.setItem('calendar-todos', JSON.stringify(todosToSave));
-      // 待办事项已保存到localStorage
-    } catch (error) {
-      console.warn('保存待办事项失败:', error);
+    if (!userProfile?.id) {
+      console.warn('👤 用户未登录，无法保存待办事项');
+      return;
     }
-  }, []);
+
+    try {
+      // 确保设置了当前用户ID
+      userAwareStorage.setCurrentUserId(userProfile.id);
+      userAwareStorage.setItem('calendar-todos', JSON.stringify(todosToSave));
+      console.log(`💾 用户 ${userProfile.display_name || userProfile.id} 的待办事项已保存`);
+    } catch (error) {
+      console.warn('保存用户待办事项失败:', error);
+    }
+  }, [userProfile?.id, userProfile?.display_name]);
+
+  // 🔧 当用户变化时重新加载待办事项
+  useEffect(() => {
+    if (userProfile?.id) {
+      console.log(`👤 加载用户 ${userProfile.display_name || userProfile.id} 的待办事项`);
+      const userTodos = loadTodosFromStorage();
+      setTodos(userTodos);
+    } else {
+      // 用户登出时清空待办事项
+      console.log('👤 用户登出，清空待办事项');
+      setTodos([]);
+    }
+  }, [userProfile?.id]);
 
   // 🔧 当todos变化时自动保存
   useEffect(() => {
-    saveTodosToStorage(todos);
-  }, [todos, saveTodosToStorage]);
+    if (userProfile?.id && todos.length >= 0) { // 只在用户登录时保存
+      saveTodosToStorage(todos);
+    }
+  }, [todos, saveTodosToStorage, userProfile?.id]);
 
   // 🔧 过滤和排序待办事项：默认隐藏已完成项目，已完成的显示在最下面
   const filteredTodos = useMemo(() => {

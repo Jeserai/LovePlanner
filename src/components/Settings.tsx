@@ -4,6 +4,7 @@ import { PaintBrushIcon, HeartIcon, KeyIcon, TrashIcon } from '@heroicons/react/
 import PixelIcon from './PixelIcon';
 import UserProfile from './UserProfile';
 import ChangePasswordForm from './ChangePasswordForm';
+import CoupleRelationshipManager from './CoupleRelationshipManager';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { ThemeButton, ThemeDialog } from './ui/Components';
 import { useTranslation } from '../utils/i18n';
@@ -160,6 +161,9 @@ const Settings: React.FC = () => {
     <div className="space-y-6">
       {/* 用户档案 */}
       <UserProfile />
+
+      {/* 情侣关系管理 */}
+      <CoupleRelationshipManager />
 
       {/* 密码和安全 */}
       {(theme as any) === 'pixel' ? (

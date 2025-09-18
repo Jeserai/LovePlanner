@@ -59,6 +59,27 @@ export const userService = {
     return data
   },
 
+  // 通过邮箱查找用户
+  async findUserByEmail(email: string): Promise<any | null> {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id, email, display_name, username, birthday')
+      .eq('email', email.toLowerCase().trim())
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // 没有找到用户
+        return null;
+      } else {
+        console.error('查找用户失败:', error);
+        throw new Error('查找用户失败');
+      }
+    }
+
+    return data;
+  },
+
   // 获取情侣关系详细信息（包含伴侣信息）
   async getCoupleRelationDetails(userId: string) {
     const { data, error } = await supabase.rpc('get_couple_relation', {

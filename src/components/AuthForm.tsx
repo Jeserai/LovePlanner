@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 import { authService, PRESET_USERS, getUserDisplayInfo } from '../services/authService';
+import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeCard, ThemeFormField, ThemeInput, ThemeButton } from './ui/Components';
 import { useTranslation } from '../utils/i18n';
 import LanguageToggle from './ui/LanguageToggle';
-import { enablePresetQuickLogin } from '../config/environment';
+import { enablePresetQuickLogin, getCurrentEnvironment } from '../config/environment';
 import { lastEmailService } from '../services/lastEmailService';
 
 
@@ -143,14 +144,69 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, onSwitchToRegister }
     try {
       await new Promise(resolve => setTimeout(resolve, 800)); // 模拟网络延迟
 
-      const { user, profile } = await authService.loginWithEmail(formData.email, formData.password);
+      let user, profile;
+      const currentEnv = getCurrentEnvironment();
+      
+      if (currentEnv === 'production') {
+        // 生产环境：使用 Supabase 正常登录
+        console.log('生产环境登录:', formData.email);
+        
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (authError) {
+          console.error('Supabase 登录失败:', authError);
+          
+          // 处理常见错误
+          if (authError.message.includes('Invalid login credentials')) {
+            throw new Error(t('invalid_login_credentials'));
+          } else if (authError.message.includes('Email not confirmed')) {
+            throw new Error(t('email_not_confirmed'));
+          } else if (authError.message.includes('Too many requests')) {
+            throw new Error(t('too_many_requests'));
+          }
+          
+          throw new Error(`登录失败: ${authError.message}`);
+        }
+
+        if (!authData.user) {
+          throw new Error(t('failed_to_get_user_info'));
+        }
+
+        user = authData.user;
+
+        // 获取用户档案
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('获取用户档案失败:', profileError);
+          throw new Error(t('failed_to_get_user_info'));
+        }
+
+        profile = profileData;
+        
+      } else {
+        // 测试环境：使用预设用户限制
+        console.log('测试环境登录:', formData.email);
+        const result = await authService.loginWithEmail(formData.email, formData.password);
+        user = result.user;
+        profile = result.profile;
+      }
       
       // 保存最后登录的邮箱地址（便于下次登录）
       lastEmailService.saveLastEmail(formData.email);
       
+      console.log('登录成功:', user.email);
       onAuthSuccess(user, profile);
 
     } catch (err: any) {
+      console.error('登录错误:', err);
       setError(err.message || t('login_failed'));
     } finally {
       setIsLoading(false);

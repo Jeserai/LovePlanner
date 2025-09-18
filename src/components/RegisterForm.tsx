@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { EyeIcon, EyeSlashIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import PixelIcon from './PixelIcon';
 import { registrationService } from '../services/registrationService';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeCard, ThemeFormField, ThemeInput, ThemeButton } from './ui/Components';
+import { Spinner } from './ui/spinner';
 import { useTranslation } from '../utils/i18n';
 import LanguageToggle from './ui/LanguageToggle';
 
@@ -40,33 +41,172 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onBackTo
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<'account' | 'profile' | 'verification'>('account');
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const lastCheckedUsername = useRef<string>('');
+  const lastCheckedEmail = useRef<string>('');
 
-  // 防抖的用户名检查
-  const checkUsernameAvailability = useCallback(async (username: string) => {
-    if (!username || username.length < 3) {
+  // 用户名格式验证（不依赖于任何变化的引用）
+  const validateUsername = useCallback((username: string) => {
+    if (!username) return { isValid: false, error: '' };
+    
+    if (username.length < 3) {
+      return { isValid: false, error: t('username_too_short') };
+    }
+
+    if (username.length > 20) {
+      return { isValid: false, error: t('username_too_long') };
+    }
+
+    // 检查是否包含空格
+    if (/\s/.test(username)) {
+      return { isValid: false, error: t('username_no_spaces') };
+    }
+
+    // 检查是否只包含允许的字符：字母、数字、下划线、连字符
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+      return { isValid: false, error: t('username_invalid_characters') };
+    }
+
+    // 不能以数字、下划线或连字符开头
+    if (/^[0-9_-]/.test(username)) {
+      return { isValid: false, error: t('username_invalid_start') };
+    }
+
+    return { isValid: true, error: '' };
+  }, [t]);
+
+  // 邮箱格式验证
+  const validateEmail = useCallback((email: string) => {
+    if (!email) return { isValid: false, error: '' };
+    
+    // 基本邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { isValid: false, error: t('invalid_email_format') };
+    }
+
+    return { isValid: true, error: '' };
+  }, [t]);
+
+  // 用户名输入防抖处理（只在用户名真正变化时检查）
+  useEffect(() => {
+    const username = formData.username.trim();
+    
+    // 如果用户名为空，重置状态
+    if (!username) {
       setUsernameStatus('idle');
+      lastCheckedUsername.current = '';
       return;
     }
 
-    setUsernameStatus('checking');
-    
-    try {
-      const isAvailable = await registrationService.checkUsernameAvailability(username);
-      setUsernameStatus(isAvailable ? 'available' : 'taken');
-    } catch (error) {
-      console.error('检查用户名可用性时出错:', error);
-      setUsernameStatus('idle');
+    // 如果与上次检查的相同，不进行检查
+    if (username === lastCheckedUsername.current) {
+      return;
     }
-  }, []);
 
-  // 用户名输入防抖处理
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      checkUsernameAvailability(formData.username);
+    // 首先进行格式验证
+    const validation = validateUsername(username);
+    if (!validation.isValid) {
+      setUsernameStatus('idle');
+      lastCheckedUsername.current = '';
+      return;
+    }
+
+    // 设置防抖计时器
+    const timeoutId = setTimeout(async () => {
+      // 再次检查用户名是否发生了变化（防止在防抖期间用户名又被修改）
+      if (username !== formData.username.trim()) {
+        return;
+      }
+
+      // 如果与上次检查的用户名相同，不重复检查
+      if (username === lastCheckedUsername.current) {
+        return;
+      }
+
+      setUsernameStatus('checking');
+      lastCheckedUsername.current = username;
+      
+      try {
+        const isAvailable = await registrationService.checkUsernameAvailability(username);
+        
+        // 检查完成后再次确认用户名没有变化
+        if (username === formData.username.trim()) {
+          setUsernameStatus(isAvailable ? 'available' : 'taken');
+        }
+      } catch (error) {
+        console.error('检查用户名可用性时出错:', error);
+        if (username === formData.username.trim()) {
+          setUsernameStatus('idle');
+        }
+        lastCheckedUsername.current = '';
+      }
     }, 500); // 500ms 防抖
 
     return () => clearTimeout(timeoutId);
-  }, [formData.username, checkUsernameAvailability]);
+  }, [formData.username, validateUsername]);
+
+  // 邮箱输入防抖处理（只在邮箱真正变化时检查）
+  useEffect(() => {
+    const email = formData.email.trim();
+    
+    // 如果邮箱为空，重置状态
+    if (!email) {
+      setEmailStatus('idle');
+      lastCheckedEmail.current = '';
+      return;
+    }
+
+    // 如果与上次检查的相同，不进行检查
+    if (email === lastCheckedEmail.current) {
+      return;
+    }
+
+    // 验证邮箱格式
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setEmailStatus('idle');
+      return;
+    }
+
+    // 防抖处理：500ms 后检查
+    const timer = setTimeout(async () => {
+      // 再次检查邮箱是否发生变化（防抖期间用户又输入了新内容）
+      if (formData.email.trim() !== email) {
+        return;
+      }
+
+      setEmailStatus('checking');
+      
+      try {
+        const isRegistered = await registrationService.checkEmailRegistered(email);
+        
+        // 最后一次检查邮箱是否变化
+        if (formData.email.trim() !== email) {
+          return;
+        }
+        
+        lastCheckedEmail.current = email;
+        setEmailStatus(isRegistered ? 'taken' : 'available');
+        
+      } catch (error) {
+        console.error('检查邮箱可用性失败:', error);
+        setEmailStatus('idle');
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.email, validateEmail]);
+
+  // 邮箱输入处理
+  const handleEmailChange = (value: string) => {
+    setFormData(prev => ({ ...prev, email: value }));
+    
+    // 如果邮箱值与上次检查的不同，重置状态
+    if (value.trim() !== lastCheckedEmail.current) {
+      setEmailStatus('idle');
+    }
+  };
 
   // 表单验证
   const validateForm = () => {
@@ -85,8 +225,21 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onBackTo
       return false;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError(t('invalid_email_format'));
+    // 使用 validateEmail 函数进行格式验证
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.error);
+      return false;
+    }
+
+    // 检查邮箱可用性状态
+    if (emailStatus === 'taken') {
+      setError(t('email_already_registered'));
+      return false;
+    }
+
+    if (emailStatus === 'checking') {
+      setError(t('please_wait_email_check'));
       return false;
     }
 
@@ -114,8 +267,10 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onBackTo
       return;
     }
 
-    if (formData.username.length < 3) {
-      setError(t('username_too_short'));
+    // 验证用户名格式
+    const usernameValidation = validateUsername(formData.username);
+    if (!usernameValidation.isValid) {
+      setError(usernameValidation.error);
       return;
     }
 
@@ -207,14 +362,44 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onBackTo
   const renderAccountStep = () => (
     <form onSubmit={handleAccountSubmit} className="space-y-4">
       <ThemeFormField label={t('email_address')} required>
-        <ThemeInput
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          placeholder={t('enter_email')}
-          disabled={isLoading}
-          error={!!error}
-        />
+        <div className="relative">
+          <ThemeInput
+            type="email"
+            value={formData.email}
+            onChange={(e) => handleEmailChange(e.target.value)}
+            placeholder={t('enter_email')}
+            disabled={isLoading}
+            error={!!error}
+          />
+          {/* 邮箱状态指示器 */}
+          {formData.email && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {emailStatus === 'checking' && (
+                <Spinner className="w-4 h-4 text-muted-foreground" />
+              )}
+              {emailStatus === 'available' && validateEmail(formData.email).isValid && (
+                <CheckIcon className="w-4 h-4 text-green-500" />
+              )}
+              {emailStatus === 'taken' && (
+                <XMarkIcon className="w-4 h-4 text-red-500" />
+              )}
+            </div>
+          )}
+        </div>
+        {/* 邮箱状态提示文字 */}
+        {formData.email && emailStatus !== 'idle' && (
+          <div className="mt-1 text-xs">
+            {emailStatus === 'checking' && (
+              <span className="text-muted-foreground">{t('checking_email_availability')}</span>
+            )}
+            {emailStatus === 'available' && validateEmail(formData.email).isValid && (
+              <span className="text-green-600">{t('email_available')}</span>
+            )}
+            {emailStatus === 'taken' && (
+              <span className="text-red-600">{t('email_already_registered')}</span>
+            )}
+          </div>
+        )}
       </ThemeFormField>
 
       <ThemeFormField label={t('password')} required>
@@ -303,6 +488,10 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onBackTo
             onChange={(e) => {
               setFormData({ ...formData, username: e.target.value });
               setError(''); // 清除错误信息
+              // 如果用户正在输入，暂时重置用户名状态为idle（直到防抖完成）
+              if (e.target.value.trim() !== lastCheckedUsername.current) {
+                setUsernameStatus('idle');
+              }
             }}
             placeholder={t('enter_username')}
             disabled={isLoading}
@@ -314,20 +503,31 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onBackTo
             {usernameStatus === 'checking' && (
               <div className="w-4 h-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
             )}
-            {usernameStatus === 'available' && (
+            {usernameStatus === 'available' && formData.username && (
               <CheckIcon className="w-4 h-4 text-green-500" />
             )}
-            {usernameStatus === 'taken' && (
+            {usernameStatus === 'taken' && formData.username && (
               <XMarkIcon className="w-4 h-4 text-red-500" />
             )}
           </div>
         </div>
         <div className="mt-1 space-y-1">
           <p className="text-xs text-muted-foreground">{t('username_tip')}</p>
-          {usernameStatus === 'available' && formData.username.length >= 3 && (
+          
+          {/* 实时格式验证提示 */}
+          {formData.username && (() => {
+            const validation = validateUsername(formData.username);
+            if (!validation.isValid) {
+              return <p className="text-xs text-red-600">{validation.error}</p>;
+            }
+            return null;
+          })()}
+          
+          {/* 可用性检查结果 */}
+          {usernameStatus === 'available' && formData.username && validateUsername(formData.username).isValid && (
             <p className="text-xs text-green-600">{t('username_available')}</p>
           )}
-          {usernameStatus === 'taken' && (
+          {usernameStatus === 'taken' && formData.username && (
             <p className="text-xs text-red-600">{t('username_already_taken')}</p>
           )}
         </div>
