@@ -44,10 +44,7 @@ export const useEventForm = (
           (updatedEvent.date !== selectedEvent.date || 
            updatedEvent.rawStartTime !== selectedEvent.rawStartTime || 
            updatedEvent.rawEndTime !== selectedEvent.rawEndTime)) {
-        console.log('🔄 检测到事件更新，同步selectedEvent:', {
-          旧事件: { date: selectedEvent.date, startTime: selectedEvent.rawStartTime },
-          新事件: { date: updatedEvent.date, startTime: updatedEvent.rawStartTime }
-        });
+        // console.log('🔄 检测到事件更新，同步selectedEvent');
         setSelectedEvent(updatedEvent);
       }
     }
@@ -155,12 +152,7 @@ export const useEventForm = (
         if (selectedEvent.isRecurring && scope) {
           const originalEventId = getOriginalEventId(selectedEvent.id);
           
-          console.log('🔧 重复事件编辑参数:', {
-            原始ID: originalEventId,
-            选中事件ID: selectedEvent.id,
-            是否展开实例: isExpandedInstance(selectedEvent.id),
-            操作范围: scope
-          });
+          // console.log('🔧 重复事件编辑参数:', { originalEventId, scope });
           
           if (scope === 'all_events') {
             // 更新原始重复事件（影响所有实例）
@@ -171,7 +163,7 @@ export const useEventForm = (
             success = await eventService.modifyRecurringEventInstance(originalEventId, instanceDate, updateData);
           } else {
             // this_and_future 暂时不支持
-            console.log('⚠️ 暂不支持编辑"此事件及之后"，请选择"仅此事件"或"所有重复事件"');
+            // console.log('⚠️ 暂不支持编辑“此事件及之后”，请选择“仅此事件”或“所有重复事件”');
             alert('暂不支持编辑"此事件及之后"，请选择"仅此事件"或"所有重复事件"');
             return;
           }
@@ -250,20 +242,14 @@ export const useEventForm = (
       // rawStartTime已经是本地时间（如 "11:30:00"），直接与日期组合
       const timeStr = (event as any).rawStartTime;
       startDateTime = `${event.date}T${timeStr.slice(0, 5)}`; // 只取HH:MM部分
-      console.log('📝 编辑表单开始时间:', {
-        原始rawStartTime: (event as any).rawStartTime,
-        组合结果: startDateTime
-      });
+      // console.log('📝 编辑表单开始时间:', { startDateTime });
     }
     
     if ((event as any).rawEndTime) {
       // rawEndTime已经是本地时间（如 "12:30:00"），直接与日期组合
       const timeStr = (event as any).rawEndTime;
       endDateTime = `${event.date}T${timeStr.slice(0, 5)}`; // 只取HH:MM部分
-      console.log('📝 编辑表单结束时间:', {
-        原始rawEndTime: (event as any).rawEndTime,
-        组合结果: endDateTime
-      });
+      // console.log('📝 编辑表单结束时间:', { endDateTime });
     }
     
     // 默认值，如果没有原始时间数据
@@ -312,13 +298,7 @@ export const useEventForm = (
         const originalEventId = getOriginalEventId(selectedEvent.id);
         const instanceDate = selectedEvent.originalDate || selectedEvent.date;
         
-        console.log('🗑️ 重复事件删除参数:', {
-          原始ID: originalEventId,
-          选中事件ID: selectedEvent.id,
-          是否展开实例: isExpandedInstance(selectedEvent.id),
-          实例日期: instanceDate,
-          操作范围: scope
-        });
+        // console.log('🗑️ 重复事件删除参数:', { originalEventId, instanceDate, scope });
         
         if (scope === 'all_events') {
           // 删除原始重复事件（数据库中的真实记录）
@@ -326,10 +306,12 @@ export const useEventForm = (
         } else if (scope === 'this_only') {
           // 🔧 删除单个实例：添加到excluded_dates
           success = await eventService.excludeRecurringEventInstance(originalEventId, instanceDate);
+        } else if (scope === 'this_and_future') {
+          // 🔧 删除此事件及未来事件：通过设置recurrence_end
+          success = await eventService.deleteThisAndFutureEvents(originalEventId, instanceDate);
         } else {
-          // this_and_future 暂时不支持，因为需要更复杂的逻辑
-          console.log('⚠️ 暂不支持删除"此事件及之后"，请选择"仅此事件"或"所有重复事件"');
-          alert('暂不支持删除"此事件及之后"，请选择"仅此事件"或"所有重复事件"');
+          // console.log('⚠️ 未知的删除范围:', scope);
+          alert('未知的删除范围');
           return;
         }
       } else {

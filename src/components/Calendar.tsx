@@ -184,14 +184,14 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           const includesPartner = event.participants.includes(partnerIdForFiltering)
           const isMyEvent = includesMe && !includesPartner
           
-          console.log(`📋 我的事件过滤: ${event.title} - ${isMyEvent ? '✅' : '❌'}`, {
-            事件参与者: event.participants,
-            当前用户ID: currentUserId,
-            伙伴ID: partnerIdForFiltering,
-            包含我: includesMe,
-            包含伙伴: includesPartner,
-            是我的事件: isMyEvent
-          })
+          // console.log(`📋 我的事件过滤: ${event.title} - ${isMyEvent ? '✅' : '❌'}`, {
+          //   事件参与者: event.participants,
+          //   当前用户ID: currentUserId,
+          //   伙伴ID: partnerIdForFiltering,
+          //   包含我: includesMe,
+          //   包含伙伴: includesPartner,
+          //   是我的事件: isMyEvent
+          // })
           return isMyEvent
         })
         break

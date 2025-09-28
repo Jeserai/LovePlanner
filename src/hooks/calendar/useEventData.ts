@@ -14,7 +14,17 @@ const expandRecurringEvent = (dbEvent: SimplifiedEvent): SimplifiedEvent[] => {
 
   const instances: SimplifiedEvent[] = [];
   const startDate = parseISO(dbEvent.start_datetime);
-  const endDate = dbEvent.recurrence_end ? parseISO(dbEvent.recurrence_end) : addMonths(startDate, 6); // 默认展开6个月
+  
+  // 🔧 修复结束日期解析：确保包含性结束日期
+  let endDate: Date;
+  if (dbEvent.recurrence_end) {
+    // 为结束日期添加时间部分，确保包含这一整天
+    endDate = parseISO(dbEvent.recurrence_end + 'T23:59:59');
+  } else {
+    endDate = addMonths(startDate, 6); // 默认展开6个月
+  }
+  
+  // console.log('🔄 开始展开重复事件:', { 事件标题: dbEvent.title, 开始日期: format(startDate, 'yyyy-MM-dd'), 结束日期: format(endDate, 'yyyy-MM-dd') });
   
   // 🔧 获取排除的日期列表
   const excludedDates = new Set(dbEvent.excluded_dates || []);
@@ -26,12 +36,14 @@ const expandRecurringEvent = (dbEvent: SimplifiedEvent): SimplifiedEvent[] => {
   let instanceCount = 0;
   const maxInstances = 100; // 防止无限循环
 
-  while ((isBefore(currentDate, endDate) || currentDate.getTime() === endDate.getTime()) && instanceCount < maxInstances) {
+  while (isBefore(currentDate, endDate) && instanceCount < maxInstances) {
     const currentDateStr = format(currentDate, 'yyyy-MM-dd');
+    
+    // console.log(`📅 检查日期 ${currentDateStr}:`, { isBefore: isBefore(currentDate, endDate) });
     
     // 🔧 跳过被排除的日期
     if (excludedDates.has(currentDateStr)) {
-      console.log('⏭️ 跳过被排除的日期:', currentDateStr);
+      // console.log('⏭️ 跳过被排除的日期:', currentDateStr);
       // 继续到下一个日期
       switch (dbEvent.recurrence_type) {
         case 'daily':
@@ -63,7 +75,7 @@ const expandRecurringEvent = (dbEvent: SimplifiedEvent): SimplifiedEvent[] => {
     let instanceData = { ...dbEvent };
     if (modifiedInstances[currentDateStr]) {
       const modifications = modifiedInstances[currentDateStr];
-      console.log('🔧 应用修改的实例数据:', { date: currentDateStr, modifications });
+      // console.log('🔧 应用修改的实例数据:', { date: currentDateStr, modifications });
       
       // 应用修改的数据
       instanceData = { ...instanceData, ...modifications };
@@ -83,8 +95,10 @@ const expandRecurringEvent = (dbEvent: SimplifiedEvent): SimplifiedEvent[] => {
       id: instanceCount === 0 ? dbEvent.id : `${dbEvent.id}-${currentDateStr}`,
       start_datetime: instanceStartTime,
       end_datetime: instanceEndTime,
-      original_date: format(startDate, 'yyyy-MM-dd')
+      original_date: currentDateStr  // 🔧 修复：使用当前实例的日期，而不是起始日期
     };
+
+    // console.log(`📅 创建重复事件实例 ${instanceCount + 1}:`, { 日期: currentDateStr });
 
     instances.push(instance);
 
@@ -109,15 +123,7 @@ const expandRecurringEvent = (dbEvent: SimplifiedEvent): SimplifiedEvent[] => {
     instanceCount++;
   }
 
-  console.log('🔄 重复事件展开:', {
-    原始事件: dbEvent.title,
-    重复类型: dbEvent.recurrence_type,
-    生成实例数: instances.length,
-    排除日期数: excludedDates.size,
-    修改实例数: Object.keys(modifiedInstances).length,
-    开始日期: format(startDate, 'yyyy-MM-dd'),
-    结束日期: format(endDate, 'yyyy-MM-dd')
-  });
+  // console.log('🔄 重复事件展开完成:', { 原始事件: dbEvent.title, 生成实例数: instances.length });
 
   return instances;
 };
@@ -277,22 +283,22 @@ export const useEventData = (user: any) => {
   // 初始化数据
   useEffect(() => {
     const initializeData = async () => {
-      console.log('🚀 开始初始化事件数据:', { user: user?.id, userEmail: user?.email });
+      // console.log('🚀 开始初始化事件数据');
       
       if (!user?.id) {
-        console.log('❌ 用户ID不存在，跳过初始化');
+        // console.log('❌ 用户ID不存在，跳过初始化');
         setLoading(false);
         return;
       }
 
       try {
         // 获取情侣关系
-        console.log('🔍 获取情侣关系...');
+        // console.log('🔍 获取情侣关系...');
         const coupleRelation = await userService.getCoupleRelation(user.id);
-        console.log('💑 情侣关系结果:', coupleRelation);
+        // console.log('💑 情侣关系结果:', coupleRelation);
         
         if (!coupleRelation) {
-          console.log('❌ 未找到情侣关系');
+          // console.log('❌ 未找到情侣关系');
           setLoading(false);
           return;
         }
@@ -300,22 +306,22 @@ export const useEventData = (user: any) => {
         setCoupleId(coupleRelation.id);
 
         // 获取情侣用户信息
-        console.log('👥 获取情侣用户信息...');
+        // console.log('👥 获取情侣用户信息...');
         const users = await userService.getCoupleUsers(coupleRelation.id);
-        console.log('👥 情侣用户结果:', users);
+        // console.log('👥 情侣用户结果:', users);
         
         if (users.length >= 2) {
           const coupleUsersData = {
             user1: users[0],
             user2: users[1]
           };
-          console.log('📝 准备设置coupleUsers状态:', coupleUsersData);
+          // console.log('📝 准备设置coupleUsers状态:', coupleUsersData);
           setCoupleUsers(coupleUsersData);
-          console.log('✅ coupleUsers状态已设置');
+          // console.log('✅ coupleUsers状态已设置');
 
           // 🔧 修复：在设置coupleUsers后再转换事件
           const dbEvents = await eventService.getCoupleEvents(coupleRelation.id);
-          console.log('🔍 数据库原始事件数据:', dbEvents);
+          // console.log('🔍 数据库原始事件数据:', dbEvents);
           
           // 🔧 展开重复事件为多个实例
           const expandedEvents: SimplifiedEvent[] = [];
@@ -324,11 +330,7 @@ export const useEventData = (user: any) => {
             expandedEvents.push(...instances);
           }
           
-          console.log('📅 初始化事件展开结果:', {
-            原始事件数: dbEvents.length,
-            展开后事件数: expandedEvents.length,
-            重复事件: dbEvents.filter(e => e.is_recurring).map(e => ({ title: e.title, type: e.recurrence_type }))
-          });
+          // console.log('📅 初始化事件展开结果:', { 原始事件数: dbEvents.length, 展开后事件数: expandedEvents.length });
           
           // 使用本地coupleUsers数据进行转换
           const convertedEvents = expandedEvents.map(dbEvent => {
@@ -344,26 +346,14 @@ export const useEventData = (user: any) => {
               const datePart = convertedTime.split(' ')[0]; // "2025/09/06"
               // 转换为ISO格式
               localDate = datePart.replace(/\//g, '-'); // "2025-09-06"
-              console.log('🔧 日期格式转换:', {
-                原始UTC: dbEvent.start_datetime,
-                转换后: convertedTime,
-                提取日期: datePart,
-                ISO日期: localDate
-              });
+              // console.log('🔧 日期格式转换:', { 原始UTC: dbEvent.start_datetime, ISO日期: localDate });
             } else {
               localDate = new Date().toISOString().split('T')[0];
             }
             
             const timeDisplay = formatTimeFromDatetime(dbEvent.start_datetime, dbEvent.end_datetime);
             
-            console.log('🔧 事件参与者转换:', {
-            事件: dbEvent.title,
-            includes_user1: dbEvent.includes_user1,
-            includes_user2: dbEvent.includes_user2,
-            参与者数组: participants,
-            user1_id: coupleUsersData.user1.id,
-            user2_id: coupleUsersData.user2.id
-          });
+            // console.log('🔧 事件参与者转换:', { 事件: dbEvent.title, participants });
             
             return {
               id: dbEvent.id,
@@ -404,10 +394,10 @@ export const useEventData = (user: any) => {
             };
           });
           
-          console.log('✅ 转换后的事件数据:', convertedEvents);
+          // console.log('✅ 转换后的事件数据:', convertedEvents);
           console.log('📝 准备设置events状态...');
           setEvents(convertedEvents);
-          console.log('✅ events状态已设置');
+          // console.log('✅ events状态已设置');
         }
       } catch (error) {
         console.error('❌ 初始化事件数据失败:', error);
@@ -417,7 +407,7 @@ export const useEventData = (user: any) => {
           userId: user?.id
         });
       } finally {
-        console.log('🏁 初始化完成，设置loading=false');
+        // console.log('🏁 初始化完成，设置loading=false');
         setLoading(false);
       }
     };

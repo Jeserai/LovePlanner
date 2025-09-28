@@ -428,6 +428,215 @@ export const eventService = {
       console.error('修改重复事件实例失败:', error);
       return false;
     }
+  },
+
+  // 🗑️ 排除重复事件的单个实例（添加到excluded_dates）
+  // 🧠 智能清理：如果所有实例都被排除，自动删除原始记录
+  async excludeRecurringEventInstance(
+    eventId: string,
+    excludeDate: string
+  ): Promise<boolean> {
+    try {
+      // 获取完整的事件信息
+      const { data: event, error: fetchError } = await supabase
+        .from('events')
+        .select('excluded_dates, start_datetime, recurrence_type, recurrence_end')
+        .eq('id', eventId)
+        .single();
+
+      if (fetchError) {
+        console.error('获取事件失败:', fetchError);
+        return false;
+      }
+
+      // 添加日期到排除列表
+      const currentExcludedDates = event.excluded_dates || [];
+      const updatedExcludedDates = [...currentExcludedDates];
+      
+      // 避免重复添加
+      if (!updatedExcludedDates.includes(excludeDate)) {
+        updatedExcludedDates.push(excludeDate);
+      }
+
+      // 🧠 智能检查：计算所有可能的重复实例，判断是否全部被排除
+      const shouldDeleteOriginal = await this.checkIfAllInstancesExcluded(
+        event, 
+        updatedExcludedDates
+      );
+
+      if (shouldDeleteOriginal) {
+        // 🗑️ 删除原始记录，因为所有实例都被排除了
+        // console.log('🧠 检测到所有实例都被排除，删除原始重复事件记录:', eventId);
+        const { error: deleteError } = await supabase
+          .from('events')
+          .delete()
+          .eq('id', eventId);
+
+        if (deleteError) {
+          console.error('删除原始事件记录失败:', deleteError);
+          return false;
+        }
+
+        // console.log('✅ 智能清理完成：已删除无实例的重复事件记录');
+        return true;
+      } else {
+        // 正常更新excluded_dates
+        const { error: updateError } = await supabase
+          .from('events')
+          .update({ excluded_dates: updatedExcludedDates })
+          .eq('id', eventId);
+
+        if (updateError) {
+          console.error('更新excluded_dates失败:', updateError);
+          return false;
+        }
+
+        // console.log('✅ 成功排除重复事件实例:', { eventId, excludeDate });
+        return true;
+      }
+    } catch (error) {
+      console.error('排除重复事件实例失败:', error);
+      return false;
+    }
+  },
+
+  // 🧠 检查是否所有重复实例都被排除
+  async checkIfAllInstancesExcluded(
+    event: any,
+    excludedDates: string[]
+  ): Promise<boolean> {
+    if (!event.start_datetime || !event.recurrence_type) {
+      return false;
+    }
+
+    // 生成所有可能的重复实例日期
+    const allInstanceDates = this.generateAllRecurringDates(
+      event.start_datetime,
+      event.recurrence_type,
+      event.recurrence_end
+    );
+
+    // 检查是否所有日期都在excludedDates中
+    const excludedSet = new Set(excludedDates);
+    const allExcluded = allInstanceDates.every(date => excludedSet.has(date));
+
+    // console.log('🧠 智能检查结果:', { 总实例数: allInstanceDates.length, 排除实例数: excludedDates.length, 是否全部排除: allExcluded });
+
+    return allExcluded;
+  },
+
+  // 📊 生成所有重复实例的日期
+  generateAllRecurringDates(
+    startDateTime: string,
+    recurrenceType: string,
+    recurrenceEnd: string | null
+  ): string[] {
+    const dates: string[] = [];
+    const startDate = new Date(startDateTime);
+    const endDate = recurrenceEnd 
+      ? new Date(recurrenceEnd + 'T23:59:59')
+      : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 默认1年
+
+    let currentDate = new Date(startDate);
+    const maxInstances = 1000; // 防止无限循环
+    let instanceCount = 0;
+
+    while (currentDate <= endDate && instanceCount < maxInstances) {
+      dates.push(currentDate.toISOString().split('T')[0]);
+      
+      // 计算下一个日期
+      switch (recurrenceType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + 7);
+          break;
+        case 'biweekly':
+          currentDate.setDate(currentDate.getDate() + 14);
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          break;
+        case 'yearly':
+          currentDate.setFullYear(currentDate.getFullYear() + 1);
+          break;
+        default:
+          return dates;
+      }
+      instanceCount++;
+    }
+
+    return dates;
+  },
+
+  // 📊 计算剩余实例数
+  async calculateRemainingInstances(
+    event: any,
+    excludedDates: string[]
+  ): Promise<number> {
+    const allDates = this.generateAllRecurringDates(
+      event.start_datetime,
+      event.recurrence_type,
+      event.recurrence_end
+    );
+    const excludedSet = new Set(excludedDates);
+    return allDates.filter(date => !excludedSet.has(date)).length;
+  },
+
+  // 🗑️ 删除此事件及未来事件（通过设置recurrence_end）
+  async deleteThisAndFutureEvents(
+    eventId: string,
+    cutoffDate: string
+  ): Promise<boolean> {
+    try {
+      // 获取当前事件信息
+      const { data: event, error: fetchError } = await supabase
+        .from('events')
+        .select('recurrence_end, excluded_dates')
+        .eq('id', eventId)
+        .single();
+
+      if (fetchError) {
+        console.error('获取事件失败:', fetchError);
+        return false;
+      }
+
+      // 🔧 计算新的结束日期（cutoffDate的前一天）
+      // 直接使用日期字符串操作避免时区问题
+      const cutoffDate_parts = cutoffDate.split('-');
+      const year = parseInt(cutoffDate_parts[0]);
+      const month = parseInt(cutoffDate_parts[1]);
+      const day = parseInt(cutoffDate_parts[2]);
+      
+      // 创建本地日期对象并减一天
+      const cutoffDateObj = new Date(year, month - 1, day); // month-1因为Date构造函数中月份从0开始
+      cutoffDateObj.setDate(cutoffDateObj.getDate() - 1);
+      
+      // 格式化为YYYY-MM-DD字符串，避免时区转换
+      const newRecurrenceEnd = cutoffDateObj.getFullYear() + '-' + 
+                               String(cutoffDateObj.getMonth() + 1).padStart(2, '0') + '-' + 
+                               String(cutoffDateObj.getDate()).padStart(2, '0');
+
+      // console.log('🗑️ 删除此事件及未来事件:', { cutoffDate, newRecurrenceEnd });
+
+      // 更新recurrence_end来停止在指定日期之前
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({ recurrence_end: newRecurrenceEnd })
+        .eq('id', eventId);
+
+      if (updateError) {
+        console.error('更新recurrence_end失败:', updateError);
+        return false;
+      }
+
+      // console.log('✅ 成功删除此事件及未来事件:', { eventId, cutoffDate, newRecurrenceEnd });
+      return true;
+    } catch (error) {
+      console.error('删除此事件及未来事件失败:', error);
+      return false;
+    }
   }
 };
 
